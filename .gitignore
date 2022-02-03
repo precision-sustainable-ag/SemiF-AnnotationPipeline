@@ -4,6 +4,7 @@ building_data_loaders
 
 # Drawio flowcharts
 *.drawio
+*.drawio.xml
 
 # PDF resource docs
 *.pdf
