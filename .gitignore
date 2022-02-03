@@ -1,3 +1,13 @@
+
+# Resource/tutorial folder
+building_data_loaders
+
+# Drawio flowcharts
+*.drawio
+
+# PDF resource docs
+*.pdf
+
 # Jupyter Notebook
 .ipynb_checkpoints
 
