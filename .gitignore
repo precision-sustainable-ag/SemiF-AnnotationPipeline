@@ -17,3 +17,5 @@ building_data_loaders
 ._.DS_Store
 
 __pycache__
+
+scratch.ipynb
