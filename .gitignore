@@ -1,8 +1,6 @@
 
 # Sample data
-/data
-# Resource/tutorial folder
-building_data_loaders
+/test/testdata
 
 # Drawio flowcharts
 *.drawio
@@ -14,65 +12,16 @@ building_data_loaders
 # Jupyter Notebook
 .ipynb_checkpoints
 
-# IPython
-profile_default/
-ipython_config.py
+# Pytest cache
+.pytest_cache
 
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+# Mac OSX
+._.DS_Store
 
-# pyenv
-.python-version
+# Pycache
+__pycache __
 
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
+# Scratch notebook
+scratch.ipynb
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-
-# mkdocs documentation
-/site
+*.pyc
