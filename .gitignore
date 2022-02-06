@@ -1,8 +1,6 @@
 
 # Sample data
-/data
-# Resource/tutorial folder
-building_data_loaders
+/test/testdata
 
 # Drawio flowcharts
 *.drawio
@@ -14,8 +12,16 @@ building_data_loaders
 # Jupyter Notebook
 .ipynb_checkpoints
 
+# Pytest cache
+.pytest_cache
+
+# Mac OSX
 ._.DS_Store
 
-__pycache__
+# Pycache
+__pycache __
 
+# Scratch notebook
 scratch.ipynb
+
+*.pyc

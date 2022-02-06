@@ -1,0 +1,110 @@
+import csv
+from dataclasses import dataclass, field
+from pathlib import Path
+import numpy as np
+import cv2
+import os
+import glob
+import uuid
+import yaml
+
+
+class InputMetadata:
+    """ Input metadata to create a metadata yaml file. """
+
+    def __init__(self, output_path):
+        self.output_path = output_path
+        self.upload_id = self.upload_id()
+        input_metadata = self.inputdata()
+
+    def inputdata(self):
+        image_dir = input("image directory: ")
+        upload_id = self.upload_id
+        date = input("date: ")
+        time = input("time: ")
+        location = input("location: ")
+        cloud_cover = input("cloud_cover: ")
+        camera_height = input("camera_height: ")
+        camera_lens = input("camera_lens: ")
+        pot_height = input("pot_height: ")
+
+        data_dict = [{
+            "upload_path": self.output_path,
+            "image_dir": image_dir,
+            "upload_id": upload_id,
+            "date": date,
+            "time": time,
+            "location": location,
+            "cloud_cover": cloud_cover,
+            "camera_height": camera_height,
+            "camera_lens": camera_lens,
+            "pot_height": pot_height
+        }]
+
+        with open(self.output_path, 'w') as f:
+            # f.write(json.dumps(data_dict))
+            yaml.dump(data_dict, f, default_flow_style=False, sort_keys=False)
+            f.close()
+
+    def upload_id(self):
+        uid = str(uuid.uuid4())
+        return uid
+
+
+@dataclass
+class ImageData:
+    """ Loads images and metadata. Is also iterable to access image arrays """
+    upload_id: str
+    path: str
+    date: str
+    time: str
+    location: str
+    cloud_cover: str
+    camera_height: str
+    camera_lens: str
+    pot_height: str
+    files: list = field(default_factory=list)
+    nf: int = field(default_factory=int)
+
+    def __post_init__(self):
+        IMG_FORMATS = ['JPG', 'jpg', 'JPEG', 'jpeg', 'PNG',
+                       'png']  # include image suffixes
+
+        p = str(Path(self.path).resolve())  # os-agnostic absolute path
+        if '*' in p:
+            files = sorted(glob.glob(p, recursive=True))  # glob
+        elif os.path.isdir(p):
+            files = sorted(glob.glob(os.path.join(p, '*.*')))  # dir
+        elif os.path.isfile(p):
+            files = [p]  # files
+        else:
+            raise Exception(f'ERROR: {p} does not exist')
+        images = [x for x in files if x.split('.')[-1].lower() in IMG_FORMATS]
+        # Number of images
+        self.nf = len(images)
+        self.files = images
+        assert self.nf > 0, f'No images found in {p}. ' \
+                            f'Supported formats are:\nimages: {IMG_FORMATS}'
+
+    def __iter__(self):
+        self.count = 0
+        return self
+
+    def __next__(self):
+        if self.count == self.nf:
+            raise StopIteration
+        path = self.files[self.count]
+
+        # Read image
+        self.count += 1
+        img0 = cv2.imread(path)  # BGR
+        assert img0 is not None, f'Image Not Found {path}'
+        s = f'image {self.count}/{self.nf} {path}: '
+
+        # Convert
+        img = cv2.cvtColor(img0, cv2.COLOR_BGR2RGB)
+        img = np.ascontiguousarray(img)
+        return path, img, img0, s
+
+    def __len__(self):
+        return self.nf  # number of files
