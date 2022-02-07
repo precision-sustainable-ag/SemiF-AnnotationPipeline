@@ -1,4 +1,3 @@
-import csv
 from dataclasses import dataclass, field
 from pathlib import Path
 import numpy as np
@@ -53,7 +52,32 @@ class InputMetadata:
 
 @dataclass
 class ImageData:
-    """ Loads images and metadata. Is also iterable to access image arrays """
+    """ Loads images and metadata. Is also iterable to access image arrays
+    Parameters:
+    upload_id = uuid str
+    path = path to image directory
+    date = date of image acquisition from metadata
+    time = time of image acquisition from metadata
+    location = TX, MD, or NC
+    cloud_cover = brief description of cloud cover
+    camera_height = height of camera on benchbot in meters
+    camera_lens = 35 or 55 in millimeteres
+    pot_height = from top to bottom in meters
+    files = list of image file paths
+    nf = number of image files
+    
+    : params upload_id: str
+    : params path: str
+    : params date: str
+    : params time: str
+    : params location: str
+    : params cloud_cover: str
+    : params camera_height: float
+    : params camera_lens: float
+    : params pot_height: float
+    : params files: list[str]
+    : params nf: int
+    """
     upload_id: str
     path: str
     date: str

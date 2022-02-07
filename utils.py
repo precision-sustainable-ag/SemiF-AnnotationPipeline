@@ -6,32 +6,6 @@ import csv
 from datasets import ImageData
 
 
-class ExtractVegetation:
-    """ Extracts vegetation segments
-    Inputs:
-    data            = Color image (np.array) as an ImageData instance
-    Returns:
-    index_array     = Cutout images as an instance of ImageData
-
-    :param rgb_img: np.array
-    :return index_array: np.array
-    """
-
-    def __init__(self, data):
-        self.data = data
-
-    def exg(self):
-        # Get exg
-        print()
-
-    def otsu(self):
-        # Get Otsu
-        print()
-
-    def kmeans(self):
-        print()
-
-
 def get_files(
         parent_dir,
         extensions=["*.jpg", "*.JPG", "*.png", "*.PNG", "*.jpeg", "*.JPEG"]):
@@ -76,46 +50,21 @@ def csv2dict(csv_path):
     return result
 
 
-def exg(rgb_img):
-    """Excess Green Index.
-    r = R / (R + G + B)
-    g = G / (R + G + B)
-    b = B / (R + G + B)
-    EGI = 2g - r - b
-    The theoretical range for ExG is (-1, 2).
-    Inputs:
-    rgb_img      = Color image (np.array)
-    Returns:
-    index_array    = Index data as a Spectral_data instance
-    :param rgb_img: np.array
-    :return index_array: np.array
-    """
+def get_exg_histogram(exg):
+    hist = cv2.calcHist([exg], [0], None, [256], [0, 256])
 
-    # Split the RGB image into component channels
-    blue, green, red = cv2.split(rgb_img)
-    # Calculate float32 sum of all channels
-    total = red.astype(np.float32) + green.astype(np.float32) + blue.astype(
-        np.float32)
-    # Calculate normalized channels
-    r = red.astype(np.float32) / total
-    g = green.astype(np.float32) / total
-    b = blue.astype(np.float32) / total
-    index_array_raw = (2 * g) - r - b
+    # plot the histogram
+    plt.figure()
+    plt.title("Grayscale Histogram")
+    plt.xlabel("Bins")
+    plt.ylabel("# of Pixels")
+    plt.plot(hist)
+    plt.xlim([0, 256])
+    plt.show()
 
-    hsi = Spectral_data(array_data=None,
-                        max_wavelength=0,
-                        min_wavelength=0,
-                        max_value=255,
-                        min_value=0,
-                        d_type=np.uint8,
-                        wavelength_dict={},
-                        samples=None,
-                        lines=None,
-                        interleave=None,
-                        wavelength_units=None,
-                        array_type=None,
-                        pseudo_rgb=None,
-                        filename=None,
-                        default_bands=None)
 
-    return _package_index(hsi=hsi, raw_index=index_array_raw, method="EGI")
+def show(img, title=None):
+    plt.figure(figsize=(12, 8))
+    plt.imshow(img)
+    plt.axis(False)
+    plt.show()

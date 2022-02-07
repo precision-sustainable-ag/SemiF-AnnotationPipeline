@@ -6,7 +6,7 @@ class TestImageData:
     def __init__(self):
         """Test data for ImageData"""
         self.upload_id = "fake_test_id"
-        self.path = "test/testdata"
+        self.path = "test/testsample"
         self.date = "12122022"
         self.time = "010212"
         self.location = "test_TX"
