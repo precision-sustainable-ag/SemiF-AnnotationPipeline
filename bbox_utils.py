@@ -45,51 +45,80 @@ def rotation_transform(coord: np.ndarray, R: np.ndarray) -> np.ndarray:
     return rotated_coord
 
 
-def find_world_coords(center_coords: np.ndarray, unrotated_coords: np.ndarray, yaw_angle: float, is_bbox: bool):
+def find_global_coords(center_coords: np.ndarray, 
+                       unrotated_coords: np.ndarray, 
+                       yaw_angle: float, 
+                       is_bbox: bool=True) -> np.ndarray:
+    """_summary_
 
-    world_center_coords = np.array(center_coords)
-    if np.ndim(world_center_coords) == 1:
-        world_center_coords = np.expand_dims(world_center_coords, axis=0)
+    Args:
+        center_coords (np.ndarray): _description_
+        unrotated_coords (np.ndarray): _description_
+        yaw_angle (float): _description_
+        is_bbox (bool, optional): _description_. Defaults to True.
+
+    Returns:
+        np.ndarray: _description_
+    """
+
+    global_center_coords = np.array(center_coords)
+    if np.ndim(global_center_coords) == 1:
+        global_center_coords = np.expand_dims(global_center_coords, axis=0)
 
     R = get_xy_rotation_matrix(yaw_angle)
 
     # Rotate the new coordinate
     rotated_coordinates = rotation_transform(unrotated_coords, R)
 
-    # Invert the translation
-    world_coordinates = rotated_coordinates + world_center_coords
+    # Translate to image center in global coordinates
+    global_coordinates = rotated_coordinates + global_center_coords
 
     if is_bbox:
-        _world_coordinates = world_coordinates.copy()
-        mask = np.argsort(world_coordinates[:, 0])
+        mask = np.argsort(global_coordinates[:, 0])
 
         # Determine which is the top_left and bottom_left
-        left_coordinates = world_coordinates[mask[:2], :]
+        left_coordinates = global_coordinates[mask[:2], :]
         top_sort = np.argsort(left_coordinates[:, 1])
         bottom_left = left_coordinates[top_sort[0], :]
         top_left = left_coordinates[top_sort[1], :]
         
         # Determine which is the top_right and bottom_right
-        right_coordinates = world_coordinates[mask[2:], :]
+        right_coordinates = global_coordinates[mask[2:], :]
         top_sort = np.argsort(right_coordinates[:, 1])
         bottom_right = right_coordinates[top_sort[0], :]
         top_right = right_coordinates[top_sort[1], :]
 
-        world_coordinates[0, :] = top_right
-        world_coordinates[1, :] = bottom_left
-        world_coordinates[2, :] = top_left
-        world_coordinates[3, :] = bottom_right
+        global_coordinates[0, :] = top_right
+        global_coordinates[1, :] = bottom_left
+        global_coordinates[2, :] = top_left
+        global_coordinates[3, :] = bottom_right
 
-    return world_coordinates
+    return global_coordinates
 
 
-def img_to_world_coord(image_coordinates: np.ndarray, center_coordinates: np.ndarray,
-                       pixel_width: float, pixel_height: float, 
-                       yaw_angle: float, is_bbox: bool):
-    
+def img_to_global_coord(image_coordinates: np.ndarray, center_coordinates: np.ndarray,
+                        pixel_width: float, pixel_height: float, 
+                        image_width: int, image_height: int,
+                        yaw_angle: float, is_bbox: bool=True) -> np.ndarray:
+    """_summary_
+
+    Args:
+        image_coordinates (np.ndarray): Image coordinates
+        center_coordinates (np.ndarray): Image center coordinates in global coordinate space
+        pixel_width (float): Pixel width
+        pixel_height (float): Pixel height
+        image_width (int): Image width in pixels
+        image_height (int): Image height in pixels
+        yaw_angle (float): Yaw angle in degrees
+        is_bbox (bool, optional): Are the image coordinates bounding box coordinates? Defaults to True.
+
+    Returns:
+        np.ndarray: _description_
+    """
 
     _image_coordinates = image_coordinates.copy()
     _center_coordinates = center_coordinates.copy()
+
     if np.ndim(image_coordinates) == 1:
         _image_coordinates = np.expand_dims(image_coordinates, axis=0)
     assert _image_coordinates.shape[1] == 2
@@ -98,18 +127,24 @@ def img_to_world_coord(image_coordinates: np.ndarray, center_coordinates: np.nda
         _center_coordinates = np.expand_dims(_center_coordinates, axis=0)
     assert _center_coordinates.shape[1] == 2
 
-    scaled_coordinates = _image_coordinates.copy()
-    scaled_coordinates[:, 0] = scaled_coordinates[0, :] * pixel_width
-    scaled_coordinates[:, 1] = scaled_coordinates[0, :] * pixel_height
+    image_center = np.array([[float(image_width // 2), float(image_height//2)]])
 
-    # Unrotated coordinates wrt origin shifted to the camera location
-    translated_coordinates = scaled_coordinates - _center_coordinates
-    world_coordinates = find_world_coords(_center_coordinates, translated_coordinates, yaw_angle, is_bbox)
+    # Change the origin to bottom-left of the image
+    _image_coordinates[:, 0] = image_width - _image_coordinates[:, 0]
 
-    return world_coordinates
+    # Shift the origin to the image center
+    _image_coordinates -= image_center
+
+    untranslated_global_coordinates = _image_coordinates.copy()
+    untranslated_global_coordinates[:, 0] = untranslated_global_coordinates[0, :] * pixel_width
+    untranslated_global_coordinates[:, 1] = untranslated_global_coordinates[0, :] * pixel_height
+
+    global_coordinates = find_global_coords(center_coordinates, untranslated_global_coordinates, yaw_angle, is_bbox)
+
+    return global_coordinates
 
 
-def bbox_to_world(top_left: List, top_right: List, 
+def bbox_to_global(top_left: List, top_right: List, 
                   bottom_left: List, bottom_right: List, 
                   center_coordinates: List, 
                   pixel_width: float, pixel_height: float, 
@@ -125,35 +160,35 @@ def bbox_to_world(top_left: List, top_right: List,
 
     image_coordinates = np.concatenate([_top_right, _bottom_left, _top_left, _bottom_right])
 
-    bbox_world_coordinates = img_to_world_coord(
+    bbox_global_coordinates = img_to_global_coord(
         image_coordinates, _center_coordinates, 
-        pixel_width, pixel_height, yaw_angle
+        pixel_width, pixel_height, yaw_angle, is_bbox=True
     )
 
-    return bbox_world_coordinates
+    return bbox_global_coordinates
 
 
 def select_best_bbox(
     bboxes: List[List[Tuple[float, float]]],
     center_cooridnates: Tuple, pixel_width: float, pixel_height: float, yaw_angle: float):
     
-    # Convert the bounding boxes to world coordinates
-    world_bboxes = []
+    # Convert the bounding boxes to global coordinates
+    global_bboxes = []
     for bbox in bboxes:
         top_left = bbox[0]
         top_right = bbox[1]
         bottom_left = bbox[2]
         bottom_right = bbox[3]
         
-        world_bbox = bbox_to_world(
+        global_bbox = bbox_to_global(
             top_left, top_right, bottom_left, bottom_right, 
             center_cooridnates, pixel_width, pixel_height, yaw_angle
         )
 
-        world_bboxes.append(world_bbox)
+        global_bboxes.append(global_bbox)
 
     # TODO: Logic for selecting the best bounding box
-    # Should be based on the location of the bounding in real
-    # world coordinates
+    # Should be based on the location of the bounding in
+    # global coordinates
 
     pass
