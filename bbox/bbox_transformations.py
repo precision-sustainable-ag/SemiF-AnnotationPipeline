@@ -1,15 +1,6 @@
 from typing import Tuple, List
 import math
-from xmlrpc.client import boolean
 import numpy as np
-from . import Reader
-
-class BBox():
-
-    def __init__(self, reader: Reader):
-
-        self.config = reader.read()
-
 
 def get_xy_rotation_matrix(angle: float) -> np.ndarray:
     """Get the rotation matrix for the Yaw
@@ -52,10 +43,10 @@ def find_global_coords(center_coords: np.ndarray,
     """_summary_
 
     Args:
-        center_coords (np.ndarray): _description_
-        unrotated_coords (np.ndarray): _description_
-        yaw_angle (float): _description_
-        is_bbox (bool, optional): _description_. Defaults to True.
+        center_coords (np.ndarray): Image center coordinates in global coordinate system
+        unrotated_coords (np.ndarray): Unrotated coordinates in global coordinate system
+        yaw_angle (float): Yaw angle in degrees
+        is_bbox (bool, optional): Do the coordinates describe a boudig box? Defaults to True.
 
     Returns:
         np.ndarray: _description_
