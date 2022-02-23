@@ -1,13 +1,32 @@
+import glob
+import os
+import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-import numpy as np
+
 import cv2
-import os
-import glob
-import uuid
+import numpy as np
 import yaml
+from mongoengine import (Document, IntField, ListField, StringField, UUIDField,
+                         connect)
+
+CUTOUT_DICT = {"cutout_fname": None, "cutout_uuid": None, "contours": None}
+
+connect(db="opencv2021", host="localhost", port=27017)
 
 
+class Image(Document):
+    file_name = StringField(required=True, unique=True)
+    uuid = UUIDField(required=True)
+    date = IntField(required=True)
+    time = IntField(required=True)
+    week = IntField()
+    row = IntField()
+    stop = IntField()
+    meta = {'allow_inheritance': True}
+
+
+# TODO reassess need for everything below
 class InputMetadata:
     """ Input metadata to create a metadata yaml file. """
 
@@ -20,19 +39,21 @@ class InputMetadata:
         image_dir = input("image directory: ")
         upload_id = self.upload_id
         date = input("date: ")
-        time = input("time: ")
+        start_time = input("Start time: ")
+        end_time = input("End time: ")
         location = input("location: ")
-        cloud_cover = input("cloud_cover: ")
-        camera_height = input("camera_height: ")
-        camera_lens = input("camera_lens: ")
-        pot_height = input("pot_height: ")
+        cloud_cover = input("Cloud cover: ")
+        camera_height = input("Camera height (m): ")
+        camera_lens = input("Camera lens (mm): ")
+        pot_height = input("Pot height (m): ")
 
         data_dict = [{
             "upload_path": self.output_path,
             "image_dir": image_dir,
             "upload_id": upload_id,
             "date": date,
-            "time": time,
+            "start_time": start_time,
+            "end_time": end_time,
             "location": location,
             "cloud_cover": cloud_cover,
             "camera_height": camera_height,

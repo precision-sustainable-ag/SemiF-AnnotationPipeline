@@ -1,1 +1,3 @@
-numpy==1.22.1
+hydra-core
+mongoengine
+pandas
