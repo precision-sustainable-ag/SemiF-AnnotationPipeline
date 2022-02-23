@@ -5,7 +5,7 @@ import cv2
 import numpy as np
 from shapely.geometry import Polygon
 
-from ImageCollection import CUTOUT_DICT
+from OpenCV2021DataBase import CUTOUT_DICT
 from utils import filter_topn_components, read_img
 
 # TODO improve segmentation results be using outlier component extraction not just top 3
