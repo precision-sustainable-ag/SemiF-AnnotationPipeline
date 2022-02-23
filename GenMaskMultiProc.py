@@ -4,7 +4,7 @@ from pathlib import Path
 import cv2
 
 from utils import (check_kmeans, exg_minus_exr, make_exg, make_kmeans,
-                   make_otsu, read_rgbimg, reduce_holes)
+                   make_otsu, read_img, reduce_holes)
 
 
 class MaskGenerator(object):
@@ -14,7 +14,7 @@ class MaskGenerator(object):
         self.meta = None
 
     def read_image(self, imgpath):
-        self.input_img = read_rgbimg(imgpath)
+        self.input_img = read_img(imgpath)
 
     def write_image(self, save_path, img):
         cv2.imwrite(save_path, img)

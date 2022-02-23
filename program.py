@@ -5,6 +5,8 @@ from mongoengine import DynamicDocument, connect
 
 from ExtractComponents import ContourCollection, ExtractCutouts
 
+# TODO connect GenerateMask and ExtractComponents pipelines
+# TODO Create excutables for both
 # TODO make excutable from shell args parser
 
 # Connect to mongoDB collection and create Dynamic collection class
