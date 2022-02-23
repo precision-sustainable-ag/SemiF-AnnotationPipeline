@@ -1,6 +1,9 @@
-
 # Sample data
-/test/testdata
+test
+scratch_tutorials
+data
+config
+annotate_utils.py
 
 # Drawio flowcharts
 *.drawio
