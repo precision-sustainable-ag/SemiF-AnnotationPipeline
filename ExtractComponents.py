@@ -9,7 +9,7 @@ from OpenCV2021DataBase import CUTOUT_DICT
 from utils import filter_topn_components, read_img
 
 # TODO improve segmentation results be using outlier component extraction not just top 3
-# TODO Create scheme for saving cutouts to folder
+# TODO Create scheme for saving cutouts to directory
 
 
 class ExtractCutouts:

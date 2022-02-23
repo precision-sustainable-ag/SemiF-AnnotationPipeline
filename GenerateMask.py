@@ -1,6 +1,4 @@
-from mongoengine import DynamicDocument, connect
-
-from utils import (check_kmeans, make_exg, make_kmeans, make_otsu, read_rgbimg,
+from utils import (check_kmeans, make_exg, make_kmeans, make_otsu, read_img,
                    reduce_holes)
 
 
@@ -20,7 +18,7 @@ class GenerateMask:
         self.img_meta = None
 
     def read_img(self):
-        return read_rgbimg(self.imgpath)
+        return read_img(self.imgpath)
 
     def produce_vi(self, normalize=False, thresh=0):
         return make_exg(self.img)
@@ -33,10 +31,3 @@ class GenerateMask:
 
     def clean_mask(self):
         return reduce_holes(self.mask)
-
-
-connect(db="opencv2021", host="localhost", port=27017)
-
-
-class Image(DynamicDocument):
-    meta = {"collection": "image"}
