@@ -1,9 +1,0 @@
-- upload_path: ./test/test_metadata.yaml
-  upload_id: 39a520d8-0c7b-42ff-9dd7-c4d8439db519
-  date: '02062022'
-  time: '112345'
-  location: 'TX'
-  cloud_cover: 'partly cloudy'
-  camera_height: '1'
-  camera_lens: '35'
-  pot_height: '0.2'
