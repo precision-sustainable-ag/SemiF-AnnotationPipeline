@@ -8,6 +8,7 @@ annotate_utils.py
 *.drawio
 *.drawio.xml
 
+**/.DS_Store
 # PDF resource docs
 *.pdf
 
