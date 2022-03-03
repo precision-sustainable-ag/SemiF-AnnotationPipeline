@@ -26,7 +26,7 @@ No images need to be manually annotated. Only it the first iterations will cutou
 
 ## Metadata
 
-```
+```YAML
 
 Per site:
    - Site-ID:
