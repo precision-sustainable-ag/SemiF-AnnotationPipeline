@@ -16,21 +16,16 @@ No images need to be manually annotated. Only it the first iterations will cutou
 ---
 
 ## Simple Flowchart
-![](Assets/semif_pipeline_v4_simplified_med.png)
-
----
-
-## Detailed Flowchart
-![](Assets/semif_pipeline_v4_small.png)
+![](Assets/semif_pipeline_v4_simplified_small.png)
 
 
 ## Metadata
-
+Listed linearly as data is passed through the pipeline. Alternatively, heirchical representation may be used.
 ```YAML
 
-Per site:
+Site:
    - Site-ID:
-   - QR-marker location:
+   - GCP-marker location:
    - Species location map:
 Per collection:
    - Collection ID:
@@ -70,3 +65,7 @@ Per segmentation:
    - Method of segmentation:
    - Path to segmentation file:
 ```
+
+## Detailed Flowchart
+![](Assets/semif_pipeline_v4_small.png)
+
