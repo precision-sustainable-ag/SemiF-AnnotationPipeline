@@ -10,5 +10,8 @@ Collecting and labeling images of weeds is time-consuming and costly, and has se
 
 No images need to be manually annotated, only cutouts need to be manually sorted into distinct classes, saving an estimated 22 hours per 1,000 cut-outs. Automatic annotation pipelines play an important role in developing robust datasets for trained AI models that can handle diverse scenes. The methodology devised here will be utilized in a weed image library pipeline currently being developed.
 
+## Simple Flowchart
+![](Assets/semif_pipeline_v4_simplified_med.png)
 
-![sdf](Assets/semif_pipeline_v3_small.png)
+## Detailed Flowchart
+![](Assets/semif_pipeline_v4_small.png)
