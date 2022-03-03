@@ -11,7 +11,7 @@ Collecting and labeling images of weeds is time-consuming and costly, and has se
    2.  The segmentation assistant network is trained on a combination of synthetic data and real data from previsous batches to predict on real data to generate sematic annotations
 6. Bounding box and semantic annotations are generated from synthetic and real data.
 
-No images need to be manually annotated. Only it the first iterations will cutouts need to be manually sorted into distinct classes. This process aims to save an estimated 22 hours per 1,000 segmentations. Automatic annotation pipelines play an important role in developing robust datasets for trained AI models that can handle diverse scenes. The methodology devised here will be utilized in a weed image library pipeline currently being developed.
+No images need to be manually annotated. Only it the first iterations will cutouts need to be manually sorted into distinct classes. This process aims to save an estimated 22 hours per 1,000 segmentations. Automatic annotation pipelines play an important role in developing robust datasets for trained AI models that can handle diverse scenes. The methodology devised here will be utilized in a weed image library pipeline currently being developed by the [Precision Sustainable Ag](https://precisionsustainableag.org/) research network.
 
 ---
 
@@ -24,3 +24,49 @@ No images need to be manually annotated. Only it the first iterations will cutou
 ![](Assets/semif_pipeline_v4_small.png)
 
 
+## Metadata
+
+```
+
+Per site:
+   - Site-ID:
+   - QR-marker location:
+   - Species location map:
+Per collection:
+   - Collection ID:
+   - Upload ID:
+   - Weather data:
+   - Color calibration:
+Per image:
+   - Image-ID:
+   - Focal length:
+Per auto-SfM processing:
+   - Processing ID:
+   - Image location and orientation in consistent global coordinate system:
+Per weed recognition processing:
+   - Processing ID:
+   - Whether it is automated or manually annotated BBs:
+   - If model-based save the computer vision model ID as well:
+   - Image-domain bounding box ID in local coordinate system:
+After Bounding box transform:
+   - Bounding boxes in global coordinate system:
+   - Non-maximum suppressed bounding boxes to remove duplicate bounding boxes:
+   - Plant species:
+Per Bounding box annotation:
+   - Global bounding box-ID in global coordinate system:
+   - Corresponding image and corresponding local coordinates of bounding box:
+   - Plant species:
+   - Plant mask:
+   - Plant ID:
+Per unique plant:
+   - Plant ID:
+   - List of all images:
+   - List of all bounding box image crops:
+   - List of all segmentations:
+   - Plant species:
+   - Seed date:
+   - Emergence date:
+Per segmentation:
+   - Method of segmentation:
+   - Path to segmentation file:
+```
