@@ -3,7 +3,8 @@
 scratch_tutorials
 config
 annotate_utils.py
-
+my_app_hydra_walkthrough.py
+mongoengine_walkthrough.py
 # Drawio flowcharts
 *.drawio
 *.drawio.xml
