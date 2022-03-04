@@ -28,7 +28,8 @@ def get_imgs(
         extensions=["*.jpg", "*.JPG", "*.png", "*.PNG", "*.jpeg", "*.JPEG"]):
     # Check file and directory exists
     assert type(extensions) is list, "Input is not a list"
-    assert Path(parent_dir).exists(), "Image directory is not valid.adasd"
+    assert Path(
+        parent_dir).exists(), f"Image directory {parent_dir} is not valid."
     files = []
     # Parse locations and collection image files
     for ext in extensions:

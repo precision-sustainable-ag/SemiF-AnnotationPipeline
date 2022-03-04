@@ -1,0 +1,29 @@
+default:
+- db: mongodb
+- URI: mongodb://localhost
+- database: opencv2021
+- collection: image
+- _self_
+# - hydra: default
+
+hydra:
+  searchpath:
+    - pkg://.
+
+general:
+  work_dir: ${hydra:runtime.cwd}  # where the code is executed
+  task: CutoutLibrary # CutoutLibrary GenerateMask GenMaskMultiProc
+  mode: create # test, create
+  input_imagedir: ${general.work_dir}/test_data/sample
+  save_masks: true # TODO this does nothing, implement this
+  mask_savedir: ${general.work_dir}/test_data/outputs/masks
+  cutout_savedir: ${general.work_dir}/test_data/outputs/cutouts
+  save_cutouts: true
+
+gen_mask:
+  vi: exg
+  classify: otsu
+
+viz:
+  show_masks: false # TODO this does nothing, implement
+  show_contours: false

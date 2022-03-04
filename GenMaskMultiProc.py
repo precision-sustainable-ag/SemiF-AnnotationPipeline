@@ -2,9 +2,10 @@ import multiprocessing
 from pathlib import Path
 
 import cv2
+from omegaconf import DictConfig
 
-from utils import (check_kmeans, exg_minus_exr, make_exg, make_kmeans,
-                   make_otsu, read_img, reduce_holes)
+from utils import (check_kmeans, exg_minus_exr, get_imgs, make_exg,
+                   make_kmeans, make_otsu, read_img, reduce_holes)
 
 
 class MaskGenerator(object):
@@ -23,11 +24,11 @@ class MaskGenerator(object):
         pass  # override in derived classes to perform an actual segmentation
 
     def start_pipeline(self, args):
-        self.img_path, self.save_dir, self.viproc, self.clsproc = args
+        self.img_path, self.mask_savedir, self.viproc, self.clsproc = args  # TODO make checks for paths
         self.read_image(self.img_path)
-        print(
-            f"filename: {Path(self.img_path).name}\npath: {Path(self.img_path).parent}"
-        )
+        # print(
+        #     f"filename: {Path(self.img_path).name}\npath: {Path(self.img_path).parent}"
+        # )
         return self.process()
 
 
@@ -45,10 +46,10 @@ class ExGMaskGenerator(MaskGenerator):
 
         self.cleaned_mask = reduce_holes(self.mask)
 
-        save_path = str(Path("data/test_results", Path(self.img_path).name))
-        self.write_image(save_path, self.cleaned_mask)
+        mask_savepath = str(Path(self.mask_savedir, Path(self.img_path).name))
 
-        print('ExG mask saved.')
+        self.write_image(mask_savepath, self.cleaned_mask)
+        print(f"ExG saved to : {mask_savepath}\n")
 
 
 class ExGRMaskGenerator(MaskGenerator):
@@ -66,32 +67,27 @@ class ExGRMaskGenerator(MaskGenerator):
 
         self.cleaned_mask = reduce_holes(self.mask)
 
-        save_path = str(
-            Path("data/test_results", f"{Path(self.img_path).stem}.png"))
-        self.write_image(save_path, self.cleaned_mask)
-        print('Otsu mask saved.')
+        mask_savepath = str(Path(self.mask_savedir, Path(self.img_path).name))
+        self.write_image(mask_savepath, self.cleaned_mask)
+        print(f"ExGmR saved to : {mask_savepath}\n")
 
 
-if __name__ == '__main__':
-    # TODO make executable from command line arg parser
+# def main(cfg: DictConfig):
+#     mask_savedir = Path(cfg.general.mask_savedir)  # save_path
+#     vi = cfg.gen_mask.vi
+#     class_proc = cfg.gen_mask.classify
+#     input_imagedir = cfg.general.input_imagedir
 
-    from utils import get_imgs
-    vi_procedure = 'exg'
-    classification_procedure = "otsu"
+#     mask_gen_class = {
+#         'exg': ExGMaskGenerator,
+#         'exgr': ExGRMaskGenerator
+#     }.get(vi)
 
-    mask_gen_class = {
-        'exg': ExGMaskGenerator,
-        'exgr': ExGRMaskGenerator,
-    }.get(vi_procedure)
+#     images = get_imgs(input_imagedir)
+#     images = [str(x) for x in images]
 
-    images = get_imgs("data/sample")
+#     data = [(img, mask_savedir, vi, class_proc) for img in images]
+#     pool = multiprocessing.Pool(6)
+#     results = pool.map(mask_gen_class().start_pipeline, data)
 
-    images = [str(x) for x in images]
-
-    img_dir = Path("test_results")  # save_path
-    data = [(img, img_dir, vi_procedure, classification_procedure)
-            for img in images]
-    pool = multiprocessing.Pool(3)
-
-    results = pool.map(mask_gen_class().start_pipeline, data)
-    print('##########FINISHED########')
+#     print('##########FINISHED########')

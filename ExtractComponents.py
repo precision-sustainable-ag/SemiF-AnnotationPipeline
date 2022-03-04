@@ -14,17 +14,17 @@ from utils import filter_topn_components, read_img
 
 class ExtractCutouts:
 
-    def __init__(self, mask_dir, imgobj):
+    def __init__(self, mask_path):
         """Extracts vegetation components from input mask and returns list of np.arrays (refered to as "cutouts")
 
         Args:
             mask_dir (str): location of mask imags
             imgobj (object): mongonDB collection object
         """
-
-        self.imgobj = imgobj
-        self.mask_path = Path(mask_dir, imgobj.file_name)
-        self.pk = imgobj.pk
+        # self.imgobj =
+        self.mask_path = mask_path
+        # self.mask_path = Path(mask_dir, imgobj.file_name)
+        # self.pk = imgobj.pk
         self.mask = self.read_image()[:, :, 0]
 
         self.mask_components = self.extract_mask_components(
@@ -70,8 +70,8 @@ class ExtractCutouts:
 
 class ContourCollection(ExtractCutouts):
 
-    def __init__(self, mask_dir, imgobj):
-        super().__init__(mask_dir, imgobj)
+    def __init__(self, mask_dir):  #, imgobj):
+        super().__init__(mask_dir)  #, imgobj)
         """
         Adds ListField ("cutouts"). Each list contains dictionaries of modified version of original image file name, 
         hashed new file name (uuid), and contours of mask components.
