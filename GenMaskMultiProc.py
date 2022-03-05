@@ -2,17 +2,10 @@ import multiprocessing
 from pathlib import Path
 
 import cv2
-from mongoengine import DynamicDocument, StringField, connect
 
 from OpenCV2021DataBase import Mask
 from utils import (check_kmeans, exg_minus_exr, make_exg, make_kmeans,
                    make_otsu, read_img, reduce_holes)
-
-
-class Mask(DynamicDocument):
-    meta = {
-        "collection": "Mask",
-    }
 
 
 class MaskGenerator(object):
@@ -37,8 +30,8 @@ class MaskGenerator(object):
     def start_pipeline(self, data):
         self.img_path, self.params = data  # TODO make checks for paths
 
-        self.clsproc = self.params.gen_mask.classify
-        self.mask_savedir = self.params.general.mask_savedir
+        self.clsproc = self.params.gen_bimask.classify
+        self.bimask_savedir = self.params.general.bimask_savedir
 
         self.read_image(self.img_path)
         return self.process()
@@ -57,7 +50,8 @@ class ExGMaskGenerator(MaskGenerator):
             self.mask = check_kmeans(make_kmeans(self.vi)) * 255
 
         self.cleaned_mask = reduce_holes(self.mask)
-        mask_savepath = str(Path(self.mask_savedir, Path(self.img_path).name))
+        mask_savepath = str(Path(self.bimask_savedir,
+                                 Path(self.img_path).name))
         self.write_image(mask_savepath, self.cleaned_mask)
         # print(f"ExG saved to : {mask_savepath}\n")
 
@@ -75,6 +69,7 @@ class ExGRMaskGenerator(MaskGenerator):
             self.mask = check_kmeans(make_kmeans(self.vi)) * 255
 
         self.cleaned_mask = reduce_holes(self.mask)
-        mask_savepath = str(Path(self.mask_savedir, Path(self.img_path).name))
+        mask_savepath = str(Path(self.bimask_savedir,
+                                 Path(self.img_path).name))
         self.write_image(mask_savepath, self.cleaned_mask)
         # print(f"ExGmR saved to : {mask_savepath}\n")

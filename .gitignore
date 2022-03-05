@@ -1,16 +1,16 @@
 
-# Sample data
+# Misc dirs and docs
 outputs
 scratch_tutorials
-config
-annotate_utils.py
-my_app_hydra_walkthrough.py
-mongoengine_walkthrough.py
+outline.md
+
 # Drawio flowcharts
 *.drawio
 *.drawio.xml
 
+# Mac stuff
 **/.DS_Store
+
 # PDF resource docs
 *.pdf
 
@@ -25,8 +25,5 @@ mongoengine_walkthrough.py
 
 # Pycache
 __pycache __
-
-# Scratch notebook
-scratch.ipynb
 
 *.pyc

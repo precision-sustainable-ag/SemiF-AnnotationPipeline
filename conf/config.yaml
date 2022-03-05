@@ -11,18 +11,18 @@ default:
 #     - pkg://.
 
 general:
-  inc_paths: false
+  inc_paths: true
   work_dir: ${hydra:runtime.cwd}  # where the code is executed
   task: CutoutLibrary # CutoutLibrary GenerateMask GenMaskMultiProc
   mode: create # test, create
   data_dir: ${general.work_dir}/test_data
   input_imagedir: ${general.work_dir}/test_data/images
-  save_masks: true # TODO this does nothing, implement this
-  mask_savedir: ${general.work_dir}/test_data/masks
+  save_bimasks: true # TODO this does nothing, implement this
+  bimask_savedir: ${general.work_dir}/test_data/bimasks
   cutout_savedir: ${general.work_dir}/test_data/cutouts
   save_cutouts: true
 
-gen_mask:
+gen_bimask:
   vi: exg
   classify: otsu
 
@@ -33,3 +33,6 @@ cutouts:
 viz:
   show_masks: false # TODO this does nothing, implement
   show_contours: false
+
+vis: {exg, exr, exgr}
+class_methods: {otsu, kmeans}

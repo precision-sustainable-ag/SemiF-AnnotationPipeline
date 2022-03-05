@@ -4,6 +4,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 import cv2
 import numpy as np
+from mongoengine import DynamicDocument, StringField, connect
 from shapely.geometry import Polygon
 
 from OpenCV2021DataBase import CUTOUT_DICT
@@ -37,7 +38,7 @@ class ExtractIndCutouts(ExtractAllCutouts):
     def __init__(self, params, image_path):
 
         self.image_path = image_path
-        self.mask_path = os.path.join(params.general.mask_savedir,
+        self.mask_path = os.path.join(params.general.bimask_savedir,
                                       Path(image_path).name)
 
         self.img = read_img(image_path, mode="RGB")

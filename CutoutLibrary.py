@@ -15,11 +15,11 @@ from utils import get_imgs, increment_path
 
 def get_masks(cfg: DictConfig):
     if cfg.general.inc_paths:
-        mask_savedir = cfg.general.mask_savedir
-        cfg.general.mask_savedir = str(increment_path(mask_savedir,
-                                                      mkdir=True))
+        bimask_savedir = cfg.general.bimask_savedir
+        cfg.general.bimask_savedir = str(
+            increment_path(bimask_savedir, mkdir=True))
 
-    vi = cfg.gen_mask.vi
+    vi = cfg.gen_bimask.vi
     # TODO Add more variability and feature options
     mask_gen_class = {
         'exg': ExGMaskGenerator,
@@ -42,7 +42,7 @@ def get_masks(cfg: DictConfig):
 
 def get_cutouts(cfg: DictConfig):
     # TODO create checks for same number of images/masks in each dir
-    mask_paths = sorted(get_imgs(cfg.general.mask_savedir))
+    mask_paths = sorted(get_imgs(cfg.general.bimask_savedir))
     img_paths = sorted(get_imgs(cfg.general.input_imagedir))
     if cfg.general.inc_paths:
         cutout_dir = cfg.general.cutout_savedir
@@ -56,3 +56,4 @@ def get_cutouts(cfg: DictConfig):
 def main(cfg: DictConfig) -> None:
     get_masks(cfg)
     get_cutouts(cfg)
+    pass
