@@ -1,4 +1,8 @@
 import csv
+import glob
+import re
+import shutil
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -7,9 +11,37 @@ import numpy as np
 from pandas import array
 from shapely.geometry import Polygon
 from skimage import morphology
-from sklearn.cluster import KMeans
 
-######## Get Images ##########
+######################################################
+############### Directory Organization ###############
+######################################################
+
+
+def dt_str(format="%m%d%Y_%H%M%S"):
+    now = datetime.now()
+    dt = now.strftime(format)
+    return dt
+
+
+def increment_path(path, new_path=True, sep='_', mkdir=False):
+    """ Increment file or directory path if directory already exists. 
+        Uses a time stamp (format mmddYYYY_HHMMSS) to increment path.
+        i.e. data/masks --> data/masks{sep}03052022_140133, data/masks{sep}03052022_140349, ... etc."""
+    path = Path(path)  # os-agnostic
+    # "exist_ok=False" means you want to create a new incremented path object maybe or maybe not
+    # for creating a new directory
+    if path.exists() and new_path:
+        path, suffix = (path.with_suffix(''),
+                        path.suffix) if path.is_file() else (path, '')
+        path = Path(f"{path}{sep}{dt_str()}{suffix}")  # increment path
+    if mkdir:
+        path.mkdir(parents=True, exist_ok=True)  # make directory
+    return path
+
+
+######################################################
+################### PREPROCESSINGS ###################
+######################################################
 
 
 def read_img(imgpath, mode="RGB"):
@@ -25,7 +57,13 @@ def read_img(imgpath, mode="RGB"):
 
 def get_imgs(
         parent_dir,
-        extensions=["*.jpg", "*.JPG", "*.png", "*.PNG", "*.jpeg", "*.JPEG"]):
+        extensions=["*.jpg", "*.JPG", "*.png", "*.PNG", "*.jpeg", "*.JPEG"],
+        as_strs=False):
+    """TODO _summary_
+
+    Returns:
+        _type_: _description_
+    """
     # Check file and directory exists
     assert type(extensions) is list, "Input is not a list"
     assert Path(
@@ -33,11 +71,16 @@ def get_imgs(
     files = []
     # Parse locations and collection image files
     for ext in extensions:
-        files.extend(Path(parent_dir).rglob(ext))
+        files.extend(Path(parent_dir).glob(ext))
+    if as_strs:
+        files = [str(x) for x in files]
+
     return files
 
 
-######## Vegetation Indices ##########
+######################################################
+############# VEGETATION INDICES #####################
+######################################################
 
 
 def make_exg(img, normalize=False, thresh=0):
@@ -80,7 +123,9 @@ def exg_minus_exr(img):
     return exgr.astype('uint8')
 
 
-######### Classify Masks #########
+########################################################
+###################### CLASSIFY  #######################
+########################################################
 
 
 def make_kmeans(exg_mask):
@@ -107,7 +152,11 @@ def make_otsu(mask, kernel_size=(3, 3)):
     return mask_th3
 
 
-######## Clean Masks ##########
+######################################################
+############ MORPHOLOGICAL OPERATIONS ################
+######################################################
+
+
 def reduce_holes(mask,
                  kernel_size=(3, 3),
                  min_object_size=1000,
@@ -125,12 +174,10 @@ def reduce_holes(mask,
     return mask
 
 
-######## Sort Components ###########
-
-
 def filter_topn_components(mask, top_n=3) -> 'list[np.ndarray]':
     # input must be single channel array
     # calculate size of individual components and chooses based on min size
+    mask = mask.astype(np.uint8)
     nb_components, output, stats, centroids = cv2.connectedComponentsWithStats(
         mask, connectivity=8)
     # size of components except 0 (background)
@@ -149,11 +196,14 @@ def filter_topn_components(mask, top_n=3) -> 'list[np.ndarray]':
             filtered_mask = np.zeros((output.shape))
             filtered_mask[output == i + 1] = 255
             list_filtered_masks.append(filtered_mask)
-
     return list_filtered_masks
 
 
-######## Contours #########
+######################################################
+############## CONTOUR OPERATIONS ####################
+######################################################
+
+
 def contour_list2array(contour_list) -> list['np.array']:
     contour = np.squeeze(contour_list)
     arr_contours = Polygon(contour).exterior.coords
@@ -161,18 +211,55 @@ def contour_list2array(contour_list) -> list['np.array']:
 
 
 def crop_contours2contents():  # TODO create this
-    # class Crop contours to contents
-    # self.contour = contour[0]
-    # x,y,w,h = cv2.boundingRect(self.contour)
+    # """ Crop contours to contents """
+    # contour = contour[0]
+    # x, y, w, h = cv2.boundingRect(contour)
     # # then crop it to bounding rectangle
-    # crop = cutout[y:y+h, x:x+w]
-    # fnd_crop_contours = cv2.findContours(crop, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    # self.crop_contours = fnd_crop_contours[0] if len(fnd_crop_contours) == 2 else fnd_crop_contours[1]
+    # crop = cutout[y:y + h, x:x + w]
+    # fnd_crop_contours = cv2.findContours(crop, cv2.RETR_EXTERNAL,
+    #                                      cv2.CHAIN_APPROX_SIMPLE)
+    # crop_contours = fnd_crop_contours[0] if len(
+    #     fnd_crop_contours) == 2 else fnd_crop_contours[1]
     # return crop
     pass
 
 
-######## Tabular Conversion #########
+def crop_img2contents(img):
+    """ Crop mask component to contents """
+    img = img.astype(np.uint8)
+    x, y, w, h = cv2.boundingRect(img)
+    cropped_img = img[y:y + h, x:x + w]
+    return cropped_img
+
+
+def apply_mask(img, mask, mask_color):
+    """Apply white image mask to image, with bitwise AND operator bitwise NOT operator and ADD operator.
+    Inputs:
+    img        = RGB image data
+    mask       = Binary mask image data
+    mask_color = 'white' or 'black'
+    Returns:
+    masked_img = masked image data
+    :param img: numpy.ndarray
+    :param mask: numpy.ndarray
+    :param mask_color: str
+    :return masked_img: numpy.ndarray
+    """
+    if mask_color.upper() == "WHITE":
+        color_val = 255
+    elif mask_color.upper() == "BLACK":
+        color_val = 0
+
+    array_data = img.copy()
+
+    # Mask the array
+    array_data[np.where(mask == 0)] = color_val
+    return array_data
+
+
+######################################################
+############## TABULER CONVERSIONS ###################
+######################################################
 
 
 def csv2dict(csv_path):
@@ -185,7 +272,9 @@ def csv2dict(csv_path):
     return result
 
 
-######## Visualize ##########
+######################################################
+####################### VIZ ##########################
+######################################################
 
 
 def show(img, title=None):
@@ -213,7 +302,9 @@ def overlay_polygon(img, polygon):
     return exterior
 
 
-######## Error Handling #########
+######################################################
+################# ERROR HANDLING ####################
+######################################################
 
 
 class CustomError(Exception):

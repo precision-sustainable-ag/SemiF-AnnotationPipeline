@@ -1,17 +1,18 @@
+import logging
 import os
 
 import hydra
-from hydra.utils import get_method
+from hydra.utils import get_method, get_original_cwd
 from omegaconf import DictConfig, OmegaConf
+
+import CutoutLibrary  # do not remove this
 
 
 @hydra.main(config_path="conf", config_name="config")
 def run_SEMIF(cfg: DictConfig) -> None:
     # TODO implement logging
     cfg = OmegaConf.create(cfg)
-    # print("Working directory : {}".format(os.getcwd()))
-    # print(cfg.general.mask_savedir)
-    # Get method from yaml to run module in test_hydrafile.py
+    # TODO major path checking and incremental directory allignment so mask and cutout directories have same timestamp
     task = get_method(f"{cfg.general.task}.main")
     # Run task
     task(cfg)

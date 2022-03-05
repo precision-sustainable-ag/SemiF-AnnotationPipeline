@@ -1,5 +1,5 @@
-from mongoengine import (Document, IntField, ListField, StringField, UUIDField,
-                         connect)
+from mongoengine import (Document, DynamicDocument, IntField, ListField,
+                         StringField, UUIDField, connect)
 
 CUTOUT_DICT = {"cutout_fname": None, "cutout_uuid": None, "contours": None}
 
@@ -14,6 +14,13 @@ class Image(Document):
     week = IntField()
     row = IntField()
     stop = IntField()
+    meta = {'allow_inheritance': True}
+
+
+class Mask(Document):
+    orig_img_file_name = StringField(required=True)
+    mask_uuid = UUIDField(required=True, unique=True)
+    mask_fname = StringField(required=True, unique=True)
     meta = {'allow_inheritance': True}
 
 

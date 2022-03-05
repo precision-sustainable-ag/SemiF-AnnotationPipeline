@@ -1,15 +1,12 @@
 import multiprocessing
 from pathlib import Path
 
-import cv2
-import matplotlib.pyplot as plt
-import numpy as np
-from mongoengine import DynamicDocument, connect
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
+from tqdm import tqdm
 
-from ExtractComponents import ContourCollection, ExtractCutouts
+from ExtractComponents import ExtractIndCutouts
 from GenMaskMultiProc import ExGMaskGenerator, ExGRMaskGenerator
-from utils import get_imgs
+from utils import get_imgs, increment_path
 
 # TODO connect GenerateMask and ExtractComponents pipelines
 # TODO Create excutables for both
@@ -17,57 +14,45 @@ from utils import get_imgs
 
 
 def get_masks(cfg: DictConfig):
+    if cfg.general.inc_paths:
+        mask_savedir = cfg.general.mask_savedir
+        cfg.general.mask_savedir = str(increment_path(mask_savedir,
+                                                      mkdir=True))
 
-    mask_savedir = Path(cfg.general.mask_savedir)  # save_path
     vi = cfg.gen_mask.vi
-    class_proc = cfg.gen_mask.classify
-    input_imagedir = cfg.general.input_imagedir
-
     # TODO Add more variability and feature options
     mask_gen_class = {
         'exg': ExGMaskGenerator,
         'exgr': ExGRMaskGenerator
     }.get(vi)
 
-    images = get_imgs(input_imagedir)
-    images = [str(x) for x in images]
+    input_imagedir = cfg.general.input_imagedir
+    images = get_imgs(input_imagedir, as_strs=True)
+    data = [(img, cfg) for img in images]
 
-    data = [(img, mask_savedir, vi, class_proc) for img in images]
     pool = multiprocessing.Pool(6)
-    results = pool.map(mask_gen_class().start_pipeline, data)
-    print('##########FINISHED########')
 
-
-# # Define where masks are located
-# mask_dir = "data/test_results"
+    tbar = list(
+        tqdm(
+            pool.imap(mask_gen_class().start_pipeline, data),
+            total=len(images),
+            desc="Vegetation Mask Generator",
+        ))
 
 
 def get_cutouts(cfg: DictConfig):
-    masks_paths = get_imgs(cfg.general.mask_savedir)
-    for mask_path in masks_paths:
-        # Extract components
-        ecut = ExtractCutouts(mask_path)
-        # Assign document fields
-        cutout_list_obj = ContourCollection(mask_path)
+    # TODO create checks for same number of images/masks in each dir
+    mask_paths = sorted(get_imgs(cfg.general.mask_savedir))
+    img_paths = sorted(get_imgs(cfg.general.input_imagedir))
+    if cfg.general.inc_paths:
+        cutout_dir = cfg.general.cutout_savedir
+        cfg.general.cutout_savedir = str(increment_path(cutout_dir,
+                                                        mkdir=True))
 
-        cutouts = cutout_list_obj.cutout_list
-        print(cutouts)
-
-        # Uncomment to assign/save/update
-        # img.cutouts = cutout_list_obj.cutout_list
-        # img.update(unset__vegetation_cutouts=True)
-        # img.save()
+    for imgp in tqdm(img_paths, desc="Cutout Generator"):
+        ExtractIndCutouts(cfg, imgp).extract_and_save_cutout()
 
 
-        # Extract contours from database and view
-        # for cutout in img.cutouts:
-        #     orig_img = plt.imread(f"data/sample/{img.file_name}")
-        #     arr_cntr = np.array(cutout["contours"], dtype=np.int32)
-        #     cv2.drawContours(orig_img, np.array([arr_cntr], dtype=np.int32),
-        #                      -1, (0, 0, 255), 10)
-        #     plt.imshow(orig_img)
-        #     plt.show()
-def main(cfg: DictConfig):
-    #     print(OmegaConf.to_yaml(cfg))
+def main(cfg: DictConfig) -> None:
     get_masks(cfg)
     get_cutouts(cfg)

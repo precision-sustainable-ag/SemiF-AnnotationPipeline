@@ -4,25 +4,31 @@ default:
 - database: opencv2021
 - collection: image
 - _self_
-# - hydra: default
+- hydra: default
 
-hydra:
-  searchpath:
-    - pkg://.
+# hydra:
+#   searchpath:
+#     - pkg://.
 
 general:
+  inc_paths: false
   work_dir: ${hydra:runtime.cwd}  # where the code is executed
   task: CutoutLibrary # CutoutLibrary GenerateMask GenMaskMultiProc
   mode: create # test, create
-  input_imagedir: ${general.work_dir}/test_data/sample
+  data_dir: ${general.work_dir}/test_data
+  input_imagedir: ${general.work_dir}/test_data/images
   save_masks: true # TODO this does nothing, implement this
-  mask_savedir: ${general.work_dir}/test_data/outputs/masks
-  cutout_savedir: ${general.work_dir}/test_data/outputs/cutouts
+  mask_savedir: ${general.work_dir}/test_data/masks
+  cutout_savedir: ${general.work_dir}/test_data/cutouts
   save_cutouts: true
 
 gen_mask:
   vi: exg
   classify: otsu
+
+cutouts:
+  crop: true
+  background_color: black
 
 viz:
   show_masks: false # TODO this does nothing, implement
