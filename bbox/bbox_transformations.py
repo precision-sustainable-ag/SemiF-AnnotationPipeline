@@ -77,7 +77,7 @@ def find_global_coords(center_coords: np.ndarray,
     global_unrotated_coords[:, 0] = image_to_global_transform(focal_length, pixel_width, global_unrotated_coords[:, 0], camera_height)
     global_unrotated_coords[:, 1] = image_to_global_transform(focal_length, pixel_height, global_unrotated_coords[:, 1], camera_height)
 
-    R = get_xy_rotation_matrix(yaw_angle)
+    R = get_xy_rotation_matrix(360. - yaw_angle)
 
     # Rotate the new coordinate
     rotated_coordinates = rotation_transform(global_unrotated_coords, R)
@@ -155,9 +155,9 @@ def img_to_global_coord(image_coordinates: np.ndarray, camera_center: np.ndarray
     return global_coordinates
 
 
-def bbox_to_global(top_left: List, top_right: List, 
-                  bottom_left: List, bottom_right: List, 
-                  camera_center: List, 
+def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray, 
+                  bottom_left: np.ndarray, bottom_right: np.ndarray, 
+                  camera_center: np.ndarray, 
                   pixel_width: float, pixel_height: float, 
                   focal_length: float,
                   image_width: int, image_height: int,
@@ -183,7 +183,13 @@ def bbox_to_global(top_left: List, top_right: List,
         yaw_angle, is_bbox=True
     )
 
-    return bbox_global_coordinates
+    # Unpack
+    top_left = bbox_global_coordinates[2, :]
+    top_right = bbox_global_coordinates[0, :]
+    bottom_left = bbox_global_coordinates[1, :]
+    bottom_right = bbox_global_coordinates[3, :]
+
+    return top_left, top_right, bottom_left, bottom_right
 
 
 def select_best_bbox(

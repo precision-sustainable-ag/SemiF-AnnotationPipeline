@@ -6,14 +6,40 @@ import cv2
 
 
 @dataclass
-class _BBoxes:
-    bboxes: List[object]
+class BoxCoordinates:
+    top_left: np.ndarray
+    top_right: np.ndarray
+    bottom_left: np.ndarray
+    bottom_right: np.ndarray
+
+
+def init_empty():
+    empty_array = np.array([])
+    # Initialize with an empty array
+    return BoxCoordinates(empty_array, empty_array, empty_array, empty_array)
+
+@dataclass
+class BBox:
+    id: str
+    image_id: str
+    cls: str
+    local_coordinates: BoxCoordinates=field(init=True, default_factory=init_empty)
+    global_coordinates: BoxCoordinates=field(init=True, default_factory=init_empty)
+    is_primary: bool=field(init=False, default=False)
+
+
+@dataclass
+class BBoxes:
+    bboxes: List[BBox]
+    image_id: str
 
 
 @dataclass
 class Image:
+    id: str
     path: str
-    bboxes: _BBoxes
+    bboxes: BBoxes
+    fov: BoxCoordinates
 
     @property
     def array(self):
@@ -32,30 +58,16 @@ class ImageData:
         self.images = [Image(image_path) for image_path in image_list]
 
 
-@dataclass
-class BBox:
-    top_left: np.ndarray
-    top_right: np.ndarray
-    bottom_right: np.ndarray
-    bottom_left: np.ndarray
-    image: Image
+# class BBoxMapper():
 
+#     def __init__(self, image_path: str, bbox_path: str):
+#         """Class to map bounding box coordinates from image cordinates
+#            to global coordinates
+#         """
+#         self.image_data = ImageData(image_path)
 
-@dataclass
-class BBoxes(_BBoxes):
-    bboxes: List[BBox]
-
-
-class BBoxMapper():
-
-    def __init__(self, image_path: str, bbox_path: str):
-        """Class to map bounding box coordinates from image cordinates
-           to global coordinates
-        """
-        self.image_data = ImageData(image_path)
-
-    def map(self):
-        """
-        Maps all the bounding boxes to a global coordinate space
-        """
-        pass
+#     def map(self):
+#         """
+#         Maps all the bounding boxes to a global coordinate space
+#         """
+#         pass
