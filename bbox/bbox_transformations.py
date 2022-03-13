@@ -2,7 +2,7 @@ from typing import Tuple, List
 import math
 import numpy as np
 
-def get_xy_rotation_matrix(angle: float) -> np.ndarray:
+def get_rotation_matrix(angle: float) -> np.ndarray:
     """Get the rotation matrix for the Yaw
     Args:
         angle (float): Yaw angle in degrees
@@ -47,6 +47,52 @@ def image_to_global_transform(focal_length, pixel_dim, coords, camera_height):
     return global_coords
 
 
+def correct_xy_plane(camera_center, camera_height, coordinates, angle):
+
+    num_coordinates = len(coordinates)
+    # Change the origin to camera_center, camera_height
+    origin = np.array([[camera_center, camera_height]])
+    # Assume that the coordinates are present at height=0
+    _coordinates = np.hstack([coordinates[:, np.newaxis], np.zeros((num_coordinates, 1))])
+    print("Bef", _coordinates)
+    # Shift the origin
+    coord = _coordinates - origin
+    print("Org sub", coord)
+
+    # Get the rotation matrix
+    R = get_rotation_matrix(-angle)
+    # Apply rotation on the vector. This is wrt origin=0,0
+    rotated_coord = rotation_transform(coord, R)
+    print("Rotated", rotated_coord)
+
+    # Solve using two-point form
+    target_coord = np.zeros_like(rotated_coord)
+    target_coord[:, 0] = -(rotated_coord[:, 0] * camera_height) / rotated_coord[:, 1]
+    print("Solved", target_coord)
+
+    # Shift the origin back
+    target_coord += origin
+    print(target_coord)
+    print("======")
+
+    return target_coord[:, 0]
+
+
+def pitch_correction(camera_center, camera_height, bbox_global_coordinates, pitch_angle):
+
+    coordinates_to_correct = bbox_global_coordinates[:, 0]
+    _camera_center = camera_center[0]
+    corrected_coord = correct_xy_plane(_camera_center[0], camera_height, coordinates_to_correct, pitch_angle)
+    return corrected_coord
+
+def roll_correction(camera_center, camera_height, bbox_global_coordinates, roll_angle):
+
+    coordinates_to_correct = bbox_global_coordinates[:, 1]
+    _camera_center = camera_center[0]
+    corrected_coord = correct_xy_plane(_camera_center[1], camera_height, coordinates_to_correct, roll_angle)
+    return corrected_coord
+
+
 def find_global_coords(center_coords: np.ndarray, 
                        unrotated_coords: np.ndarray, 
                        yaw_angle: float, focal_length: float,
@@ -77,7 +123,7 @@ def find_global_coords(center_coords: np.ndarray,
     global_unrotated_coords[:, 0] = image_to_global_transform(focal_length, pixel_width, global_unrotated_coords[:, 0], camera_height)
     global_unrotated_coords[:, 1] = image_to_global_transform(focal_length, pixel_height, global_unrotated_coords[:, 1], camera_height)
 
-    R = get_xy_rotation_matrix(360. - yaw_angle)
+    R = get_rotation_matrix(360. - yaw_angle)
 
     # Rotate the new coordinate
     rotated_coordinates = rotation_transform(global_unrotated_coords, R)
@@ -162,7 +208,7 @@ def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray,
                   focal_length: float,
                   image_width: int, image_height: int,
                   camera_height: float,
-                  yaw_angle: float):
+                  yaw_angle: float, pitch_angle: float, roll_angle: float):
 
     assert all([len(coord) == 2 for coord in [top_left, top_right, bottom_left, bottom_right, camera_center]])
 
@@ -182,6 +228,12 @@ def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray,
         image_width, image_height, camera_height, 
         yaw_angle, is_bbox=True
     )
+
+    # Adjust for the roll and pitch
+    print("Pitch: ", pitch_angle)
+    bbox_global_coordinates[:, 0] = pitch_correction(_camera_center, camera_height, bbox_global_coordinates, pitch_angle)
+    print("Roll: ", roll_angle)
+    bbox_global_coordinates[:, 1] = roll_correction(_camera_center, camera_height, bbox_global_coordinates, roll_angle)
 
     # Unpack
     top_left = bbox_global_coordinates[2, :]
