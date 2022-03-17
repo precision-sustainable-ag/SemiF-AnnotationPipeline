@@ -220,8 +220,8 @@ def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray,
     mul = -1.
     if (360. - yaw_angle) > 180:
         mul = 1.
-    bbox_global_coordinates[:, 0] = pitch_correction(_camera_center, camera_height, bbox_global_coordinates, mul*pitch_angle)
-    bbox_global_coordinates[:, 1] = roll_correction(_camera_center, camera_height, bbox_global_coordinates, mul*roll_angle)
+    # bbox_global_coordinates[:, 0] = pitch_correction(_camera_center, camera_height, bbox_global_coordinates, mul*pitch_angle)
+    bbox_global_coordinates[:, 1] = roll_correction(_camera_center, camera_height, bbox_global_coordinates, -mul*roll_angle)
 
     # Unpack
     top_left = bbox_global_coordinates[2, :]
@@ -232,27 +232,23 @@ def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray,
     return top_left, top_right, bottom_left, bottom_right
 
 
-def select_best_bbox(
-    bboxes: List[List[Tuple[float, float]]],
-    center_cooridnates: Tuple, pixel_width: float, pixel_height: float, yaw_angle: float):
+def select_best_bbox(bboxes, center_cooridnates, return_index=False):
     
-    # Convert the bounding boxes to global coordinates
-    global_bboxes = []
+    # Find the centroids
+    centroids = []
     for bbox in bboxes:
-        top_left = bbox[0]
-        top_right = bbox[1]
-        bottom_left = bbox[2]
-        bottom_right = bbox[3]
-        
-        global_bbox = bbox_to_global(
-            top_left, top_right, bottom_left, bottom_right, 
-            center_cooridnates, pixel_width, pixel_height, yaw_angle
-        )
+        centroid_x = (bbox["top_left"][0] + bbox["top_right"][0]) / 2.
+        centroid_y = (bbox["top_left"][1] + bbox["bottom_left"][1]) / 2.
+        centroid = np.array([centroid_x, centroid_y])
+        centroids.append(centroid)
+    centroids = np.array(centroids)
 
-        global_bboxes.append(global_bbox)
+    distances = np.sum((centroids - center_cooridnates)**2, axis=1)
+    # Select the box with the minimum distance
+    min_dist_bbox_idx = np.argmin(distances)
 
-    # TODO: Logic for selecting the best bounding box
-    # Should be based on the location of the bounding in
-    # global coordinates
+    min_dist_bbox = bboxes[min_dist_bbox_idx]
 
-    pass
+    if return_index:
+        return min_dist_bbox, min_dist_bbox_idx
+    return min_dist_bbox
