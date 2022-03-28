@@ -1,6 +1,12 @@
-from typing import Tuple, List
+from typing import Dict, List
 import math
 import numpy as np
+from .bbox_utils import BBox, BoxCoordinates, Image, bb_iou, generate_hash
+
+
+FOV_IOU_THRESH = 0.1
+BBOX_OVERLAP_THRESH = 0.2
+
 
 def get_rotation_matrix(angle: float) -> np.ndarray:
     """Get the rotation matrix for the Yaw
@@ -229,7 +235,9 @@ def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray,
     bottom_left = bbox_global_coordinates[1, :]
     bottom_right = bbox_global_coordinates[3, :]
 
-    return top_left, top_right, bottom_left, bottom_right
+    global_coordinates = BoxCoordinates(top_left, top_right, bottom_left, bottom_right)
+
+    return global_coordinates
 
 
 def select_best_bbox(bboxes, center_cooridnates, return_index=False):
@@ -252,3 +260,114 @@ def select_best_bbox(bboxes, center_cooridnates, return_index=False):
     if return_index:
         return min_dist_bbox, min_dist_bbox_idx
     return min_dist_bbox
+
+class BBoxFilter:
+
+    def __init__(self, images: List[Image]):
+        self.images = images
+        self.image_map = {image.id: image for image in images}
+        self.total_bboxes = sum([len(image.bboxes) for image in self.images])
+
+    def deduplicate_bboxes(self):
+
+        comparisons = self.filter_images()
+        self.filter_bounding_boxes(comparisons)
+
+    def filter_images(self):
+
+        image_ids = list(self.image_map.keys())
+        comparisons = dict()
+        # Find the overlap between FOVs of the images
+        for i, image_id in enumerate(image_ids):
+            image = self.image_map[image_id]
+            comparisons[image_id] = []
+            for j in range(i+1, len(image_ids)):
+                compare_image_id = image_ids[j]
+                compare_image = self.image_map[compare_image_id]
+                fov_iou = bb_iou(image.fov, compare_image.fov)
+                if fov_iou > FOV_IOU_THRESH:
+                    comparisons[image_id].append(compare_image_id)
+
+        return comparisons
+
+    def filter_bounding_boxes(self, comparisons: Dict[str, List[str]]):
+
+        # Only compare bounding boxes from images which have a significant overlap
+        for image_id, image_ids_for_comparison in comparisons.items():
+            for box in self.image_map[image_id].bboxes:
+                compared = set()
+                box_hash = generate_hash(box)
+                for compare_image_id in image_ids_for_comparison:
+                    boxes = self.image_map[compare_image_id].bboxes
+                    for _box in boxes:
+                        _box_hash = generate_hash(_box, box_hash)
+                        if _box_hash in compared:
+                            continue
+                        compared.add(_box_hash)
+                        iou = box.bb_iou(_box)
+                        if iou > BBOX_OVERLAP_THRESH:
+                            box.add_box(_box)
+                            _box.add_box(box)
+        self.select_best_bbox()
+
+    def select_best_bbox(self):
+        
+        visited = set()
+        for image in self.images:
+            if len(visited) == self.total_bboxes:
+                break
+            bboxes = image.bboxes
+            for box in bboxes:
+                box_hash = generate_hash(box)
+                if box_hash in visited:
+                    continue
+                all_boxes = [box] + box._overlapping_bboxes
+                box_hashes = [generate_hash(_box) for _box in all_boxes]
+                visited = visited.union(set(box_hashes))
+                # Find the best bounding box
+                centers = np.array([self.image_map[_box.image_id].camera_location for _box in all_boxes])
+                centroids = np.array([_box.global_centroid for _box in all_boxes])
+                distances = ((centroids - centers[:, :2])**2).sum(axis=-1)
+                min_idx = np.argmin(distances)
+                all_boxes[min_idx].is_primary = True
+        
+
+class BBoxMapper():
+
+    def __init__(self, images: List[Image]):
+        """Class to map bounding box coordinates from image cordinates
+           to global coordinates
+        """
+        self.images = images
+
+    def map(self):
+        """
+        Maps all the bounding boxes to a global coordinate space
+        """
+        for image in self.images:
+
+            camera_location = image.camera_location
+            camera_x = camera_location[0]
+            camera_y = camera_location[1]
+            camera_height = camera_z = camera_location[2]
+
+            camera_center = [camera_x, camera_y]
+            
+            global_coordinates = dict()
+            for bbox in image.bboxes:
+                
+                top_left = bbox.local_coordinates.top_left
+                bottom_left = bbox.local_coordinates.bottom_left
+                top_right = bbox.local_coordinates.top_right
+                bottom_right = bbox.local_coordinates.bottom_right
+                
+                # Transformation
+                global_coordinates = bbox_to_global(
+                    top_left, top_right, bottom_left, bottom_right, 
+                    camera_center, image.pixel_width, image.pixel_height, 
+                    image.focal_length, 
+                    image.width, image.height, camera_height, 
+                    image.yaw, image.pitch, image.roll
+                )
+                
+                bbox.update_global_coordinates(global_coordinates)
