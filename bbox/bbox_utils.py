@@ -13,19 +13,6 @@ class BoxCoordinates:
     bottom_left: np.ndarray
     bottom_right: np.ndarray
 
-    # def __eq__(self, __o: object) -> bool:
-        
-    #     if not isinstance(__o, BoxCoordinates):
-    #         return False
-
-    #     return all([
-    #         np.sum((c1 - c2)**2) < EPS 
-    #         for c1, c2 in zip(
-    #                 [self.top_left, self.top_right, self.bottom_left, self.bottom_right], 
-    #                 [__o.top_left, __o.top_right, __o.bottom_left, __o.bottom_right]
-    #             )
-    #         ])
-
     def __bool__(self):
         return all([len(coord) == 2 for coord in [self.top_left, self.top_right, self.bottom_left, self.bottom_right]])
 
@@ -100,15 +87,6 @@ class BBox:
 
         self.global_coordinates = global_coordinates
         self.global_centroid = self.get_centroid(self.global_coordinates)
-
-    # def __eq__(self, __o: object) -> bool:
-        
-    #     if not isinstance(__o, BBox):
-    #         return False
-    #     is_eq = False
-    #     if self.local_coordinates and self.local_coordinates == __o.local_coordinates:
-    #         is_eq = True
-    #     return is_eq
 
     def bb_iou(self, comparison_box, type="global"):
     
