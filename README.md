@@ -35,7 +35,11 @@ def reader(*args, **kwargs):
 
     # ... Do any file io
 
-    image_list = [{"image_id": "image_id1", "path": "path/to/image1"}, {"image_id": "image_id2", "path": "path/to/image2"}]
+    image_list = [
+        {"id": "image_id1", "path": "path/to/image1"}, 
+        {"id": "image_id2", "path": "path/to/image2"},
+        ...
+    ]
 
     bounding_boxes = {
         "image_id1": [
