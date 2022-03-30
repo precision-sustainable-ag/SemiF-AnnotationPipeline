@@ -155,16 +155,6 @@ class Image:
         self.height = image_array.shape[0]
 
 
-@dataclass
-class ImageData:
-    path: str
-    images: list=field(init=False, default_factory=list)
-
-    def __post_init__(self):
-        image_list = [os.path.join(self.path, f) for f in os.listdir(self.path)]
-        self.images = [Image(image_path) for image_path in image_list]
-
-
 def bb_iou(_boxA: BBox, _boxB: BBox):
     
     boxA = [_boxA.top_left[0], -_boxA.top_left[1], _boxA.bottom_right[0], -_boxA.bottom_right[1]]

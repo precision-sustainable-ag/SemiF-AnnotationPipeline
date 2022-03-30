@@ -239,28 +239,6 @@ def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray,
 
     return global_coordinates
 
-
-def select_best_bbox(bboxes, center_cooridnates, return_index=False):
-    
-    # Find the centroids
-    centroids = []
-    for bbox in bboxes:
-        centroid_x = (bbox["top_left"][0] + bbox["top_right"][0]) / 2.
-        centroid_y = (bbox["top_left"][1] + bbox["bottom_left"][1]) / 2.
-        centroid = np.array([centroid_x, centroid_y])
-        centroids.append(centroid)
-    centroids = np.array(centroids)
-
-    distances = np.sum((centroids - center_cooridnates)**2, axis=1)
-    # Select the box with the minimum distance
-    min_dist_bbox_idx = np.argmin(distances)
-
-    min_dist_bbox = bboxes[min_dist_bbox_idx]
-
-    if return_index:
-        return min_dist_bbox, min_dist_bbox_idx
-    return min_dist_bbox
-
 class BBoxFilter:
 
     def __init__(self, images: List[Image]):

@@ -18,7 +18,6 @@ class ParseXML:
         self.image_list = [{"id": image_id, "path": path} for image_id, path in zip(image_ids, images)]
 
     def parse(self, xml_file):
-        # print(xml_file)
 
         tree = ET.parse(xml_file)
         root = tree.getroot()

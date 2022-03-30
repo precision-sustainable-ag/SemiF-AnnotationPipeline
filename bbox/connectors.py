@@ -24,13 +24,9 @@ class SfMComponents:
     def camera_reference(self):
         if self._camera_reference is None:
             self._camera_reference = pd.read_csv(os.path.join(self.base_path, self.camera_reference_file))
-        return self._camera_reference
-
-    @property
-    def fov_reference(self):
-        if self._fov_reference is None:
             self._fov_reference = pd.read_csv(os.path.join(self.base_path, self.fov_reference_file))
-        return self._fov_reference
+            self._camera_reference = self._camera_reference.merge(self._fov_reference, how="inner", on="label")
+        return self._camera_reference
 
     @property
     def gcp_reference(self):
@@ -43,10 +39,9 @@ class BBoxComponents:
     """Reads bounding box coordinate files and converts to BBox class
     """
 
-    def __init__(self, fov_reference: pd.DataFrame, camera_reference: pd.DataFrame, 
+    def __init__(self, camera_reference: pd.DataFrame, 
                  reader: Callable, *args, **kwargs):
-        
-        self.fov_reference = fov_reference
+
         self.camera_reference = camera_reference
         self.reader = reader
         self.image_list, self.bounding_boxes = self.reader(*args, **kwargs)
@@ -72,12 +67,12 @@ class BBoxComponents:
                 box_coordinates = BoxCoordinates(top_left, top_right, bottom_left, bottom_right)
                 box = BBox(id=unique_box_id, image_id=image_id, local_coordinates=box_coordinates, cls=bbox["cls"])
                 boxes.append(box)
-            # bounding_boxes = BBoxes(bboxes=boxes, image_id=image_id)
-            self._bboxes[image_id] = boxes # bounding_boxes
+
+            self._bboxes[image_id] = boxes
 
     def get_fov(self, image_id):
         
-        row = self.fov_reference[self.fov_reference["label"] == image_id].reset_index(drop=True)
+        row = self.camera_reference[self.camera_reference["label"] == image_id].reset_index(drop=True)
 
         top_left_x = float(row.loc[0, "top_left_x"])
         top_left_y = float(row.loc[0, "top_left_y"])
