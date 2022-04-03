@@ -351,8 +351,11 @@ class BBoxFilter:
 
     def select_best_bbox(self):
         
+        # visited will be a set of boxes that have been compared
         visited = set()
         for image in self.images:
+            # If all the boxes have been checked, no need to
+            # check the other images
             if len(visited) == self.total_bboxes:
                 break
             bboxes = image.bboxes
