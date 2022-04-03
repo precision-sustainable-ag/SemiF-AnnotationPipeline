@@ -41,8 +41,18 @@ def rotation_transform(coord: np.ndarray, R: np.ndarray) -> np.ndarray:
     
     return rotated_coord
 
-def image_to_global_transform(focal_length, pixel_dim, coords, camera_height):
-    
+def image_to_global_transform(focal_length: float, pixel_dim: float, coords: np.ndarray, camera_height: float):
+    """Find the object dimensions using the camera model
+
+    Args:
+        focal_length (float): Focal length of the camera (in pixels)
+        pixel_dim (float): pixel width and pixel height
+        coords (np.ndarray): local coordinates to transform to global coordinates
+        camera_height (float): Height of the camera
+
+    Returns:
+        _type_: _description_
+    """
     f = focal_length * pixel_dim
     # Distances from the center
     distances = np.abs(coords)
@@ -96,7 +106,8 @@ def find_global_coords(unrotated_coords: np.ndarray,
                        yaw_angle: float, focal_length: float,
                        pixel_height: float, pixel_width: float,
                        camera_height: float) -> np.ndarray:
-    """_summary_
+
+    """Function to find the translated global coordinates
 
     Args:
         center_coords (np.ndarray): Image center coordinates in global coordinate system
@@ -105,7 +116,7 @@ def find_global_coords(unrotated_coords: np.ndarray,
         is_bbox (bool, optional): Do the coordinates describe a boudig box? Defaults to True.
 
     Returns:
-        np.ndarray: _description_
+        np.ndarray: Translated global coordinates
     """
 
     global_unrotated_coords = unrotated_coords.copy()
@@ -113,13 +124,18 @@ def find_global_coords(unrotated_coords: np.ndarray,
     global_unrotated_coords[:, 0] = global_unrotated_coords[:, 0] * pixel_width
     global_unrotated_coords[:, 1] = global_unrotated_coords[:, 1] * pixel_height
 
+    # Find the "object dimensions" in the global coordinates
     global_unrotated_coords[:, 0] = image_to_global_transform(focal_length, pixel_width, global_unrotated_coords[:, 0], camera_height)
     global_unrotated_coords[:, 1] = image_to_global_transform(focal_length, pixel_height, global_unrotated_coords[:, 1], camera_height)
 
+    # The yaw angle from the SfM corresponds to the camera rotation
+    # The image rotation wrt to camera location is in the opposite direction
     _yaw_angle = 360. - yaw_angle
 
+    # Apply rotations to the objects
+    # This gives the coordinates with the origin shifted to
+    # the camera location
     R = get_rotation_matrix(_yaw_angle)
-
     # Rotate the new coordinate
     rotated_coordinates = rotation_transform(global_unrotated_coords, R)
 
@@ -132,7 +148,7 @@ def img_to_global_coord(image_coordinates: np.ndarray, camera_center: np.ndarray
                         image_width: float, image_height: float,
                         camera_height:float,
                         yaw_angle: float, is_bbox: bool=True) -> np.ndarray:
-    """_summary_
+    """Map the bounding box points form local coordinates to gobal coordinates
 
     Args:
         image_coordinates (np.ndarray): Image coordinates in image space
@@ -145,7 +161,7 @@ def img_to_global_coord(image_coordinates: np.ndarray, camera_center: np.ndarray
         is_bbox (bool, optional): Are the image coordinates bounding box coordinates? Defaults to True.
 
     Returns:
-        np.ndarray: _description_
+        np.ndarray: Global coordinates
     """
 
     _image_coordinates = image_coordinates.copy()
@@ -159,16 +175,18 @@ def img_to_global_coord(image_coordinates: np.ndarray, camera_center: np.ndarray
         _camera_center = np.expand_dims(_camera_center, axis=0)
     assert _camera_center.shape[1] == 2
 
-    # Shift the origin to the image center: This corresponds to the camera center
-    # in the global coordinates
+    # Shift the origin to the image center: The image center (in local coordinates)
+    # corresponds to the camera locatio in the global coordinates
     image_center = np.array([[float(image_width // 2), float(image_height//2)]])
     _image_coordinates -= image_center
 
+    # Find the coordinates wrt to the camera location
     global_coordinates = find_global_coords(_image_coordinates, 
                                             yaw_angle, focal_length, 
                                             pixel_width, pixel_height, 
                                             camera_height)
-    # Shift the origin back from the camera center
+    
+    # Shift the origin back to the global origin (0, 0)
     global_coordinates += _camera_center
 
     if is_bbox:
@@ -195,13 +213,35 @@ def img_to_global_coord(image_coordinates: np.ndarray, camera_center: np.ndarray
 
 
 def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray, 
-                  bottom_left: np.ndarray, bottom_right: np.ndarray, 
-                  camera_center: np.ndarray, 
-                  pixel_width: float, pixel_height: float, 
-                  focal_length: float,
-                  image_width: int, image_height: int,
-                  camera_height: float,
-                  yaw_angle: float, pitch_angle: float, roll_angle: float):
+                   bottom_left: np.ndarray, bottom_right: np.ndarray, 
+                   camera_center: np.ndarray, 
+                   pixel_width: float, pixel_height: float, 
+                   focal_length: float,image_width: 
+                   int, image_height: int, camera_height: float,
+                   yaw_angle: float, pitch_angle: float, roll_angle: float) -> BoxCoordinates:
+
+    """Map the bonding box points form local coordinates to gobal coordinates, and apply
+       roll and pitch corrections
+
+    Args:
+        top_left (np.ndarray): Top left x and y coordinates
+        top_right (np.ndarray): Top right x and y coordinates
+        bottom_left (np.ndarray): Bottom left x and y coordinates
+        bottom_right (np.ndarray): Bottom right x and y coordinates
+        camera_center (np.ndarray): x and y coordinates of the camera location (in global coordinates)
+        pixel_width (float): Pixel width found using SfM
+        pixel_height (float): Pixel height found using SfM
+        focal_length (float): Focal length (in pixels) found using SfM
+        image_width (int): Image width (in pixels)
+        image_height (int): Image height (in pixels)
+        camera_height (float): Camera height (in global coordinates) found using SfM
+        yaw_angle (float): Yaw angle of the camera found using SfM
+        pitch_angle (float): Pitch angle of the camera found using SfM
+        roll_angle (float): Roll angle of the camera found using SfM
+
+    Returns:
+        BoxCoordinates: Global coordinates of the bounding box
+    """
 
     assert all([len(coord) == 2 for coord in [top_left, top_right, bottom_left, bottom_right, camera_center]])
 
@@ -247,12 +287,20 @@ class BBoxFilter:
         self.total_bboxes = sum([len(image.bboxes) for image in self.images])
 
     def deduplicate_bboxes(self):
-
+        """Calculates the ideal bounding box and the associated image from all the
+           bounding boxes
+        """
         comparisons = self.filter_images()
         self.filter_bounding_boxes(comparisons)
 
-    def filter_images(self):
+    def filter_images(self) -> Dict[str, List[str]]:
+        """Filter the images to compare based on the overlap between their fields of
+           view
 
+        Returns:
+            Dict[str, List[str]]: A dictionary containing the image IDs as keys, and
+                                  a list of image IDs each key overlaps with
+        """
         image_ids = list(self.image_map.keys())
         comparisons = dict()
         # Find the overlap between FOVs of the images
@@ -269,21 +317,34 @@ class BBoxFilter:
         return comparisons
 
     def filter_bounding_boxes(self, comparisons: Dict[str, List[str]]):
+        """Find overlapping bounding boxes from the images to compare
 
-        # Only compare bounding boxes from images which have a significant overlap
+        Args:
+            comparisons (Dict[str, List[str]]): Images to compare, found via
+                                                filter_images
+        """
+        # For all the overlapping images
         for image_id, image_ids_for_comparison in comparisons.items():
+            # For each bounding box in the key image
             for box in self.image_map[image_id].bboxes:
                 compared = set()
+                # A unique ID for the bounding box in question
                 box_hash = generate_hash(box)
+                # For each overlapping image
                 for compare_image_id in image_ids_for_comparison:
                     boxes = self.image_map[compare_image_id].bboxes
+                    # And each of its bounding box
                     for _box in boxes:
+                        # A unique ID for a pair of bounding boxes
+                        # Note that the order of the boxes does not matter
+                        # i.e. Box_A,Box_B is the same as Box_B,Box_A
                         _box_hash = generate_hash(_box, box_hash)
                         if _box_hash in compared:
                             continue
                         compared.add(_box_hash)
                         iou = box.bb_iou(_box)
                         if iou > BBOX_OVERLAP_THRESH:
+                            # Set the two boxes as overlapping
                             box.add_box(_box)
                             _box.add_box(box)
         self.select_best_bbox()
