@@ -165,6 +165,7 @@ class Image:
     pitch: float
     roll: float
     focal_length: float
+    normalize_dims: bool=field(init=True, default=False)
     width: int=field(init=False, default=-1)
     height: int=field(init=False, default=-1)
 
@@ -177,9 +178,13 @@ class Image:
 
     def __post_init__(self):
 
-        image_array = self.array
-        self.width = image_array.shape[1]
-        self.height = image_array.shape[0]
+        if self.normalize_dims:
+            self.width = 1.
+            self.height = 1.
+        else:
+            image_array = self.array
+            self.width = image_array.shape[1]
+            self.height = image_array.shape[0]
 
 
 def bb_iou(boxA: BBox, boxB: BBox):

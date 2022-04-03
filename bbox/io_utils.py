@@ -87,16 +87,40 @@ class ParseYOLO:
 
         self.image_list = [{"id": image_id, "path": path} for image_id, path in zip(image_ids, images)]
 
-    def create_boxes(self):
+    def parse(self, filepath):
         
+        boxes = []
+        with open(filepath, "r") as f:
+            for i, line in enumerate(f.readlines()):
+                cls, x, y, w, h = line.split(" ")
+
+                top_left = [x, y]
+                top_right = [x+w, y]
+                bottom_left = [x, y+h]
+                bottom_right = [x+w, y+h]
+
+                bbox = {
+                    "id": str(i),
+                    "top_left": top_left,
+                    "top_right": top_right,
+                    "bottom_left": bottom_left,
+                    "bottom_right": bottom_right,
+                    "cls": cls
+                }
+                boxes.append(bbox)
+
+        return boxes
+
+    def create_bboxes(self):
+
         bounding_boxes = dict()
         
         for image in self.image_list:
             image_id = image["id"]
-            xml_file = os.path.join(self.label_path, image_id+".xml")
+            txt_file = os.path.join(self.label_path, image_id+".txt")
             
-            if os.path.exists(xml_file):
-                bboxes = self.parse(xml_file)
+            if os.path.exists(txt_file):
+                bboxes = self.parse(txt_file)
             else:
                 bboxes = []
             bounding_boxes[image_id] = bboxes
