@@ -285,6 +285,8 @@ class BBoxFilter:
         self.images = images
         self.image_map = {image.id: image for image in images}
         self.total_bboxes = sum([len(image.bboxes) for image in self.images])
+        self.primary_boxes = []
+        self.primary_box_ids = set()
 
     def deduplicate_bboxes(self):
         """Calculates the ideal bounding box and the associated image from all the
@@ -324,9 +326,15 @@ class BBoxFilter:
                                                 filter_images
         """
         # For all the overlapping images
+        visited_bboxes = set()
+        areas = []
+        self.mean_box_area = 0.
         for image_id, image_ids_for_comparison in comparisons.items():
             # For each bounding box in the key image
             for box in self.image_map[image_id].bboxes:
+                if box.id not in visited_bboxes:
+                    visited_bboxes.add(box.id)
+                    areas.append(box.local_area)
                 compared = set()
                 # A unique ID for the bounding box in question
                 box_hash = generate_hash(box)
@@ -335,6 +343,11 @@ class BBoxFilter:
                     boxes = self.image_map[compare_image_id].bboxes
                     # And each of its bounding box
                     for _box in boxes:
+
+                        if _box.id not in visited_bboxes:
+                            visited_bboxes.add(_box.id)
+                            areas.append(_box.local_area)
+
                         # A unique ID for a pair of bounding boxes
                         # Note that the order of the boxes does not matter
                         # i.e. Box_A,Box_B is the same as Box_B,Box_A
@@ -347,7 +360,13 @@ class BBoxFilter:
                             # Set the two boxes as overlapping
                             box.add_box(_box)
                             _box.add_box(box)
+        self.mean_box_area = sum(areas) / len(areas)
+        var_box_area = sum([(area - self.mean_box_area)**2 for area in areas]) / len(areas)
+        self.std_box_area = math.sqrt(var_box_area)
+        # Threshold is one standatd deviation from the mean
+        self.BOX_AREA_THRESH = self.mean_box_area - self.std_box_area
         self.select_best_bbox()
+        self.cleanup_primary_boxes()
 
     def select_best_bbox(self):
         
@@ -372,6 +391,43 @@ class BBoxFilter:
                 distances = ((centroids - centers[:, :2])**2).sum(axis=-1)
                 min_idx = np.argmin(distances)
                 all_boxes[min_idx].is_primary = True
+                if all_boxes[min_idx].id not in self.primary_box_ids:
+                    self.primary_boxes.append(all_boxes[min_idx])
+                    self.primary_box_ids.add(all_boxes[min_idx].id)
+
+    def cleanup_primary_boxes(self):
+
+        for i, box in enumerate(self.primary_boxes):
+            image_width = self.image_map[box.image_id].width
+            image_height = self.image_map[box.image_id].height
+
+            if box.local_centroid[0] < image_width // 4 or \
+               box.local_centroid[0] > 3 * image_width // 4 or \
+               box.local_centroid[1] < image_height // 4 or \
+               box.local_centroid[1] > 3 * image_height // 4:
+
+               box.is_primary = False
+               del self.primary_boxes[i]
+
+
+        # Revisit all bounding boxes identified as primary and
+        # remove the overlapping ones
+        for i in range(len(self.primary_boxes)):
+            box1 = self.primary_boxes[i]
+            camera_location1 = self.image_map[box1.image_id].camera_location[:2] # get just x and y
+            for j in range(i+1, len(self.primary_boxes)):
+                box2 = self.primary_boxes[j]
+                camera_location2 = self.image_map[box2.image_id].camera_location[:2] # get just x and y
+                iou = box1.bb_iou(box2)
+                if iou > BBOX_OVERLAP_THRESH:
+                    # De-duplicate\
+                    distance1 = ((box1.global_centroid - camera_location1)**2).sum(axis=-1)
+                    distance2 = ((box2.global_centroid - camera_location2)**2).sum(axis=-1)
+
+                    if distance1 < distance2:
+                        box2.is_primary = False
+                    else:
+                        box1.is_primary = False
         
 
 class BBoxMapper():
