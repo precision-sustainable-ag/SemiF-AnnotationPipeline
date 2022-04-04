@@ -420,7 +420,7 @@ class BBoxFilter:
                 camera_location2 = self.image_map[box2.image_id].camera_location[:2] # get just x and y
                 iou = box1.bb_iou(box2)
                 if iou > BBOX_OVERLAP_THRESH:
-                    # De-duplicate\
+                    # De-duplicate
                     distance1 = ((box1.global_centroid - camera_location1)**2).sum(axis=-1)
                     distance2 = ((box2.global_centroid - camera_location2)**2).sum(axis=-1)
 

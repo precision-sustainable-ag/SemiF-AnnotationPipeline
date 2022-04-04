@@ -1,5 +1,6 @@
-from typing import List, Dict
+from typing import List
 from dataclasses import dataclass, field
+import json
 import os
 import numpy as np
 import cv2
@@ -16,6 +17,17 @@ class BoxCoordinates:
     def __bool__(self):
         # The bool function is to check if the coordinates are populated or not
         return all([len(coord) == 2 for coord in [self.top_left, self.top_right, self.bottom_left, self.bottom_right]])
+
+    @property
+    def config(self):
+        _config = {
+            "top_left": self.top_left.tolist(),
+            "top_right": self.top_right.tolist(),
+            "bottom_left": self.bottom_left.tolist(),
+            "bottom_right": self.bottom_right.tolist()
+        }
+
+        return _config
 
 
 def init_empty():
@@ -56,6 +68,19 @@ class BBox:
             else:
                 raise AttributeError("Global coordinates have to be defined for the global area to be calculated.")
         return self._global_area
+
+    @property
+    def config(self):
+        _config = {
+            "id": self.id,
+            "image_id": self.image_id,
+            "local_coordinates": self.local_coordinates.config,
+            "global_coordinates": self.global_coordinates.config,
+            "is_primary": self.is_primary,
+            "overlapping_bbox_ids": [box.id for box in self._overlapping_bboxes]
+        }
+        return _config
+
 
     def __post_init__(self):
 
@@ -176,6 +201,25 @@ class Image:
         img_array = np.ascontiguousarray(cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB))
         return img_array
 
+    @property
+    def config(self):
+        _config = {
+            "id": self.id,
+            "width": self.width,
+            "height": self.height,
+            "field_of_view": self.fov.config,
+            "pixel_width": self.pixel_width,
+            "pixel_height": self.pixel_height,
+            "yaw": self.yaw,
+            "pitch": self.pitch,
+            "roll": self.roll,
+            "focal_length": self.focal_length,
+            "camera_location": self.camera_location.tolist(),
+            "bboxes": [box.config for box in self.bboxes]
+        }
+
+        return _config
+
     def __post_init__(self):
 
         if self.normalize_dims:
@@ -185,6 +229,15 @@ class Image:
             image_array = self.array
             self.width = image_array.shape[1]
             self.height = image_array.shape[0]
+
+    def save_config(self, save_path):
+        try:
+            save_file = os.path.join(save_path, f"{self.id}.json")
+            with open(save_file, "w") as f:
+                json.dump(self.config, f, indent=2)
+        except Exception as e:
+            raise e
+        return True
 
 
 def bb_iou(boxA: BBox, boxB: BBox):
