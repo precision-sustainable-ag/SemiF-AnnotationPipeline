@@ -20,9 +20,8 @@ python SEMIF.py
 ## Data Structure
 <details open>
 
-Ideally Metadata and images are passed through the pipeline together. Certain metadata can improve annotation processing.
-
-Each image as a dataclass with
+Ideally Metadata and images are passed through the pipeline together so that they can be easily accessed to customize and thus improve processing.
+For example, an image as a dataclass can point to physical image location, but also store other data attributes like bounding box/species information. When segmenting vegetation, one algorithm may be preferable over the other depending on the detected species, growth stage, etc.
 
 ```Python
 @dataclass
@@ -36,6 +35,9 @@ class ImageData:
     width: int = field(init=False, default=-1)
     height: int = field(init=False, default=-1)
 ```
+
+![](Assets/data_struct_v1.png)
+
 TODO Provide more details
 
 
