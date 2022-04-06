@@ -16,14 +16,41 @@ Run by using
 ```
 python SEMIF.py
 ```
-## Localize Plants
+
+## Data Structure
 <details open>
+
+Ideally Metadata and images are passed through the pipeline together. Certain metadata can improve annotation processing.
+
+Each image as a dataclass with
+
+```Python
+@dataclass
+class ImageData:
+    """ Data and metadata for individual images """
+    image_id: str 
+    image_path: str
+    upload_id: str # Points to batch metadata that can be used to customize image processing
+    bboxes: List[BBox]
+    camera_data: CameraData = field(default=None)
+    width: int = field(init=False, default=-1)
+    height: int = field(init=False, default=-1)
+```
+TODO Provide more details
+
+
+</details>
+<br>
+
+## Localize Plants
+<details>
 <summary>A trained detection model is use to localize and segment vegetation from incoming images</summary>
 
 Input:
 ```YAML
 # conf/confgi.yaml
 general:
+   task: localize_plants
    model_path: ./path/to/detection/model
    csv_savepath: ./path/to/save/csv/detection file
    imagedir: ./path/to/images
@@ -41,6 +68,7 @@ Outputs:
 
 ```YAML
 general:
+   task: segment_vegetation
    datadir: path to root data directory that contains benchbot images
    savedir: path to save "masks" and "cutouts"
    num_class: number of species classes
