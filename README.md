@@ -1,25 +1,104 @@
-# SemiF-AnnotationPipeline
 
-Collecting and labeling images of weeds is time-consuming and costly, and has severely slowed the development of datasets necessary for utilizing artificial intelligence in agriculture, particularly in weed identification, mapping and precision management applications. This project aims to reduce the burden of manually annotating images of weeds and other plants by implementing a semi-automatic annotation pipeline designed to iterate over batches of incoming images.
 
-1. Images collected from BenchBot uploaded to shared storage
-2. Classical image processing techniques are applied to segment vegetation creating a library of plant cutouts
-3. Synthetic data is generated from cutouts and used to train both annotation assistant networks
-4. AutoSfM (C.M. Savadikar 2022) takes in batched image uploads and returns a global corrdinate reference system(CRS) that tags individual pots for tracking and custom annotation configuration
-5. Annotation assistant models
-   1.  The detection assistant network is trained on a combination of synthetic data and real data. Local detection results will be mapped to a global CRS provided by AutoSfM
-   2.  The segmentation assistant network is trained on a combination of synthetic data and real data from previsous batches to predict on real data to generate sematic annotations
-6. Bounding box and semantic annotations are generated from synthetic and real data.
+Collecting and labeling images of weeds is time-consuming and costly, and has severely slowed the development of datasets necessary for utilizing artificial intelligence in agriculture, particularly in weed identification, mapping and precision management applications. This project aims to reduce the burden of manually annotating images of weeds and other plants by implementing a semi-automatic annotation pipeline designed to iteratively update annotation assistant models over batches of incoming images.
 
-No images need to be manually annotated. Only it the first iterations will cutouts need to be manually sorted into distinct classes. This process aims to save an estimated 22 hours per 1,000 segmentations. Automatic annotation pipelines play an important role in developing robust datasets for trained AI models that can handle diverse scenes. The methodology devised here will be utilized in a weed image library pipeline currently being developed by the [Precision Sustainable Ag](https://precisionsustainableag.org/) research network.
+# SemiField Annotation Pipeline
+
+## Config and Run
+Uses Hydra 
+```
+pip install hydra-core
+```
+
+Set config file variables in `conf/config.yaml`. See below for task variable specifics
+
+Run by using
+```
+python SEMIF.py
+```
+## Localize Plants
+<details open>
+<summary>A trained detection model is use to localize and segment vegetation from incoming images</summary>
+
+Input:
+```YAML
+# conf/confgi.yaml
+general:
+   model_path: ./path/to/detection/model
+   csv_savepath: ./path/to/save/csv/detection file
+   datadir: ./path/to/main/data directory
+```
+
+Outputs: 
+* Bounding box csv file containing
+
+</details>
+<br>
+
+## Segment Vegetation
+<details>
+<summary>Localize and segment plants from within bounding box detection results. Apply classical image processing techniques - VIs, thresholding, and unsupervised clustering - to classify pixels.</summary>
+
+```YAML
+general:
+   datadir: path to root data directory that contains benchbot images
+   savedir: path to save "masks" and "cutouts"
+   num_class: number of species classes
+   vi_name: vegetation index
+   class_algo: classification algorithm
+```
+
+Output:
+1. pixel-wise masks of vegetation
+2. vegetation cutouts
+
+</details>
+<br>
+
+## Synthesize Data
+<details>
+<summary>Create a dataset of synthetic image using vegetation cutouts.</summary>
+
+Inputs: 
+* Vegetation segments
+  
+Outputs:
+  1. synthetic images
+  2. bounding box labels (by species)
+  3. pixel-level mask with species labels
+
+</details>
+<br>
+
+## Train Plant Detector
+<details>
+<summary>Train plant detector</summary>
+
+* Use synthetic data to train detection model
+
+</details>
+<br>
+
+---
+<br>
+
+## Simple Flowchart
+<details>
+<summary>Simple Flowchart</summary>
+<p align="center">
+<img src="Assets/semif_pipeline_v4_simplified_small.png" width="750">
+</p>
+</details>
+<br>
 
 ---
 
-## Simple Flowchart
-![](Assets/semif_pipeline_v4_simplified_small.png)
-
+<br>
 
 ## Metadata
+<details>
+<summary>Metadata</summary>
+
 Listed linearly as data is passed through the pipeline. Alternatively, heirchical representation may be used.
 ```YAML
 
@@ -65,7 +144,16 @@ Per segmentation:
    - Method of segmentation:
    - Path to segmentation file:
 ```
+</details>
+<br>
+
+---
+<br>
 
 ## Detailed Flowchart
+<details>
+<summary>Detailed Flowchart</summary>
+TODO update this figure
 ![](Assets/semif_pipeline_v4_small.png)
+</details>
 

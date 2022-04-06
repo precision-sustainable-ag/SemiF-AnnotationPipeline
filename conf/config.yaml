@@ -4,35 +4,21 @@ default:
 - database: opencv2021
 - collection: image
 - _self_
-- hydra: default
-
-# hydra:
-#   searchpath:
-#     - pkg://.
 
 general:
-  inc_paths: true
-  work_dir: ${hydra:runtime.cwd}  # where the code is executed
-  task: CutoutLibrary # CutoutLibrary GenerateMask GenMaskMultiProc
-  mode: create # test, create
-  data_dir: ${general.work_dir}/test_data
-  input_imagedir: ${general.work_dir}/test_data/images
-  save_bimasks: true # TODO this does nothing, implement this
-  bimask_savedir: ${general.work_dir}/test_data/bimasks
-  cutout_savedir: ${general.work_dir}/test_data/cutouts
-  save_cutouts: true
-
-gen_bimask:
+  task: localize_plants # segment_vegetation, localize_plants, CutoutLibrary GenerateMask GenMaskMultiProc SegmentVegetation
+  name: test_exp_v2
+  workdir: ${hydra:runtime.cwd}/  # where the code is executed
+  datadir: ${general.workdir}/data
+  autosfm_results: ${general.datadir}/autosfm_results
+ 
+  model_path: ${general.workdir}/models/detection/bs6_imgsz640/weights/best.pt
+  
+  datetime: &datetime ${now:%Y%m%d_%H%M%S}
+  detection_csvpath: ${general.workdir}/runs/detections_${general.datetime}.csv
+  
   vi: exg
-  classify: otsu
+  class_algorithm: kmeans
+  num_classes: 1
 
-cutouts:
-  crop: true
-  background_color: black
-
-viz:
-  show_masks: false # TODO this does nothing, implement
-  show_contours: false
-
-vis: {exg, exr, exgr}
-class_methods: {otsu, kmeans}
+  

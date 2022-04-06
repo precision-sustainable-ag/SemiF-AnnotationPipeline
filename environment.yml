@@ -1,0 +1,26 @@
+# run: conda env create --file environment.yml
+name: semif
+
+dependencies:
+  - python=3.10
+  - pip
+  # Core scientific python
+  - numpy
+  - tqdm
+  # Jupyter Environment
+  - jupyterlab
+  - notebook
+  - ipython
+  # Spatial packages
+  - rasterio
+  - pip:
+    # Everything else
+    - opencv-python
+    - hydra-core
+    - pyyaml
+    - pandas
+    - Pillow
+    - shapely
+    - scikit-image
+    - scikit-learn
+    - matplotlib

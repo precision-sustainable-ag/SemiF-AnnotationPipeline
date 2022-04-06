@@ -1,11 +1,8 @@
-import logging
-import os
-
 import hydra
 from hydra.utils import get_method, get_original_cwd
 from omegaconf import DictConfig, OmegaConf
 
-import CutoutLibrary  # do not remove this
+import localize_plants  # Do not remove
 
 
 @hydra.main(config_path="conf", config_name="config")

@@ -3,6 +3,8 @@
 outputs
 scratch_tutorials
 outline.md
+models
+data
 
 # Drawio flowcharts
 *.drawio
