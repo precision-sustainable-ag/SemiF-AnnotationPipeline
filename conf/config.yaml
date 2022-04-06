@@ -6,7 +6,7 @@ default:
 - _self_
 
 general:
-  task: localize_plants # segment_vegetation, localize_plants, CutoutLibrary GenerateMask GenMaskMultiProc SegmentVegetation
+  task: localize_plants # segment_vegetation, localize_plants
   name: test_exp_v2
   workdir: ${hydra:runtime.cwd}/  # where the code is executed
   datadir: ${general.workdir}/data/
