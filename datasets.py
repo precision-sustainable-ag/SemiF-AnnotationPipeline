@@ -97,36 +97,3 @@ class BatchImageList:
             "id": image_id,
             "path": str(path)
         } for image_id, path in zip(image_ids, images)]
-
-
-class VegDataIterator:
-
-    def __init__(self, datadir):
-        "Image and label iterator for segmenting vegetation from bounding box detection results."
-        "Returns images and labels"
-        self.datadir = self.check_datadir(Path(datadir))
-        self.imgs = get_img_paths(Path(self.datadir, "images"), sort=True)
-
-    def check_datadir(self, datadir):
-        assert datadir.exists(), "Data directory does not exist"
-        assert Path(datadir,
-                    "labels").exists(), "Label directory does not exist"
-        assert Path(datadir,
-                    "images").exists(), "Image directory does not exist"
-        return datadir
-
-    def label_func(self, fname):
-        name = fname.stem + ".txt"
-        return fname.parent.parent / f"labels/{name}"
-
-    def __getitem__(self, idx):
-        # for imgfname in self.imgs:
-        imgpath = Path(self.imgs[idx])
-        # Load data
-        img = cv2.imread(str(self.imgs[idx]))
-        # Get image shape info
-        img_h, img_w = img.shape[0], img.shape[1]
-        #Get bbox info for each image detection result
-        lblfname = self.label_func(imgpath)
-        lbls = get_bbox(lblfname, img_h, img_w, contains_conf=True)
-        return img, lbls, imgpath
