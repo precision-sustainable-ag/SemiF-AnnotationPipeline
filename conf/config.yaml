@@ -9,13 +9,14 @@ general:
   task: localize_plants # segment_vegetation, localize_plants, CutoutLibrary GenerateMask GenMaskMultiProc SegmentVegetation
   name: test_exp_v2
   workdir: ${hydra:runtime.cwd}/  # where the code is executed
-  datadir: ${general.workdir}/data
+  datadir: ${general.workdir}/data/
+  imagedir: ${general.workdir}/data/semif-trial
   autosfm_results: ${general.datadir}/autosfm_results
  
   model_path: ${general.workdir}/models/detection/bs6_imgsz640/weights/best.pt
   
   datetime: &datetime ${now:%Y%m%d_%H%M%S}
-  detection_csvpath: ${general.workdir}/runs/detections_${general.datetime}.csv
+  detection_csvpath: ${general.workdir}/detections_${general.datetime}.csv
   
   vi: exg
   class_algorithm: kmeans

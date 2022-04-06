@@ -26,7 +26,7 @@ Input:
 general:
    model_path: ./path/to/detection/model
    csv_savepath: ./path/to/save/csv/detection file
-   datadir: ./path/to/main/data directory
+   imagedir: ./path/to/images
 ```
 
 Outputs: 
