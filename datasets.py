@@ -36,11 +36,11 @@ class BatchMetadata:
     upload_datetime: str
     upload_dir: str
     env_metadata: EnvironmentalMetadata
-    upload_id: str = field(init=False)
+    batch_id: str = field(init=False)
     schema_version: str = field(default="v1")
 
     def __post_init__(self):
-        self.upload_id = str(uuid.uuid4())
+        self.batch_id = str(uuid.uuid4())
 
 
 @dataclass
@@ -61,9 +61,9 @@ class ImageData:
     """ Data and metadata for individual images """
     image_id: str
     image_path: str
-    upload_id: str
-    # bboxes: List[BBox]
-    camera_data: CameraData = field(default=None)
+    batch_id: str
+    iter_num: int = None  # For processing. How many times has this image been used in processing pipeline
+    bboxes: List = None
     width: int = field(init=False, default=-1)
     height: int = field(init=False, default=-1)
 
