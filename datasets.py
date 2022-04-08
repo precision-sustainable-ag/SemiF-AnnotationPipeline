@@ -1,3 +1,5 @@
+import json
+import os
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -6,10 +8,6 @@ from typing import List
 import cv2
 import numpy as np
 import yaml
-
-# from connectors import BBoxComponents
-
-EPS = 1e-16
 
 
 @dataclass
@@ -205,66 +203,70 @@ class BBox:
         return iou
 
 
-def bb_iou(boxA: BBox, boxB: BBox):
-    """Function to calculate the IoU of two bounding boxes
-
-    Args:
-        _boxA (BBox): First bounding box
-        _boxB (BBox): Secong bounding box
-
-    Returns:
-        _type_: _description_
-    """
-
-    _boxA = [
-        boxA.top_left[0], -boxA.top_left[1], boxA.bottom_right[0],
-        -boxA.bottom_right[1]
-    ]
-    _boxB = [
-        boxB.top_left[0], -boxB.top_left[1], boxB.bottom_right[0],
-        -boxB.bottom_right[1]
-    ]
-
-    # determine the (x, y)-coordinates of the intersection rectangle
-    xA = max(_boxA[0], _boxB[0])
-    yA = max(_boxA[1], _boxB[1])
-    xB = min(_boxA[2], _boxB[2])
-    yB = min(_boxA[3], _boxB[3])
-
-    # compute the area of intersection rectangle
-    interArea = abs(max((xB - xA, 0)) * max((yB - yA), 0))
-    if interArea == 0:
-        return 0
-    # compute the area of both the prediction and ground-truth
-    # rectangles
-    boxAArea = abs((_boxA[2] - _boxA[0]) * (_boxA[3] - _boxA[1]))
-    boxBArea = abs((_boxB[2] - _boxB[0]) * (_boxB[3] - _boxB[1]))
-
-    # compute the intersection over union by taking the intersection
-    # area and dividing it by the sum of prediction + ground-truth
-    # areas - the interesection area
-    iou = interArea / float(boxAArea + boxBArea - interArea)
-
-    # return the intersection over union value
-    return iou
+@dataclass
+class CameraInfo:
+    "Per individual image."
+    camera_location: np.ndarray
+    pixel_width: float
+    pixel_height: float
+    yaw: float
+    pitch: float
+    roll: float
+    focal_length: float
+    fov: BoxCoordinates = None
 
 
-def generate_hash(box: BBox, auxilliary_hash=None):
-    """Generate a unique ID for the BBox. For now, the hash is the BBox.id,
-       since the id is assumed to be unique (composed from the image_id).
+@dataclass
+class ImageData:
+    """ Data and metadata for individual images """
+    image_id: str
+    image_path: str
+    # batch_id: str
+    bboxes: BBox = None
+    camera_info: CameraInfo = None
+    width: int = field(init=False, default=-1)
+    height: int = field(init=False, default=-1)
 
-    Returns:
-        str: The unique ID for the box
-    """
+    @property
+    def array(self):
+        # Read the image from the file and return the numpy array
+        img_array = cv2.imread(self.image_path)
+        img_array = np.ascontiguousarray(
+            cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB))
+        return img_array
 
-    box_hash = box.id
-    # If another has is given, incorporate that
-    # This is handy if the hash for a pair of bounding boxes is to be
-    # determined
-    if auxilliary_hash is not None:
+    @property
+    def config(self):
+        _config = {
+            "id": self.image_id,
+            "width": self.width,
+            "height": self.height,
+            "field_of_view": self.camera_info.fov.config,
+            "pixel_width": self.camera_info.pixel_width,
+            "pixel_height": self.camera_info.pixel_height,
+            "yaw": self.camera_info.yaw,
+            "pitch": self.camera_info.pitch,
+            "roll": self.camera_info.roll,
+            "focal_length": self.camera_info.focal_length,
+            "camera_location": self.camera_info.camera_location.tolist(),
+            "bboxes": [box.config for box in self.bboxes]
+        }
 
-        box_hash = ",".join(sorted([auxilliary_hash, box_hash]))
-    return box_hash
+        return _config
+
+    def __post_init__(self):
+        image_array = self.array
+        self.width = image_array.shape[1]
+        self.height = image_array.shape[0]
+
+    def save_config(self, save_path):
+        try:
+            save_file = os.path.join(save_path, f"{self.image_id}.json")
+            with open(save_file, "w") as f:
+                json.dump(self.config, f, indent=2)
+        except Exception as e:
+            raise e
+        return True
 
 
 @dataclass
@@ -320,41 +322,3 @@ def get_batchloader():
     loader = yaml.SafeLoader
     loader.add_constructor("!BatchMetadata", batchmetadata_constructor)
     return loader
-
-
-@dataclass
-class CameraInfo:
-    "Per individual image."
-    camera_location: np.ndarray
-    pixel_width: float
-    pixel_height: float
-    yaw: float
-    pitch: float
-    roll: float
-    focal_length: float
-    # fov: BBoxComponents = None
-
-
-@dataclass
-class ImageData:
-    """ Data and metadata for individual images """
-    image_id: str
-    image_path: str
-    batch_id: str
-    bboxes: BBox = None
-    camera_info: CameraInfo = None
-    width: int = field(init=False, default=-1)
-    height: int = field(init=False, default=-1)
-
-    @property
-    def array(self):
-        # Read the image from the file and return the numpy array
-        img_array = cv2.imread(self.image_path)
-        img_array = np.ascontiguousarray(
-            cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB))
-        return img_array
-
-    def __post_init__(self):
-        image_array = self.array
-        self.width = image_array.shape[1]
-        self.height = image_array.shape[0]
