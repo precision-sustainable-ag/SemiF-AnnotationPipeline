@@ -5,6 +5,8 @@ scratch_tutorials
 outline.md
 models
 data
+segment_vegetation_utils.py
+semif_utils.py
 
 # Drawio flowcharts
 *.drawio
