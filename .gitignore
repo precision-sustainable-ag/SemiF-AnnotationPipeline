@@ -1,6 +1,11 @@
 
-# Sample data
-/test/testdata
+# Ignore everything
+*
+!datasets.py
+!.gitignore
+!README.md
+!utils.py
+!explore_datastructure.ipynb
 
 # Drawio flowcharts
 *.drawio
