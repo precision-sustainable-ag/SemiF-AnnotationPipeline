@@ -51,14 +51,16 @@ def increment_path(path, new_path=True, sep="_", mkdir=False):
         path.mkdir(parents=True, exist_ok=True)  # make directory
     return path
 
+
 ######################################################
 ####################### SAVING #######################
 ######################################################
-class EnhancedJSONEncoder(json.JSONEncoder):
-        def default(self, o):
-            if dataclasses.is_dataclass(o):
-                return dataclasses.asdict(o)
-            return super().default(o)
+# class EnhancedJSONEncoder(json.JSONEncoder):
+
+#     def default(self, o):
+#         if dataclasses.is_dataclass(o):
+#             return dataclasses.asdict(o)
+#         return super().default(o)
 
 
 def save_metadata(data_dict, save_path):
@@ -67,10 +69,11 @@ def save_metadata(data_dict, save_path):
         json.dumps(data_dict, cls=EnhancedJSONEncoder)
         # json.dumps(data_dict)
         # yaml.dump(data_dict,
-                    # f,
-                    # default_flow_style=False,
-                    # sort_keys=False)
+        # f,
+        # default_flow_style=False,
+        # sort_keys=False)
         f.close()
+
 
 ######################################################
 ################### PREPROCESSINGS ###################
@@ -897,13 +900,11 @@ def overlay_polygon(img, polygon):
 ################# ERROR HANDLING ####################
 ######################################################
 
+# class CustomError(Exception):
+#     """Creates custom error using inherited Exception object"""
 
-class CustomError(Exception):
-    """Creates custom error using inherited Exception object"""
-
-    def __init__(self, message):
-        super().__init__(message)
-
+#     def __init__(self, message):
+#         super().__init__(message)
 
 ########################################################
 ####################### LOGGING  #######################
