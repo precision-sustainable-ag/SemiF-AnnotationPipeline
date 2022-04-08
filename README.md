@@ -4,6 +4,17 @@ Collecting and labeling images of weeds is time-consuming and costly, and has se
 
 # SemiField Annotation Pipeline
 
+## Read metadata
+## Get images
+## Detect plants
+## Local to global coordinates
+## Move to database
+## Temperary storage/Store locally
+## Begin Annotation processing
+
+
+
+
 ## Config and Run
 Uses Hydra 
 ```

@@ -1,17 +1,9 @@
 
 # Misc dirs and docs
-outputs
-scratch_tutorials
-outline.md
-models
-data
-segment_vegetation_utils.py
-semif_utils.py
-
-environment.yml
-localize_plants.py
-segment_vegetation.py
-SEMIF.py
+*
+!datasets.py
+!segment_vegetation.py
+!segment_vegetation_utils.py
 
 # Drawio flowcharts
 *.drawio
