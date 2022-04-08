@@ -1,12 +1,11 @@
 import uuid
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import List
 
 import cv2
 import numpy as np
 import yaml
-
-from semif_utils import get_images
 
 # from connectors import BBoxComponents
 
@@ -298,7 +297,10 @@ class BatchMetadata:
         self.image_list = self.get_batch_images()
 
     def get_batch_images(self):
-        images = get_images(self.upload_dir, sort=True)
+        extensions = ["*.jpg", "*.JPG", "*.png", "*.PNG", "*.jpeg", "*.JPEG"]
+        images = []
+        for ext in extensions:
+            images.extend(Path(self.upload_dir).glob(ext))
         image_ids = [image.stem for image in images]
 
         image_list = [{
