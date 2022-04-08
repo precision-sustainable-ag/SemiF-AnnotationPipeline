@@ -8,6 +8,11 @@ data
 segment_vegetation_utils.py
 semif_utils.py
 
+environment.yml
+localize_plants.py
+segment_vegetation.py
+SEMIF.py
+
 # Drawio flowcharts
 *.drawio
 *.drawio.xml
