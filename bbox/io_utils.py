@@ -1,6 +1,6 @@
 import os
-from glob import glob
 import xml.etree.ElementTree as ET
+from glob import glob
 
 
 class ParseXML:
@@ -13,9 +13,14 @@ class ParseXML:
     def create_image_list(self):
 
         images = glob(os.path.join(self.image_path, "*.jpg"))
-        image_ids = [image.split(os.path.sep)[-1].split(".")[0] for image in images]
+        image_ids = [
+            image.split(os.path.sep)[-1].split(".")[0] for image in images
+        ]
 
-        self.image_list = [{"id": image_id, "path": path} for image_id, path in zip(image_ids, images)]
+        self.image_list = [{
+            "id": image_id,
+            "path": path
+        } for image_id, path in zip(image_ids, images)]
 
     def parse(self, xml_file):
 
@@ -34,12 +39,12 @@ class ParseXML:
                 xmax = float(item.findall("xmax")[0].text)
                 ymin = float(item.findall("ymin")[0].text)
                 ymax = float(item.findall("ymax")[0].text)
-                
+
                 top_right = [xmax, ymin]
                 bottom_left = [xmin, ymax]
                 top_left = [xmin, ymin]
                 bottom_right = [xmax, ymax]
-                
+
                 bbox = {
                     "id": str(i),
                     "top_left": top_left,
@@ -54,11 +59,11 @@ class ParseXML:
     def create_bboxes(self):
 
         bounding_boxes = dict()
-        
+
         for image in self.image_list:
             image_id = image["id"]
-            xml_file = os.path.join(self.label_path, image_id+".xml")
-            
+            xml_file = os.path.join(self.label_path, image_id + ".xml")
+
             if os.path.exists(xml_file):
                 bboxes = self.parse(xml_file)
             else:
@@ -83,21 +88,26 @@ class ParseYOLO:
     def create_image_list(self):
 
         images = glob(os.path.join(self.image_path, "*.jpg"))
-        image_ids = [image.split(os.path.sep)[-1].split(".")[0] for image in images]
+        image_ids = [
+            image.split(os.path.sep)[-1].split(".")[0] for image in images
+        ]
 
-        self.image_list = [{"id": image_id, "path": path} for image_id, path in zip(image_ids, images)]
+        self.image_list = [{
+            "id": image_id,
+            "path": path
+        } for image_id, path in zip(image_ids, images)]
 
     def parse(self, filepath):
-        
+
         boxes = []
         with open(filepath, "r") as f:
             for i, line in enumerate(f.readlines()):
                 cls, x, y, w, h = line.split(" ")
 
                 top_left = [x, y]
-                top_right = [x+w, y]
-                bottom_left = [x, y+h]
-                bottom_right = [x+w, y+h]
+                top_right = [x + w, y]
+                bottom_left = [x, y + h]
+                bottom_right = [x + w, y + h]
 
                 bbox = {
                     "id": str(i),
@@ -114,11 +124,11 @@ class ParseYOLO:
     def create_bboxes(self):
 
         bounding_boxes = dict()
-        
+
         for image in self.image_list:
             image_id = image["id"]
-            txt_file = os.path.join(self.label_path, image_id+".txt")
-            
+            txt_file = os.path.join(self.label_path, image_id + ".txt")
+
             if os.path.exists(txt_file):
                 bboxes = self.parse(txt_file)
             else:
