@@ -1,11 +1,15 @@
-# read metadata
+import yaml
 
-#Get images
+from datasets import ImageData, get_batchloader
 
-# Detect plants
+# Load ImageData
+metadata_sheet = "data/semif-trial/semif-trial/metadata_sheet.yaml"
+meta = yaml.load(open(metadata_sheet, "rb"), Loader=get_batchloader())
 
-# Local to global coordinates
+# Segment vegetation
+
+# Create Cutout
+
+# Create PlantCutout and append Cutout
 
 # Move to database
-
-# Temperary storage/Store locally

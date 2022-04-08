@@ -3,7 +3,7 @@ import os
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+from typing import List, Type
 
 import cv2
 import numpy as np
@@ -291,7 +291,7 @@ class BatchMetadata:
     site_id: str
     upload_datetime: str
     batch_id: str = field(init=False)
-    environmental_metadata: EnvironmentalMetadata = field(init=False)
+    environmental_metadata: Type[EnvironmentalMetadata] = field(init=False)
     image_list: List = field(init=False)
     schema_version: str = "v1"
 
@@ -312,6 +312,50 @@ class BatchMetadata:
             "path": str(path)
         } for image_id, path in zip(image_ids, images)]
         return image_list
+
+
+@dataclass
+class Cutout:
+    cutout_id: str
+    cutout_fname: str
+    image_id: str
+
+
+@dataclass
+class PlantCutouts:
+    batch_id: str
+    image_id: str
+    cutouts: List[Cutout]
+
+    # def __init__(self, datadir):
+    #     "Image and label iterator for segmenting vegetation from bounding box detection results."
+    #     "Returns images and labels"
+    #     self.datadir = self.check_datadir(Path(datadir))
+    #     self.imgs = get_img_paths(Path(self.datadir, "images"), sort=True)
+
+    # def check_datadir(self, datadir):
+    #     assert datadir.exists(), "Data directory does not exist"
+    #     assert Path(datadir,
+    #                 "labels").exists(), "Label directory does not exist"
+    #     assert Path(datadir,
+    #                 "images").exists(), "Image directory does not exist"
+    #     return datadir
+
+    # def label_func(self, fname):
+    #     name = fname.stem + ".txt"
+    #     return fname.parent.parent / f"labels/{name}"
+
+    # def __getitem__(self, idx):
+    #     # for imgfname in self.imgs:
+    #     imgpath = Path(self.imgs[idx])
+    #     # Load data
+    #     img = cv2.imread(str(self.imgs[idx]))
+    #     # Get image shape info
+    #     img_h, img_w = img.shape[0], img.shape[1]
+    #     #Get bbox info for each image detection result
+    #     lblfname = self.label_func(imgpath)
+    #     lbls = get_bbox(lblfname, img_h, img_w, contains_conf=True)
+    #     return img, lbls, imgpath
 
 
 def batchmetadata_constructor(loader: yaml.SafeLoader,
