@@ -215,7 +215,6 @@ def img_to_global_coord(image_coordinates: np.ndarray,
         top_sort = np.argsort(left_coordinates[:, 1])
         bottom_left = left_coordinates[top_sort[0], :]
         top_left = left_coordinates[top_sort[1], :]
-
         # Determine which is the top_right and bottom_right
         right_coordinates = global_coordinates[mask[2:], :]
         top_sort = np.argsort(right_coordinates[:, 1])
@@ -400,7 +399,6 @@ class BBoxFilter:
         self.cleanup_primary_boxes()
 
     def select_best_bbox(self):
-
         # visited will be a set of boxes that have been compared
         visited = set()
         for image in self.images:

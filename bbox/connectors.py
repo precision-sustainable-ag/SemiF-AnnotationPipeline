@@ -57,7 +57,6 @@ class BBoxComponents:
         self._images = []
 
     def convert_bboxes(self):
-
         assert not self._bboxes
         for image_id, bboxes in self.bounding_boxes.items():
             boxes = []
@@ -155,7 +154,6 @@ class BBoxComponents:
         if not self._images:
             bboxes = self.bboxes
             for image in self.image_list:
-
                 image_id = image["id"]
                 path = image["path"]
                 fov = self.get_fov(image_id)

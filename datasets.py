@@ -9,6 +9,8 @@ import cv2
 import numpy as np
 import yaml
 
+# from connectors import BBoxComponents
+
 
 @dataclass
 class BoxCoordinates:

@@ -60,6 +60,5 @@ def generate_hash(box: BBox, auxilliary_hash=None):
     # This is handy if the hash for a pair of bounding boxes is to be
     # determined
     if auxilliary_hash is not None:
-
         box_hash = ",".join(sorted([auxilliary_hash, box_hash]))
     return box_hash
