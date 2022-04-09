@@ -7,7 +7,7 @@
 !remap_labels.py
 !SEMIF.py
 !conf
-
+!conf/config.yaml
 # Drawio flowcharts
 *.drawio
 *.drawio.xml
