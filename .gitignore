@@ -4,6 +4,9 @@
 !datasets.py
 !segment_vegetation.py
 !segment_vegetation_utils.py
+!remap_labels.py
+!SEMIF.py
+!conf
 
 # Drawio flowcharts
 *.drawio
