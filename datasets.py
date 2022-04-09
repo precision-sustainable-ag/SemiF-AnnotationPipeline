@@ -206,6 +206,37 @@ class BBox:
 
 
 @dataclass
+class MaskData:
+    mask_id: str
+    mask_path: str
+    image_id: str
+    width: int = field(init=False, default=-1)
+    height: int = field(init=False, default=-1)
+
+    @property
+    def array(self):
+        # Read the image from the file and return the numpy array
+        mask_array = cv2.imread(self.mask_path)
+        mask_array = np.ascontiguousarray(
+            cv2.cvtColor(mask_array, cv2.COLOR_BGR2RGB))
+        return mask_array
+
+    def __post_init__(self):
+        mask_array = self.array
+        self.width = mask_array.shape[1]
+        self.height = mask_array.shape[0]
+
+    def save_mask(self, save_path):
+        try:
+            save_file = os.path.join(save_path, f"{self.image_id}.png")
+            cv2.imwrite(save_file, self.array)
+
+        except Exception as e:
+            raise e
+        return True
+
+
+@dataclass
 class CameraInfo:
     "Per individual image."
     camera_location: np.ndarray
@@ -285,6 +316,36 @@ class EnvironmentalMetadata:
 
 
 @dataclass
+class BBoxMetadata:
+    batch_id: str
+    bbox_dir: str
+
+
+@dataclass
+class Cutout:
+    """Per cutout. Goes to PlantCutouts"""
+    cutout_id: str
+    cutout_fname: str
+    image_id: str
+
+
+@dataclass
+class PlantCutouts:
+    """ Per benchbot image. Standalone class for processing"""
+    batch_id: str
+    image_id: str
+    cutouts: List[Cutout]
+
+
+@dataclass
+class PlantCutoutMetadata:
+    """ For all cutouts in a batch. Goes to BatchMetadata"""
+    batch_id: str
+    cutout_dir: str
+    mask_dir: str
+
+
+@dataclass
 class BatchMetadata:
     """ Batch metadata class for yaml loader"""
     upload_dir: str
@@ -293,6 +354,8 @@ class BatchMetadata:
     batch_id: str = field(init=False)
     environmental_metadata: Type[EnvironmentalMetadata] = field(init=False)
     image_list: List = field(init=False)
+    bbox_metadata: BBoxMetadata = None
+    cutout_metadata: PlantCutoutMetadata = None
     schema_version: str = "v1"
 
     def __post_init__(self):
@@ -314,50 +377,6 @@ class BatchMetadata:
         return image_list
 
 
-@dataclass
-class Cutout:
-    cutout_id: str
-    cutout_fname: str
-    image_id: str
-
-
-@dataclass
-class PlantCutouts:
-    batch_id: str
-    image_id: str
-    cutouts: List[Cutout]
-
-    # def __init__(self, datadir):
-    #     "Image and label iterator for segmenting vegetation from bounding box detection results."
-    #     "Returns images and labels"
-    #     self.datadir = self.check_datadir(Path(datadir))
-    #     self.imgs = get_img_paths(Path(self.datadir, "images"), sort=True)
-
-    # def check_datadir(self, datadir):
-    #     assert datadir.exists(), "Data directory does not exist"
-    #     assert Path(datadir,
-    #                 "labels").exists(), "Label directory does not exist"
-    #     assert Path(datadir,
-    #                 "images").exists(), "Image directory does not exist"
-    #     return datadir
-
-    # def label_func(self, fname):
-    #     name = fname.stem + ".txt"
-    #     return fname.parent.parent / f"labels/{name}"
-
-    # def __getitem__(self, idx):
-    #     # for imgfname in self.imgs:
-    #     imgpath = Path(self.imgs[idx])
-    #     # Load data
-    #     img = cv2.imread(str(self.imgs[idx]))
-    #     # Get image shape info
-    #     img_h, img_w = img.shape[0], img.shape[1]
-    #     #Get bbox info for each image detection result
-    #     lblfname = self.label_func(imgpath)
-    #     lbls = get_bbox(lblfname, img_h, img_w, contains_conf=True)
-    #     return img, lbls, imgpath
-
-
 def batchmetadata_constructor(loader: yaml.SafeLoader,
                               node: yaml.nodes.MappingNode) -> BatchMetadata:
     return BatchMetadata(**loader.construct_mapping(node))
@@ -368,3 +387,23 @@ def get_batchloader():
     loader = yaml.SafeLoader
     loader.add_constructor("!BatchMetadata", batchmetadata_constructor)
     return loader
+
+
+def cutout_representer(
+        dumper: yaml.SafeDumper,
+        batch_cutout_info: PlantCutouts) -> yaml.nodes.MappingNode:
+    """Represent an Plant cutout instance as a YAML mapping node."""
+    return dumper.represent_mapping(
+        "!PlantCutouts", {
+            "batch_id": str,
+            "cutout_dir": str,
+            "name": batch_cutout_info.cutout_dir,
+            "id": batch_cutout_info.batch_id,
+        })
+
+
+def get_dumper():
+    """Add representers to a YAML seriailizer."""
+    safe_dumper = yaml.SafeDumper
+    safe_dumper.add_representer(PlantCutouts, cutout_representer)
+    return safe_dumper

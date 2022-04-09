@@ -4,6 +4,7 @@ from typing import Callable
 import numpy as np
 import pandas as pd
 from datasets import BBox, BoxCoordinates, CameraInfo, ImageData
+from tqdm import tqdm
 
 
 class SfMComponents:
@@ -153,7 +154,8 @@ class BBoxComponents:
     def images(self):
         if not self._images:
             bboxes = self.bboxes
-            for image in self.image_list:
+            for image in tqdm(self.image_list,
+                              desc="Remapping bbox coordinates"):
                 image_id = image["id"]
                 path = image["path"]
                 fov = self.get_fov(image_id)
@@ -170,17 +172,12 @@ class BBoxComponents:
                                       focal_length=focal_length,
                                       fov=fov)
 
+                # bbox_metadata = BBoxMetadata(batch_id=batch_id,
+                #                              bbox_dir=bbox_dir)
+
                 image = ImageData(image_path=path,
                                   image_id=image_id,
                                   bboxes=bboxes[image_id],
                                   camera_info=cam_info)
-                #   fov=fov,
-                #   camera_location=camera_location,
-                #   pixel_width=pixel_width,
-                #   pixel_height=pixel_height,
-                #   yaw=yaw,
-                #   pitch=pitch,
-                #   roll=roll,
-                #   focal_length=focal_length)
                 self._images.append(image)
         return self._images
