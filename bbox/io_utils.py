@@ -155,8 +155,6 @@ class ParseYOLOCsv:
     def create_image_list(self):
 
         images = glob(os.path.join(self.image_path, "*.jpg"))
-        # images = [img for img in images if any(_img in img for _img in ["row1", "row2"])]
-        # images = [img for img in images if any(_img in img for _img in ["_1", "_2", "_3", "_4"])]
         image_ids = [
             image.split(os.path.sep)[-1].split(".")[0] for image in images
         ]

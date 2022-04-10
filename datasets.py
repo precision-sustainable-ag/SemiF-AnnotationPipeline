@@ -6,7 +6,6 @@ from pathlib import Path
 from typing import List, Type
 
 import cv2
-from matplotlib import scale
 import numpy as np
 import yaml
 
