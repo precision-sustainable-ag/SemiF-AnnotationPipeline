@@ -1,13 +1,13 @@
 
 # Misc dirs and docs
-*
-!datasets.py
-!segment_vegetation.py
-!segment_vegetation_utils.py
-!remap_labels.py
-!SEMIF.py
-!conf
-!conf/config.yaml
+# *
+# !datasets.py
+# !segment_vegetation.py
+# !segment_vegetation_utils.py
+# !remap_labels.py
+# !SEMIF.py
+# !conf
+# !conf/config.yaml
 # Drawio flowcharts
 *.drawio
 *.drawio.xml
@@ -19,7 +19,7 @@
 *.pdf
 
 # Jupyter Notebook
-.ipynb_checkpoints
+*.ipynb_checkpoints
 
 # Pytest cache
 .pytest_cache

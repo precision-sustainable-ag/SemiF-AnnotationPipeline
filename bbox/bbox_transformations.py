@@ -7,7 +7,7 @@ from datasets import BoxCoordinates, ImageData
 from .bbox_utils import bb_iou, generate_hash
 
 FOV_IOU_THRESH = 0.1
-BBOX_OVERLAP_THRESH = 0.2
+BBOX_OVERLAP_THRESH = 0.3
 
 
 def get_rotation_matrix(angle: float) -> np.ndarray:
@@ -357,7 +357,6 @@ class BBoxFilter:
         # For all the overlapping images
         visited_bboxes = set()
         areas = []
-        self.mean_box_area = 0.
         for image_id, image_ids_for_comparison in comparisons.items():
             # For each bounding box in the key image
             for box in self.image_map[image_id].bboxes:
@@ -389,12 +388,6 @@ class BBoxFilter:
                             # Set the two boxes as overlapping
                             box.add_box(_box)
                             _box.add_box(box)
-        self.mean_box_area = sum(areas) / len(areas)
-        var_box_area = sum([(area - self.mean_box_area)**2
-                            for area in areas]) / len(areas)
-        self.std_box_area = math.sqrt(var_box_area)
-        # Threshold is one standatd deviation from the mean
-        self.BOX_AREA_THRESH = self.mean_box_area - self.std_box_area
         self.select_best_bbox()
         self.cleanup_primary_boxes()
 
@@ -430,6 +423,7 @@ class BBoxFilter:
 
     def cleanup_primary_boxes(self):
 
+        _primary_boxes = []
         for i, box in enumerate(self.primary_boxes):
             image_width = self.image_map[box.image_id].width
             image_height = self.image_map[box.image_id].height
@@ -440,17 +434,19 @@ class BBoxFilter:
                box.local_centroid[1] > 3 * image_height // 4:
 
                 box.is_primary = False
-                del self.primary_boxes[i]
+                # del self.primary_boxes[i]
+            else:
+                _primary_boxes.append(box)
 
         # Revisit all bounding boxes identified as primary and
         # remove the overlapping ones
-        for i in range(len(self.primary_boxes)):
-            box1 = self.primary_boxes[i]
+        for i in range(len(_primary_boxes)):
+            box1 = _primary_boxes[i]
             camera_location1 = self.image_map[
                 box1.
                 image_id].camera_info.camera_location[:2]  # get just x and y
-            for j in range(i + 1, len(self.primary_boxes)):
-                box2 = self.primary_boxes[j]
+            for j in range(i + 1, len(_primary_boxes)):
+                box2 = _primary_boxes[j]
                 camera_location2 = self.image_map[
                     box2.
                     image_id].camera_info.camera_location[:

@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import List, Type
 
 import cv2
+from matplotlib import scale
 import numpy as np
 import yaml
 
@@ -18,6 +19,7 @@ class BoxCoordinates:
     top_right: np.ndarray
     bottom_left: np.ndarray
     bottom_right: np.ndarray
+    scale: np.ndarray = field(init=False, default=np.array([]))
 
     def __bool__(self):
         # The bool function is to check if the coordinates are populated or not
@@ -34,10 +36,18 @@ class BoxCoordinates:
             "top_left": self.top_left.tolist(),
             "top_right": self.top_right.tolist(),
             "bottom_left": self.bottom_left.tolist(),
-            "bottom_right": self.bottom_right.tolist()
+            "bottom_right": self.bottom_right.tolist(),
+            "scale": self.scale.tolist()
         }
 
         return _config
+
+    def set_scale(self, new_scale: np.ndarray):
+        self.scale = new_scale
+        self.top_left = self.top_left * self.scale
+        self.top_right = self.top_right * self.scale
+        self.bottom_left = self.bottom_left * self.scale
+        self.bottom_right = self.bottom_right * self.scale
 
 
 def init_empty():
@@ -55,6 +65,7 @@ class BBox:
                                               default_factory=init_empty)
     global_coordinates: BoxCoordinates = field(init=True,
                                                default_factory=init_empty)
+    is_normalized: bool=field(init=True, default=False)
     local_centroid: np.ndarray = field(init=False,
                                        default_factory=lambda: np.array([]))
     global_centroid: np.ndarray = field(init=False,
@@ -99,6 +110,7 @@ class BBox:
             "local_coordinates": self.local_coordinates.config,
             "global_coordinates": self.global_coordinates.config,
             "is_primary": self.is_primary,
+            "cls": self.cls,
             "overlapping_bbox_ids":
             [box.id for box in self._overlapping_bboxes]
         }
@@ -110,10 +122,10 @@ class BBox:
         self._global_area = None
 
         if self.local_coordinates:
-            self.local_centroid = self.get_centroid(self.local_coordinates)
+            self.set_local_centroid()
 
         if self.global_coordinates:
-            self.global_centroid = self.get_centroid(self.global_coordinates)
+            self.set_global_centroid()
 
         # A list of all overlapping bounding boxes
         self._overlapping_bboxes: List[BBox] = []
@@ -140,6 +152,12 @@ class BBox:
         centroid = np.array([centroid_x, centroid_y])
 
         return centroid
+    
+    def set_local_centroid(self):
+        self.local_centroid = self.get_centroid(self.local_coordinates)
+
+    def set_global_centroid(self):
+        self.global_centroid = self.get_centroid(self.global_coordinates)
 
     def update_global_coordinates(self, global_coordinates: BoxCoordinates):
         """Update the global coordinates of the bounding box
@@ -255,7 +273,7 @@ class ImageData:
     image_id: str
     image_path: str
     # batch_id: str
-    bboxes: BBox = None
+    bboxes: List[BBox] = None
     camera_info: CameraInfo = None
     width: int = field(init=False, default=-1)
     height: int = field(init=False, default=-1)
