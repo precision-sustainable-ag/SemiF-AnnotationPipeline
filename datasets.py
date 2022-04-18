@@ -110,8 +110,8 @@ class BBox:
             "global_coordinates": self.global_coordinates.config,
             "is_primary": self.is_primary,
             "cls": self.cls,
-            "overlapping_bbox_ids":
-            [box.id for box in self._overlapping_bboxes]
+            "overlapping_bbox_ids": [box.id for box in self._overlapping_bboxes],
+            "num_overlapping_bboxes": len(self._overlapping_bboxes)
         }
         return _config
 

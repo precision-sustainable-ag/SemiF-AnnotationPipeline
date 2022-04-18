@@ -145,15 +145,17 @@ def find_global_coords(unrotated_coords: np.ndarray, yaw_angle: float,
 
     # The yaw angle from the SfM corresponds to the camera rotation
     # The image rotation wrt to camera location is in the opposite direction
-    _yaw_angle = 360. - yaw_angle
+    if yaw_angle < 180:
+        _yaw_angle = 360. - yaw_angle
+    else:
+        _yaw_angle = yaw_angle
 
     # Apply rotations to the objects
     # This gives the coordinates with the origin shifted to
     # the camera location
     # R = get_rotation_matrix(_yaw_angle)
 
-    # R = Rotation.from_euler("XYZ", np.array([-roll_angle, -pitch_angle, _yaw_angle]), degrees=True)
-    R = Rotation.from_euler("ZYX", np.array([yaw_angle, roll_angle, pitch_angle]), degrees=True)
+    R = Rotation.from_euler("ZYX", np.array([_yaw_angle, roll_angle, pitch_angle]), degrees=True)
     R_quat = R.as_quat()
     rotation = Rotation.from_quat(R_quat)
     rotated_coordinates = rotation.apply(global_unrotated_coords)
@@ -295,16 +297,6 @@ def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray,
                                                   yaw_angle,
                                                   pitch_angle, roll_angle,
                                                   is_bbox=True)
-
-    # Adjust for the roll and pitch
-    # mul = -1.
-    # if (360. - yaw_angle) > 170:
-    #     mul = 1.
-    # bbox_global_coordinates[:, 0] = pitch_correction(_camera_center, camera_height, bbox_global_coordinates, mul*pitch_angle)
-    # bbox_global_coordinates[:,
-    #                         1] = roll_correction(_camera_center, camera_height,
-    #                                              bbox_global_coordinates,
-    #                                              -mul * roll_angle)
 
     # Unpack
     top_left = bbox_global_coordinates[2, :]
