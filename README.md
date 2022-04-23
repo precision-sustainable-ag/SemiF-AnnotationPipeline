@@ -28,9 +28,9 @@ SemiF-AnnotationPipeline
     │   │   │   ├── reference
     │   │   │   │   ├── camera_reference.csv
     │   │   │   │   └── ...
-    │   │   │   └── metadata
-    │   │   │       ├── row1_1.json
-    │   │   │       └── ...
+    │   │   ├── labels
+│   │   │   │   ├── row1_1.json
+│   │   │   │   └── ...
     │   │   ├── GroundControlPoints.csv
     │   │   └── detections.csv
     │   │   
