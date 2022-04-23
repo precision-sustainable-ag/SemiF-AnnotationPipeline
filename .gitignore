@@ -1,9 +1,12 @@
-# Sample data
-test
-scratch_tutorials
-data
-config
-annotate_utils.py
+Assets/
+config/
+data/
+models/
+notebooks/
+
+dataset2dummy_datasets.py
+DIRECTORY_STRUCTURE.MD
+*.sh
 
 # Drawio flowcharts
 *.drawio
@@ -13,18 +16,15 @@ annotate_utils.py
 *.pdf
 
 # Jupyter Notebook
-.ipynb_checkpoints
+**.ipynb_checkpoints
 
 # Pytest cache
-.pytest_cache
+**.pytest_cache
 
 # Mac OSX
-._.DS_Store
+**._.DS_Store
 
 # Pycache
-__pycache __
-
-# Scratch notebook
-scratch.ipynb
+**__pycache __
 
 *.pyc
