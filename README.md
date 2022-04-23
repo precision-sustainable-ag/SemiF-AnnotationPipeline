@@ -25,9 +25,9 @@ SemiF-AnnotationPipeline
     │   │   ├── autosfm
     │   │   │   ├── ortho
     │   │   │   |   └── orthomosaic.tif
-    │   │   │   ├── reference
-    │   │   │   │   ├── camera_reference.csv
-    │   │   │   │   └── ...
+    │   │   │   └── reference
+    │   │   │       ├── camera_reference.csv
+    │   │   │       └── ...
     │   │   ├── labels
 │   │   │   │   ├── row1_1.json
 │   │   │   │   └── ...
