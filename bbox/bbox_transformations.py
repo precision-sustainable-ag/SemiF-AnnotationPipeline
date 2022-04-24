@@ -63,8 +63,6 @@ def find_global_coords(unrotated_coords: np.ndarray, yaw_angle: float,
         camera_height)
     global_unrotated_coords = np.concatenate((global_unrotated_coords, -camera_height*np.ones((4, 1))), axis=1)
 
-    # The yaw angle from the SfM corresponds to the camera rotation
-    # The image rotation wrt to camera location is in the opposite direction
     if yaw_angle < 180:
         _yaw_angle = 360. - yaw_angle
     else:
