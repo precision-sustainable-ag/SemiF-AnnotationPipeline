@@ -55,7 +55,7 @@ def generate_hash(box: BBox, auxilliary_hash=None):
         str: The unique ID for the box
     """
 
-    box_hash = box.id
+    box_hash = box.bbox_id
     # If another has is given, incorporate that
     # This is handy if the hash for a pair of bounding boxes is to be
     # determined

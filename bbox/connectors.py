@@ -78,7 +78,7 @@ class BBoxComponents:
 
                 box_coordinates = BoxCoordinates(top_left, top_right,
                                                  bottom_left, bottom_right)
-                box = BBox(id=unique_box_id,
+                box = BBox(bbox_id=unique_box_id,
                            image_id=image_id,
                            local_coordinates=box_coordinates,
                            cls=bbox["cls"], is_normalized=bbox["is_normalized"])

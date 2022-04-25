@@ -282,8 +282,8 @@ class BBoxFilter:
         for image_id, image_ids_for_comparison in comparisons.items():
             # For each bounding box in the key image
             for box in self.image_map[image_id].bboxes:
-                if box.id not in visited_bboxes:
-                    visited_bboxes.add(box.id)
+                if box.bbox_id not in visited_bboxes:
+                    visited_bboxes.add(box.bbox_id)
                     areas.append(box.local_area)
                 compared = set()
                 # A unique ID for the bounding box in question
@@ -294,8 +294,8 @@ class BBoxFilter:
                     # And each of its bounding box
                     for _box in boxes:
 
-                        if _box.id not in visited_bboxes:
-                            visited_bboxes.add(_box.id)
+                        if _box.bbox_id not in visited_bboxes:
+                            visited_bboxes.add(_box.bbox_id)
                             areas.append(_box.local_area)
 
                         # A unique ID for a pair of bounding boxes
@@ -340,9 +340,9 @@ class BBoxFilter:
                 distances = ((centroids - centers[:, :2])**2).sum(axis=-1)
                 min_idx = np.argmin(distances)
                 all_boxes[min_idx].is_primary = True
-                if all_boxes[min_idx].id not in self.primary_box_ids:
+                if all_boxes[min_idx].bbox_id not in self.primary_box_ids:
                     self.primary_boxes.append(all_boxes[min_idx])
-                    self.primary_box_ids.add(all_boxes[min_idx].id)
+                    self.primary_box_ids.add(all_boxes[min_idx].bbox_id)
 
     def cleanup_primary_boxes(self):
 

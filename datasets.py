@@ -57,7 +57,7 @@ def init_empty():
 
 @dataclass
 class BBox:
-    id: str
+    bbox_id: str
     image_id: str
     cls: str
     local_coordinates: BoxCoordinates = field(init=True,
@@ -104,13 +104,13 @@ class BBox:
     @property
     def config(self):
         _config = {
-            "id": self.id,
+            "bbox_id": self.bbox_id,
             "image_id": self.image_id,
             "local_coordinates": self.local_coordinates.config,
             "global_coordinates": self.global_coordinates.config,
             "is_primary": self.is_primary,
             "cls": self.cls,
-            "overlapping_bbox_ids": [box.id for box in self._overlapping_bboxes],
+            "overlapping_bbox_ids": [box.bbox_id for box in self._overlapping_bboxes],
             "num_overlapping_bboxes": len(self._overlapping_bboxes)
         }
         return _config
@@ -323,7 +323,7 @@ class CameraInfo:
 
 @dataclass
 class Box:
-    id: str
+    bboxid: str
     image_id: str
     local_coordinates: dict
     global_coordinates: dict
