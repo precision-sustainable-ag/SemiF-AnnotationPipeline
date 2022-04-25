@@ -12,6 +12,9 @@ DIRECTORY_STRUCTURE.MD
 *.drawio
 *.drawio.xml
 
+# Mac stuff
+**/.DS_Store
+
 # PDF resource docs
 *.pdf
 

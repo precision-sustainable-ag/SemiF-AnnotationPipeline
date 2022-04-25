@@ -1,4 +1,3 @@
-
 # SemiField Annotation Pipeline
 
 ## Config

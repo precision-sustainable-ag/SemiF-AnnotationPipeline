@@ -2,43 +2,13 @@ import math
 from typing import Dict, List
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 from datasets import BoxCoordinates, ImageData
 
 from .bbox_utils import bb_iou, generate_hash
 
 FOV_IOU_THRESH = 0.1
-BBOX_OVERLAP_THRESH = 0.2
-
-
-def get_rotation_matrix(angle: float) -> np.ndarray:
-    """Get the rotation matrix for the Yaw
-    Args:
-        angle (float): Yaw angle in degrees
-    """
-    alpha = angle * (math.pi / 180.)
-    cosa = math.cos(alpha)
-    sina = math.sin(alpha)
-    R = np.array([[cosa, -sina], [sina, cosa]])
-
-    return R
-
-
-def rotation_transform(coord: np.ndarray, R: np.ndarray) -> np.ndarray:
-    """Rotation transform on the coordinates
-    Args:
-        coord (np.ndarray): Coordinate vector to rotate
-        R (np.ndarray): Rotation matrix
-    Returns:
-        np.ndarray: Transformed coordinates
-    """
-    _coord = coord.copy()
-    if np.ndim(coord) == 1:
-        _coord = np.expand_dims(_coord, axis=0)
-    assert _coord.shape[1] == 2
-
-    rotated_coord = np.dot(R, _coord.T).T
-
-    return rotated_coord
+BBOX_OVERLAP_THRESH = 0.3
 
 
 def image_to_global_transform(focal_length: float, pixel_dim: float,
@@ -49,7 +19,7 @@ def image_to_global_transform(focal_length: float, pixel_dim: float,
         focal_length (float): Focal length of the camera (in pixels)
         pixel_dim (float): pixel width and pixel height
         coords (np.ndarray): local coordinates to transform to global coordinates
-        camera_height (float): Height of the camera
+        camera_height (float): Height of the camera (in global coordinate units, i.e., meters)
 
     Returns:
         _type_: _description_
@@ -64,57 +34,10 @@ def image_to_global_transform(focal_length: float, pixel_dim: float,
     return global_coords
 
 
-def correct_xy_plane(camera_center, camera_height, coordinates, angle):
-
-    num_coordinates = len(coordinates)
-    # Change the origin to camera_center, camera_height
-    origin = np.array([[camera_center, camera_height]])
-    # Assume that the coordinates are present at height=0
-    _coordinates = np.hstack(
-        [coordinates[:, np.newaxis],
-         np.zeros((num_coordinates, 1))])
-    # Shift the origin
-    coord = _coordinates - origin
-
-    # Get the rotation matrix
-    R = get_rotation_matrix(angle)
-    # Apply rotation on the vector. This is wrt origin=0,0
-    rotated_coord = rotation_transform(coord, R)
-
-    # Solve using two-point form
-    target_coord = np.zeros_like(rotated_coord)
-    target_coord[:,
-                 0] = -(rotated_coord[:, 0] * camera_height) / rotated_coord[:,
-                                                                             1]
-    # Shift the origin back
-    target_coord += origin
-
-    return target_coord[:, 0]
-
-
-def pitch_correction(camera_center, camera_height, bbox_global_coordinates,
-                     pitch_angle):
-
-    coordinates_to_correct = bbox_global_coordinates[:, 0]
-    _camera_center = camera_center[0]
-    corrected_coord = correct_xy_plane(_camera_center[0], camera_height,
-                                       coordinates_to_correct, pitch_angle)
-    return corrected_coord
-
-
-def roll_correction(camera_center, camera_height, bbox_global_coordinates,
-                    roll_angle):
-
-    coordinates_to_correct = bbox_global_coordinates[:, 1]
-    _camera_center = camera_center[0]
-    corrected_coord = correct_xy_plane(_camera_center[1], camera_height,
-                                       coordinates_to_correct, roll_angle)
-    return corrected_coord
-
-
 def find_global_coords(unrotated_coords: np.ndarray, yaw_angle: float,
                        focal_length: float, pixel_height: float,
-                       pixel_width: float, camera_height: float) -> np.ndarray:
+                       pixel_width: float, camera_height: float, pitch_angle, roll_angle) -> np.ndarray:
+
     """Function to find the translated global coordinates
 
     Args:
@@ -130,8 +53,7 @@ def find_global_coords(unrotated_coords: np.ndarray, yaw_angle: float,
     global_unrotated_coords = unrotated_coords.copy()
 
     global_unrotated_coords[:, 0] = global_unrotated_coords[:, 0] * pixel_width
-    global_unrotated_coords[:,
-                            1] = global_unrotated_coords[:, 1] * pixel_height
+    global_unrotated_coords[:, 1] = global_unrotated_coords[:, 1] * pixel_height
 
     # Find the "object dimensions" in the global coordinates
     global_unrotated_coords[:, 0] = image_to_global_transform(
@@ -141,18 +63,22 @@ def find_global_coords(unrotated_coords: np.ndarray, yaw_angle: float,
         focal_length, pixel_height, global_unrotated_coords[:, 1],
         camera_height)
 
-    # The yaw angle from the SfM corresponds to the camera rotation
-    # The image rotation wrt to camera location is in the opposite direction
-    _yaw_angle = 360. - yaw_angle
+    global_unrotated_coords = np.concatenate((global_unrotated_coords, -camera_height*np.ones((4, 1))), axis=1)
+
+    if yaw_angle < 180:
+        _yaw_angle = 360. - yaw_angle
+    else:
+        _yaw_angle = yaw_angle
 
     # Apply rotations to the objects
     # This gives the coordinates with the origin shifted to
     # the camera location
-    R = get_rotation_matrix(_yaw_angle)
-    # Rotate the new coordinate
-    rotated_coordinates = rotation_transform(global_unrotated_coords, R)
+    R = Rotation.from_euler("ZYX", np.array([_yaw_angle, roll_angle, pitch_angle]), degrees=True)
+    R_quat = R.as_quat()
+    rotation = Rotation.from_quat(R_quat)
+    rotated_coordinates = rotation.apply(global_unrotated_coords)
 
-    return rotated_coordinates
+    return rotated_coordinates[:, :2]
 
 
 def img_to_global_coord(image_coordinates: np.ndarray,
@@ -164,6 +90,8 @@ def img_to_global_coord(image_coordinates: np.ndarray,
                         image_height: float,
                         camera_height: float,
                         yaw_angle: float,
+                        pitch_angle: float, 
+                        roll_angle: float,
                         is_bbox: bool = True) -> np.ndarray:
     """Map the bounding box points form local coordinates to gobal coordinates
 
@@ -202,7 +130,7 @@ def img_to_global_coord(image_coordinates: np.ndarray,
     # Find the coordinates wrt to the camera location
     global_coordinates = find_global_coords(_image_coordinates, yaw_angle,
                                             focal_length, pixel_width,
-                                            pixel_height, camera_height)
+                                            pixel_height, camera_height, pitch_angle, roll_angle)
 
     # Shift the origin back to the global origin (0, 0)
     global_coordinates += _camera_center
@@ -233,8 +161,11 @@ def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray,
                    bottom_left: np.ndarray, bottom_right: np.ndarray,
                    camera_center: np.ndarray, pixel_width: float,
                    pixel_height: float, focal_length: float, image_width: int,
-                   image_height: int, camera_height: float, yaw_angle: float,
-                   pitch_angle: float, roll_angle: float) -> BoxCoordinates:
+                   image_height: int, camera_height: float, 
+                   yaw_angle: float,
+                   pitch_angle: float, 
+                   roll_angle: float) -> BoxCoordinates:
+
     """Map the bonding box points form local coordinates to gobal coordinates, and apply
        roll and pitch corrections
 
@@ -282,18 +213,8 @@ def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray,
                                                   image_width,
                                                   image_height,
                                                   camera_height,
-                                                  yaw_angle,
+                                                  yaw_angle, pitch_angle, roll_angle,
                                                   is_bbox=True)
-
-    # Adjust for the roll and pitch
-    mul = -1.
-    if (360. - yaw_angle) > 180:
-        mul = 1.
-    # bbox_global_coordinates[:, 0] = pitch_correction(_camera_center, camera_height, bbox_global_coordinates, mul*pitch_angle)
-    bbox_global_coordinates[:,
-                            1] = roll_correction(_camera_center, camera_height,
-                                                 bbox_global_coordinates,
-                                                 -mul * roll_angle)
 
     # Unpack
     top_left = bbox_global_coordinates[2, :]
@@ -357,7 +278,7 @@ class BBoxFilter:
         # For all the overlapping images
         visited_bboxes = set()
         areas = []
-        self.mean_box_area = 0.
+
         for image_id, image_ids_for_comparison in comparisons.items():
             # For each bounding box in the key image
             for box in self.image_map[image_id].bboxes:
@@ -389,12 +310,7 @@ class BBoxFilter:
                             # Set the two boxes as overlapping
                             box.add_box(_box)
                             _box.add_box(box)
-        self.mean_box_area = sum(areas) / len(areas)
-        var_box_area = sum([(area - self.mean_box_area)**2
-                            for area in areas]) / len(areas)
-        self.std_box_area = math.sqrt(var_box_area)
-        # Threshold is one standatd deviation from the mean
-        self.BOX_AREA_THRESH = self.mean_box_area - self.std_box_area
+
         self.select_best_bbox()
         self.cleanup_primary_boxes()
 
@@ -430,6 +346,7 @@ class BBoxFilter:
 
     def cleanup_primary_boxes(self):
 
+        _primary_boxes = []
         for i, box in enumerate(self.primary_boxes):
             image_width = self.image_map[box.image_id].width
             image_height = self.image_map[box.image_id].height
@@ -440,17 +357,19 @@ class BBoxFilter:
                box.local_centroid[1] > 3 * image_height // 4:
 
                 box.is_primary = False
-                del self.primary_boxes[i]
+                # del self.primary_boxes[i]
+            else:
+                _primary_boxes.append(box)
 
         # Revisit all bounding boxes identified as primary and
         # remove the overlapping ones
-        for i in range(len(self.primary_boxes)):
-            box1 = self.primary_boxes[i]
+        for i in range(len(_primary_boxes)):
+            box1 = _primary_boxes[i]
             camera_location1 = self.image_map[
                 box1.
                 image_id].camera_info.camera_location[:2]  # get just x and y
-            for j in range(i + 1, len(self.primary_boxes)):
-                box2 = self.primary_boxes[j]
+            for j in range(i + 1, len(_primary_boxes)):
+                box2 = _primary_boxes[j]
                 camera_location2 = self.image_map[
                     box2.
                     image_id].camera_info.camera_location[:

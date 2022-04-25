@@ -13,6 +13,7 @@ import segment_vegetation  # Do not remove
 def run_SEMIF(cfg: DictConfig) -> None:
     # TODO implement logging
     cfg = OmegaConf.create(cfg)
+
     print("***********************")
     print(f"Current working directory : {os.getcwd()}")
     print(f"Orig working directory    : {get_original_cwd()}")
