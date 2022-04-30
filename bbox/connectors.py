@@ -81,7 +81,8 @@ class BBoxComponents:
                 box = BBox(bbox_id=unique_box_id,
                            image_id=image_id,
                            local_coordinates=box_coordinates,
-                           cls=bbox["cls"], is_normalized=bbox["is_normalized"])
+                           cls=bbox["cls"],
+                           is_normalized=bbox["is_normalized"])
                 boxes.append(box)
 
             self._bboxes[image_id] = boxes
@@ -183,9 +184,10 @@ class BBoxComponents:
                                    bboxes=bboxes[image_id],
                                    camera_info=cam_info)
                 # Scale the boounding box coordinates to pixel space
-                scale = np.array([image.width, image.height])
+                # scale = np.array([image.width, image.height
+                #   ])  # Not needed. bbox are in original scale
                 for bbox in image.bboxes:
-                    bbox.local_coordinates.set_scale(scale)
+                    # bbox.local_coordinates.set_scale(scale)
                     bbox.set_local_centroid()
 
                 self._images.append(image)
