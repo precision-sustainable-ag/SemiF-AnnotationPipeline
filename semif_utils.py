@@ -196,8 +196,8 @@ def check_kmeans(mask):
 def make_kmeans(exg_mask):
     rows, cols = exg_mask.shape
     n_classes = 2
-    X = exg_mask.reshape(rows * cols, 1)
-    kmeans = KMeans(n_clusters=n_classes, random_state=3).fit(X)
+    exg = exg_mask.reshape(rows * cols, 1)
+    kmeans = KMeans(n_clusters=n_classes, random_state=3).fit(exg)
     mask = kmeans.labels_.reshape(rows, cols)
     mask = check_kmeans(mask)
     return mask.astype("uint64")
