@@ -86,7 +86,7 @@ class SegmentVegetation:
         self.processing_pipeline()
 
     def save_cutout(self, cutout, imgpath, cutout_num):
-        cutout_dir = Path(self.imagedir, "cutouts")
+        cutout_dir = Path(self.batchdir, "cutouts")
         cutout_dir.mkdir(parents=True, exist_ok=True)
         fname = f"{imgpath.stem}_{cutout_num}.png"
         cutout_path = cutout_dir / fname
@@ -150,7 +150,7 @@ class SegmentVegetation:
         for label_set in tqdm(self.labels,
                               desc="Segmenting Vegetation",
                               colour="green",
-                              leave=False):
+                              leave=True):
 
             labelpardir = label_set.parent.parent
             imgpath = Path(f"{labelpardir}/developed/{label_set.stem}.jpg")
@@ -160,7 +160,6 @@ class SegmentVegetation:
                                 image_path=imgpath,
                                 batch_id=self.batch_id)
             rgb_array = imgdata.array
-
             ##########################################################################
             ## Process on images by individual bbox detection
             cutout_num = 0
@@ -171,11 +170,10 @@ class SegmentVegetation:
                             colour="#6dbc90",
                             desc="Generating Cutouts"):
 
-                y1 = int(box.local_coordinates["top_left"][1])
-                y2 = int(box.local_coordinates["bottom_left"][1])
-                x1 = int(box.local_coordinates["top_right"][0])
-                x2 = int(box.local_coordinates["bottom_right"][0])
-
+                x1, y1 = box.local_coordinates["top_left"]
+                x2, y2 = box.local_coordinates["bottom_right"]
+                x1, y1 = int(x1), int(y1)
+                x2, y2 = int(x2), int(y2)
                 # Crop image to bbox
                 rgb_crop = rgb_array[y1:y2, x1:x2]
                 #####################################################################
@@ -183,9 +181,11 @@ class SegmentVegetation:
                 # Get VI
                 v_index = getattr(VegetationIndex(), self.vi)
                 vi = v_index(rgb_crop)
+
                 thresh_vi = np.where(vi <= 0, 0, vi)
                 thresh_vi = np.where((thresh_vi > 20) & (thresh_vi < 100),
                                      thresh_vi * 2, thresh_vi)
+
                 # Get classified mask
                 clalgo = getattr(ClassifyMask(), self.class_algorithm)
                 class_mask = clalgo(thresh_vi)
