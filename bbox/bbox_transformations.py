@@ -2,8 +2,8 @@ import math
 from typing import Dict, List
 
 import numpy as np
-from scipy.spatial.transform import Rotation
 from datasets import BoxCoordinates, ImageData
+from scipy.spatial.transform import Rotation
 
 from .bbox_utils import bb_iou, generate_hash
 
@@ -36,8 +36,8 @@ def image_to_global_transform(focal_length: float, pixel_dim: float,
 
 def find_global_coords(unrotated_coords: np.ndarray, yaw_angle: float,
                        focal_length: float, pixel_height: float,
-                       pixel_width: float, camera_height: float, pitch_angle, roll_angle) -> np.ndarray:
-
+                       pixel_width: float, camera_height: float, pitch_angle,
+                       roll_angle) -> np.ndarray:
     """Function to find the translated global coordinates
 
     Args:
@@ -53,7 +53,8 @@ def find_global_coords(unrotated_coords: np.ndarray, yaw_angle: float,
     global_unrotated_coords = unrotated_coords.copy()
 
     global_unrotated_coords[:, 0] = global_unrotated_coords[:, 0] * pixel_width
-    global_unrotated_coords[:, 1] = global_unrotated_coords[:, 1] * pixel_height
+    global_unrotated_coords[:,
+                            1] = global_unrotated_coords[:, 1] * pixel_height
 
     # Find the "object dimensions" in the global coordinates
     global_unrotated_coords[:, 0] = image_to_global_transform(
@@ -63,7 +64,8 @@ def find_global_coords(unrotated_coords: np.ndarray, yaw_angle: float,
         focal_length, pixel_height, global_unrotated_coords[:, 1],
         camera_height)
 
-    global_unrotated_coords = np.concatenate((global_unrotated_coords, -camera_height*np.ones((4, 1))), axis=1)
+    global_unrotated_coords = np.concatenate(
+        (global_unrotated_coords, -camera_height * np.ones((4, 1))), axis=1)
 
     if yaw_angle < 180:
         _yaw_angle = 360. - yaw_angle
@@ -73,7 +75,9 @@ def find_global_coords(unrotated_coords: np.ndarray, yaw_angle: float,
     # Apply rotations to the objects
     # This gives the coordinates with the origin shifted to
     # the camera location
-    R = Rotation.from_euler("ZYX", np.array([_yaw_angle, roll_angle, pitch_angle]), degrees=True)
+    R = Rotation.from_euler("ZYX",
+                            np.array([_yaw_angle, roll_angle, pitch_angle]),
+                            degrees=True)
     R_quat = R.as_quat()
     rotation = Rotation.from_quat(R_quat)
     rotated_coordinates = rotation.apply(global_unrotated_coords)
@@ -90,7 +94,7 @@ def img_to_global_coord(image_coordinates: np.ndarray,
                         image_height: float,
                         camera_height: float,
                         yaw_angle: float,
-                        pitch_angle: float, 
+                        pitch_angle: float,
                         roll_angle: float,
                         is_bbox: bool = True) -> np.ndarray:
     """Map the bounding box points form local coordinates to gobal coordinates
@@ -130,7 +134,8 @@ def img_to_global_coord(image_coordinates: np.ndarray,
     # Find the coordinates wrt to the camera location
     global_coordinates = find_global_coords(_image_coordinates, yaw_angle,
                                             focal_length, pixel_width,
-                                            pixel_height, camera_height, pitch_angle, roll_angle)
+                                            pixel_height, camera_height,
+                                            pitch_angle, roll_angle)
 
     # Shift the origin back to the global origin (0, 0)
     global_coordinates += _camera_center
@@ -161,11 +166,8 @@ def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray,
                    bottom_left: np.ndarray, bottom_right: np.ndarray,
                    camera_center: np.ndarray, pixel_width: float,
                    pixel_height: float, focal_length: float, image_width: int,
-                   image_height: int, camera_height: float, 
-                   yaw_angle: float,
-                   pitch_angle: float, 
-                   roll_angle: float) -> BoxCoordinates:
-
+                   image_height: int, camera_height: float, yaw_angle: float,
+                   pitch_angle: float, roll_angle: float) -> BoxCoordinates:
     """Map the bonding box points form local coordinates to gobal coordinates, and apply
        roll and pitch corrections
 
@@ -213,7 +215,9 @@ def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray,
                                                   image_width,
                                                   image_height,
                                                   camera_height,
-                                                  yaw_angle, pitch_angle, roll_angle,
+                                                  yaw_angle,
+                                                  pitch_angle,
+                                                  roll_angle,
                                                   is_bbox=True)
 
     # Unpack
