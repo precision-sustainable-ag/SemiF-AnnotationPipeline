@@ -1,6 +1,7 @@
 import os
 import xml.etree.ElementTree as ET
 from glob import glob
+
 import pandas as pd
 
 
@@ -105,16 +106,10 @@ class ParseYOLOCsv:
 
         for i, line in df.iterrows():
             cls = line["name"]
-            x = line["xcenter"]
-            y = line["ycenter"]
-            width = line["width"]
-            height = line["height"]
-            half_height, half_width = height / 2., width / 2.
-
-            top_left = [x-half_width, y-half_height]
-            top_right = [x+half_width, y-half_height]
-            bottom_left = [x-half_width, y+half_height]
-            bottom_right = [x+half_width, y+half_height]
+            top_left = line["xmin"], line["ymin"]
+            top_right = line["xmax"], line["ymin"]
+            bottom_left = line["xmin"], line["ymax"]
+            bottom_right = line["xmax"], line["ymax"]
 
             bbox = {
                 "id": str(i),
@@ -123,8 +118,9 @@ class ParseYOLOCsv:
                 "bottom_left": bottom_left,
                 "bottom_right": bottom_right,
                 "cls": cls,
-                "is_normalized": True
+                "is_normalized": False
             }
+
             boxes.append(bbox)
 
         return boxes
@@ -136,7 +132,8 @@ class ParseYOLOCsv:
 
         for image in self.image_list:
             image_id = image["id"]
-            _df = df[df["imgname"] == image_id+".jpg"].reset_index(drop=True, inplace=False)
+            _df = df[df["imgname"] == image_id + ".jpg"].reset_index(
+                drop=True, inplace=False)
 
             bboxes = self.parse(_df)
             bounding_boxes[image_id] = bboxes
@@ -146,4 +143,5 @@ class ParseYOLOCsv:
     def __call__(self, *args, **kwargs):
 
         bounding_boxes = self.create_bboxes()
+
         return self.image_list, bounding_boxes
