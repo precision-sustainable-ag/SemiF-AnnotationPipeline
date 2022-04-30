@@ -18,7 +18,8 @@ class BoxCoordinates:
     top_right: np.ndarray
     bottom_left: np.ndarray
     bottom_right: np.ndarray
-    scale: np.ndarray = field(init=False, default=np.array([]))
+
+    # scale: np.ndarray = field(init=False, default=np.array([]))
 
     def __bool__(self):
         # The bool function is to check if the coordinates are populated or not
@@ -36,17 +37,17 @@ class BoxCoordinates:
             "top_right": self.top_right.tolist(),
             "bottom_left": self.bottom_left.tolist(),
             "bottom_right": self.bottom_right.tolist(),
-            "scale": self.scale.tolist()
+            # "scale": self.scale.tolist()
         }
 
         return _config
 
-    def set_scale(self, new_scale: np.ndarray):
-        self.scale = new_scale
-        self.top_left = self.top_left * self.scale
-        self.top_right = self.top_right * self.scale
-        self.bottom_left = self.bottom_left * self.scale
-        self.bottom_right = self.bottom_right * self.scale
+    # def set_scale(self, new_scale: np.ndarray):
+    #     self.scale = new_scale
+    #     self.top_left = self.top_left * self.scale
+    #     self.top_right = self.top_right * self.scale
+    #     self.bottom_left = self.bottom_left * self.scale
+    #     self.bottom_right = self.bottom_right * self.scale
 
 
 def init_empty():
@@ -64,7 +65,7 @@ class BBox:
                                               default_factory=init_empty)
     global_coordinates: BoxCoordinates = field(init=True,
                                                default_factory=init_empty)
-    is_normalized: bool=field(init=True, default=False)
+    is_normalized: bool = field(init=True, default=False)
     local_centroid: np.ndarray = field(init=False,
                                        default_factory=lambda: np.array([]))
     global_centroid: np.ndarray = field(init=False,
@@ -104,14 +105,22 @@ class BBox:
     @property
     def config(self):
         _config = {
-            "bbox_id": self.bbox_id,
-            "image_id": self.image_id,
-            "local_coordinates": self.local_coordinates.config,
-            "global_coordinates": self.global_coordinates.config,
-            "is_primary": self.is_primary,
-            "cls": self.cls,
-            "overlapping_bbox_ids": [box.bbox_id for box in self._overlapping_bboxes],
-            "num_overlapping_bboxes": len(self._overlapping_bboxes)
+            "bbox_id":
+            self.bbox_id,
+            "image_id":
+            self.image_id,
+            "local_coordinates":
+            self.local_coordinates.config,
+            "global_coordinates":
+            self.global_coordinates.config,
+            "is_primary":
+            self.is_primary,
+            "cls":
+            self.cls,
+            "overlapping_bbox_ids":
+            [box.bbox_id for box in self._overlapping_bboxes],
+            "num_overlapping_bboxes":
+            len(self._overlapping_bboxes)
         }
         return _config
 
@@ -151,7 +160,7 @@ class BBox:
         centroid = np.array([centroid_x, centroid_y])
 
         return centroid
-    
+
     def set_local_centroid(self):
         self.local_centroid = self.get_centroid(self.local_coordinates)
 
@@ -323,7 +332,7 @@ class CameraInfo:
 
 @dataclass
 class Box:
-    bboxid: str
+    bbox_id: str
     image_id: str
     local_coordinates: dict
     global_coordinates: dict
@@ -415,8 +424,7 @@ class RemapImage(Image):
 @dataclass
 class ImageData(Image):
     """ Dataclass for segmentation and synthetic data generation"""
-    # batch_id: uuid
-    # bbox_metadata: str
+    batch_id: uuid
     cutout_ids: List[str] = None
     camera_info: CameraInfo = None
 
