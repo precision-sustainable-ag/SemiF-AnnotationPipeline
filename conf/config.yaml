@@ -1,10 +1,8 @@
 general:
   save_to_database: False
   db: test  # test, trial, WIR
-  multitask:  False #[remap_labels, segment_vegetation]
-  task: remap_labels # test_mongodb, , segment_vegetation, localize_plants
-  
-  name: test_exp_v2
+  multitask:  [localize_plants, remap_labels, segment_vegetation]
+  task: segment_vegetation  # test_mongodb, , segment_vegetation, localize_plants, remap_labels
   workdir: ${hydra:runtime.cwd}  # where the code is executed
   datadir: ${general.workdir}/data
   batchdir: ${general.datadir}/trial/NC_2022-03-11
@@ -18,11 +16,8 @@ detect:
 
 autosfm:
   autosfmdir: ${general.batchdir}/autosfm
-  # reference_path: ${general.autosfmdir}/reference # Location to csvs
-  # metadatadir: ${general.autosfmdir}/metadata # Location to save results
 
-segment:  
-  # Segment Vegetation
+segment:  # Segment Vegetation
   clear_border: True
   cutoutdir: ${general.batchdir}/cutouts
   save_mask: False # Not implemented
