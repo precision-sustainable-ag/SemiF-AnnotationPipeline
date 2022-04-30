@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 from bbox.bbox_transformations import BBoxFilter, BBoxMapper
 from bbox.connectors import BBoxComponents, SfMComponents
-from bbox.io_utils import ParseXML, ParseYOLO
+from bbox.io_utils import ParseXML, ParseYOLOCsv
 
 
 class RemapLabels:
@@ -16,8 +16,7 @@ class RemapLabels:
         self.metadata = cfg.general.batchdir + "/labels"  #self.asfm_root / "metadata"
 
         self.image_dir = cfg.general.imagedir
-        self.raw_label = self.asfm_root / "annotations"
-        # self.raw_label = cfg.detect.detections_csv
+        self.raw_label = cfg.detect.detections_csv
 
     @property
     def camera_reference(self):
@@ -29,7 +28,8 @@ class RemapLabels:
     def remap_labels(self):
         # Initialize the reader which will read the annotation files and convert the bounding
         # boxes to the desired format
-        reader = ParseXML(image_path=self.image_dir, label_path=self.raw_label)
+        reader = ParseYOLOCsv(image_path=self.image_dir,
+                              label_path=self.raw_label)
         # Initialize the connector and get a list of all the images
         box_connector = BBoxComponents(self.camera_reference, reader,
                                        self.image_dir, self.raw_label)
