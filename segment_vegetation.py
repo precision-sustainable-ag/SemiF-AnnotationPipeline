@@ -4,6 +4,7 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from dacite import from_dict
 from omegaconf import DictConfig
 from scipy import ndimage as ndi
 from skimage import measure
@@ -18,16 +19,15 @@ from tqdm import tqdm
 sys.path.append("..")
 
 from datasets import (CUTOUT_PROPS, BatchConfigImages, BatchMetadata, Cutout,
-                      ImageData)
+                      CutoutProps, ImageData)
 from mongo_utils import Connect
 from semif_utils import (apply_mask, clear_border, crop_cutouts, dilate_erode,
-                         get_bbox_info, get_site_id, get_upload_datetime,
-                         make_exg, make_exg_minus_exr, make_exr, make_kmeans,
-                         make_ndi, otsu_thresh, reduce_holes)
+                         get_site_id, get_upload_datetime, make_exg,
+                         make_exg_minus_exr, make_exr, make_kmeans, make_ndi,
+                         otsu_thresh, reduce_holes)
 
 
 class VegetationIndex:
-
     def exg(self, img):
         exg_vi = make_exg(img, thresh=True)
         return exg_vi
@@ -59,18 +59,54 @@ class ClassifyMask:
 
         return reduce_holes_mask
 
+class GenCutoutProps:
+    def __init__(self, mask):
+        """ Generate cutout properties and returns them as a dataclass.
 
+        Args:
+            mask (array): 2D np array
+        
+        Returns: 
+            cutout_props (object): CutoutProps dataclass with each region prop as attribute
+        """
+        self.mask = mask
+
+    def from_regprops_table(self, connectivity=2):
+        # Creates regionprops table for component
+        labels = measure.label(self.mask, connectivity=connectivity)
+        props = measure.regionprops_table(labels, properties=CUTOUT_PROPS)
+        props = dict([key, float(value)] for key, value in props.items())
+        props["centroid"] = [props["centroid-0"], props["centroid-1"]]
+        props.pop("centroid-0", "centroid-1")
+        return props
+
+    def to_dataclass(self):
+        table = self.from_regprops_table()
+        cutout_props = from_dict(data_class=CutoutProps, data=table)
+        return cutout_props
+
+
+    
 class SegmentVegetation:
 
     def __init__(self, bcfg, db, cfg: DictConfig) -> None:
+        """_summary_
+
+        Args:
+            bcfg (_type_): _description_
+            db (_type_): _description_
+            cfg (DictConfig): _description_
+        """
         self.bcfg = bcfg
         self.batch_id = bcfg.batch_id
         self.batchdir = Path(cfg.general.batchdir)
         self.detectioncsv = self.batchdir / "detections.csv"  #bcfg.detections_csv
         self.clear_border = cfg.segment.clear_border  #bcfg.clear_border
-        self.labels = (self.batchdir / "labels").glob("*.json")
+        self.labels = [x for x in (self.batchdir / "labels").glob("*.json")]
         self.imagedir = Path(cfg.general.imagedir)
         states = ['TX', 'NC', 'MD']
+        self.cutoutdir = Path(self.batchdir, "cutouts")
+        self.cutoutdir.mkdir(parents=True, exist_ok=True)
 
         self.sitedir = [
             p for st in states for p in self.imagedir.parts if st in p
@@ -83,27 +119,52 @@ class SegmentVegetation:
         self.class_algorithm = bcfg.class_algorithm
 
         self.db = db
-        self.processing_pipeline()
+        self.create_cutout()
 
     def save_cutout(self, cutout, imgpath, cutout_num):
-        cutout_dir = Path(self.batchdir, "cutouts")
-        cutout_dir.mkdir(parents=True, exist_ok=True)
         fname = f"{imgpath.stem}_{cutout_num}.png"
-        cutout_path = cutout_dir / fname
+        cutout_path = self.cutoutdir / fname
         # return cutout_path
         cv2.imwrite(str(cutout_path), cv2.cvtColor(cutout, cv2.COLOR_RGB2BGR))
         return cutout_path
 
-    def reprocess_bbox_cutouts(self, cutout):
+    def seperate_components(self, mask):
+        # Store individual plant components in a list
+        mask = mask.astype(np.uint8)
+        nb_components, output, _, _ = cv2.connectedComponentsWithStats(
+            mask, connectivity=8)
+        # Remove background component
+        nb_components = nb_components - 1
+        list_filtered_masks = []
+        for i in range(0, nb_components):
+            filtered_mask = np.zeros((output.shape))
+            filtered_mask[output == i + 1] = 255
+            list_filtered_masks.append(filtered_mask)
+        return list_filtered_masks
+    
+    def thresh_vi(self, vi, low=20, upper=100, sigma=2):
+        thresh_vi = np.where(vi <= 0, 0, vi)
+        thresh_vi = np.where((thresh_vi > low) & (thresh_vi < upper),
+                                     thresh_vi * sigma, thresh_vi)
+        return thresh_vi
+    
+    def process_domain(self, img):
+        ## First Round of processing
+        # Get VI
+        v_index = getattr(VegetationIndex(), self.vi)
+        vi = v_index(img)
+        th_vi = self.thresh_vi(vi)
+        # Get classified mask
+        clalgo = getattr(ClassifyMask(), self.class_algorithm)
+        mask = clalgo(th_vi)
+        return mask
+
+    def process_cutout(self, cutout):
+        # Second round of processing
         vi = make_exg(cutout, thresh=True)
         thresh_vi = np.where(vi <= 0, 0, vi)
         thresh_vi = np.where((thresh_vi > 10) & (thresh_vi < 100),
                              thresh_vi * 5, thresh_vi)
-        # thresh_vi = np.where((thresh_vi > 70) & (thresh_vi < 100),
-        #  thresh_vi * 2, thresh_vi)
-        # kmeans = make_kmeans(thresh_vi)
-        # reduced_mask = reduce_holes(kmeans * 255) * 255
-
         markers = rank.gradient(thresh_vi, disk(1)) < 12
         markers = ndi.label(markers)[0]
         gradient = rank.gradient(thresh_vi, disk(10))
@@ -123,44 +184,19 @@ class SegmentVegetation:
                                      hole_fill=True)
         reduced_mask = reduce_holes(dil_erod_mask * 255) * 255
         return reduced_mask
-
-    def seperate_components(self, mask):
-        # Store individual plant components in a list
-        mask = mask.astype(np.uint8)
-        nb_components, output, _, _ = cv2.connectedComponentsWithStats(
-            mask, connectivity=8)
-        # Remove background component
-        nb_components = nb_components - 1
-        list_filtered_masks = []
-        for i in range(0, nb_components):
-            filtered_mask = np.zeros((output.shape))
-            filtered_mask[output == i + 1] = 255
-            list_filtered_masks.append(filtered_mask)
-        return list_filtered_masks
-
-    def component_stats(self, mask, connectivity=2):
-        # Creates regionprops table for component
-        labels = measure.label(mask, connectivity=connectivity)
-        props_dict = measure.regionprops_table(labels, properties=CUTOUT_PROPS)
-        return props_dict
-
-    def processing_pipeline(self):
-        ##########################################################################
-        ## Get images from json files
+    
+    def create_cutout(self):
         for label_set in tqdm(self.labels,
                               desc="Segmenting Vegetation",
-                              colour="green",
-                              leave=True):
-
-            labelpardir = label_set.parent.parent
-            imgpath = Path(f"{labelpardir}/developed/{label_set.stem}.jpg")
-
+                              colour="green"):
+            # Get image using label stem and image directory                             
+            imgpath = Path(f"{self.imagedir}/{label_set.stem}.jpg")
             # Get image dataclass with bbox set
             imgdata = ImageData(image_id=imgpath.stem,
                                 image_path=imgpath,
                                 batch_id=self.batch_id)
+            # Call image array
             rgb_array = imgdata.array
-            ##########################################################################
             ## Process on images by individual bbox detection
             cutout_num = 0
             cutout_ids = []
@@ -174,85 +210,67 @@ class SegmentVegetation:
                 x2, y2 = box.local_coordinates["bottom_right"]
                 x1, y1 = int(x1), int(y1)
                 x2, y2 = int(x2), int(y2)
+
                 # Crop image to bbox
                 rgb_crop = rgb_array[y1:y2, x1:x2]
-                #####################################################################
-                ## Processing begins
-                # Get VI
-                v_index = getattr(VegetationIndex(), self.vi)
-                vi = v_index(rgb_crop)
-
-                thresh_vi = np.where(vi <= 0, 0, vi)
-                thresh_vi = np.where((thresh_vi > 20) & (thresh_vi < 100),
-                                     thresh_vi * 2, thresh_vi)
-
-                # Get classified mask
-                clalgo = getattr(ClassifyMask(), self.class_algorithm)
-                class_mask = clalgo(thresh_vi)
-                # Clean edges and reduce holes
-                # class_mask = dilate_erode(class_mask,
-                #                           kernel_size=3,
-                #                           dil_iters=22,
-                #                           eros_iters=3,
-                #                           hole_fill=False)
+                mask = self.process_domain(rgb_crop)
                 # Clear borders
                 if self.clear_border:
-                    class_mask = clear_border(class_mask) * 255
-                # Create RGB cutout for second round of processing
-                cutout_0 = apply_mask(rgb_crop, class_mask, "black")
-                ## Second round of processing
-                mask = self.reprocess_bbox_cutouts(cutout_0)
+                    mask = clear_border(mask) * 255
                 # Separate components
                 list_cutouts_masks = self.seperate_components(mask)
+                # Create RGB cutout for second round of processing
+                cutout_0 = apply_mask(rgb_crop, mask, "black")
+                # Second round of processing
                 for cut_mask in list_cutouts_masks:
-                    new_cutout = apply_mask(cutout_0, cut_mask, "black")
+                    preproc_cutout = apply_mask(cutout_0, cut_mask, "black")
+                    mask2 = self.process_cutout(preproc_cutout)
+                    new_cutout = apply_mask(preproc_cutout, mask2, "black")
                     new_cropped_cutout = crop_cutouts(new_cutout)
                     cutout_path = self.save_cutout(new_cropped_cutout,
                                                    imgdata.image_path,
                                                    cutout_num)
                     # Save cutout ids for DB
                     cutout_ids.append(cutout_path.stem)
-                    # Get cutout stats
-                    cutout_dict = self.component_stats(cut_mask)
-                    # Reformat regionprops results for json
-                    for i in cutout_dict.keys():
-                        cutout_dict[i] = str(list(cutout_dict[i])[0])
-
-                    # Create cutout dataclass
+                    # Get regionprops
+                    cutprops = GenCutoutProps(mask2).to_dataclass()
+                    # Create dataclass
                     cutout = Cutout(site_id=self.site_id,
                                     cutout_num=cutout_num,
                                     cutout_path=str(cutout_path.name),
                                     image_id=imgdata.image_id,
                                     days_after_planting=14,
-                                    stats=cutout_dict,
+                                    cutout_props=cutprops,
                                     date=self.date)
-                    if self.db is not None:
-                        # Move to database
-                        ctdoc = asdict(cutout)
-                        self.db.Cutouts.insert_one(ctdoc)
                     cutout_num += 1
+                    # Move cutout to database
+                    if self.db is not None:
+                        to_db(self.db, cutout, "Cutouts")
+
+            # Move image to database
             if self.db is not None:
-                #Pass images with cutout_ids and paths info to DB
                 imgdata.cutout_ids = cutout_ids
-                imgdata.image_path = str(imgdata.image_path.name)
-                doc = asdict(imgdata)
-                self.db.Images.insert_one(doc)
+                imgdata.image_path = imgdata.image_path.name
+                to_db(self.db, imgdata, "Images")
+
+
+def to_db(db, data, collection ):
+    data_doc = asdict(data)
+    getattr(db, collection).insert_one(data_doc)
 
 
 def main(cfg: DictConfig) -> None:
-    # Connect to database
-    db = getattr(Connect.get_connection(),
-                 cfg.general.db) if cfg.general.save_to_database else None
-
+    # Create batch metadata
     batch = BatchMetadata(upload_dir=cfg.general.imagedir,
                           site_id=get_site_id(cfg.general.batchdir),
                           upload_datetime=get_upload_datetime(
                               cfg.general.imagedir))
-    if db is not None:
-        # Insert Batch info into database
-        batch_doc = asdict(batch)
-        db.Batches.insert_one(batch_doc)
+    # Connect to database
+    if cfg.general.save_to_database:
+        db = getattr(Connect.get_connection(), cfg.general.db)
+        to_db(db, batch, "Batches")
+    else:
+        db = None
 
     bcfg = BatchConfigImages(batch, cfg)
-    Vegseg = SegmentVegetation(bcfg, db, cfg)
-    print("*********************")
+    vegseg = SegmentVegetation(bcfg, db, cfg)
