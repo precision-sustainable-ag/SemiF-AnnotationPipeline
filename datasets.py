@@ -1,10 +1,9 @@
 import json
 import os
-import sys
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, Type
+from typing import List
 
 import cv2
 import numpy as np
@@ -254,7 +253,6 @@ class BatchConfigImages:
         self.num_class = cfg.segment.num_classes
         self.task = cfg.general.task
         self.clear_border = cfg.segment.clear_border
-        self.name = cfg.general.name
         self.workdir = cfg.general.workdir
 
         self.batchdir = cfg.general.batchdir
@@ -473,6 +471,31 @@ class Mask:
 # Cutouts -------------------------------------------------------------------------------------
 
 
+
+@dataclass
+class CutoutProps:
+    """Region properties for cutouts
+    "area",  # float Area of the region i.e. number of pixels of the region scaled by pixel-area.
+    "area_bbox",  # float Area of the bounding box i.e. number of pixels of bounding box scaled by pixel-area.
+    "area_convex",  # float Are of the convex hull image, which is the smallest convex polygon that encloses the region.
+    "axis_major_length",  # float The length of the major axis of the ellipse that has the same normalized second central moments as the region.
+    "axis_minor_length",  # float The length of the minor axis of the ellipse that has the same normalized second central moments as the region.
+    "centroid",  # array Centroid coordinate list [row, col].
+    "eccentricity",  # float Eccentricity of the ellipse that has the same second-moments as the region. The eccentricity is the ratio of the focal distance (distance between focal points) over the major axis length. The value is in the interval [0, 1). When it is 0, the ellipse becomes a circle.
+    "extent",  # float Ratio of pixels in the region to pixels in the total bounding box. Computed as area / (rows * cols)
+    "solidity",  # float Ratio of pixels in the region to pixels of the convex hull image.
+    "perimeter",  # float Perimeter of object which approximates the contour as a line 
+    """
+    area: float
+    area_bbox: float
+    area_convex: float
+    axis_major_length: float
+    axis_minor_length: float
+    centroid: List
+    eccentricity: float
+    solidity: float
+    perimeter: float
+
 @dataclass
 class Cutout:
     """Per cutout. Goes to PlantCutouts"""
@@ -481,10 +504,11 @@ class Cutout:
     image_id: str
     site_id: str
     date: str
-    cutout_id: uuid = None
+    cutout_props: CutoutProps
+    cutout_id: uuid = field(init=False, default=None)
     species: str = None
     days_after_planting: int = None
-    stats: List = None
+    
 
     def __post_init__(self):
         ct_hash = self.cutout_path + self.date
@@ -517,7 +541,6 @@ class Pot:
         pot_array = np.ascontiguousarray(
             cv2.cvtColor(pot_array, cv2.COLOR_BGR2RGB))
         return pot_array
-
 
 @dataclass
 class Background:
@@ -556,7 +579,7 @@ CUTOUT_PROPS = [
     "eccentricity",  # float Eccentricity of the ellipse that has the same second-moments as the region. The eccentricity is the ratio of the focal distance (distance between focal points) over the major axis length. The value is in the interval [0, 1). When it is 0, the ellipse becomes a circle.
     "extent",  # float Ratio of pixels in the region to pixels in the total bounding box. Computed as area / (rows * cols)
     "solidity",  # float Ratio of pixels in the region to pixels of the convex hull image.
-    "label",  # int The label in the labeled input image.
+    # "label",  # int The label in the labeled input image.
     "perimeter",  # float Perimeter of object which approximates the contour as a line through the centers of border pixels using a 4-connectivity.
 
     # "equivalent_diameter_area",  # float The diameter of a circle with the same area as the region.
