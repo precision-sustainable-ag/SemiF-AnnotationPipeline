@@ -15,7 +15,7 @@ def run_SEMIF(cfg: DictConfig) -> None:
     cfg = OmegaConf.create(cfg)
     # TODO major path checking and incremental directory allignment so mask and cutout directories have same timestamp
     if cfg.general.multitask:
-        for t in cfg.general.multitask:
+        for t in cfg.general.multitasks:
             task = get_method(f"{t}.main")
             # Run task
             task(cfg)
