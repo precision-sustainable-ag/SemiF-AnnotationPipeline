@@ -1,4 +1,4 @@
-from datasets import BBox
+from semif_utils.datasets import BBox
 
 EPS = 1e-16
 
