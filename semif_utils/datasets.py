@@ -4,7 +4,7 @@ import os
 import uuid
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 import cv2
 import exifread
@@ -557,15 +557,16 @@ class CutoutProps:
     "solidity",  # float Ratio of pixels in the region to pixels of the convex hull image.
     "perimeter",  # float Perimeter of object which approximates the contour as a line 
     """
-    area: float
-    area_bbox: float
-    area_convex: float
-    axis_major_length: float
-    axis_minor_length: float
-    centroid: List
-    eccentricity: float
-    solidity: float
-    perimeter: float
+    area: Union[float, list]
+    area_bbox: Union[float, list]
+    area_convex: Union[float, list]
+    axis_major_length: Union[float, list]
+    axis_minor_length: Union[float, list]
+    centroid0: Union[float, list]
+    centroid1: Union[float, list]
+    eccentricity: Union[float, list]
+    solidity: Union[float, list]
+    perimeter: Union[float, list]
 
 
 @dataclass
