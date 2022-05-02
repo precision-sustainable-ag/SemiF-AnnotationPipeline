@@ -1,7 +1,8 @@
 general:
   save_to_database: False
   db: test  # test, trial, WIR
-  multitask: False #[localize_plants, remap_labels, segment_vegetation]
+  multitask: False
+  multitasks: [localize_plants, remap_labels, segment_vegetation]
   task: segment_vegetation  # test_mongodb, , segment_vegetation, localize_plants, remap_labels
   workdir: ${hydra:runtime.cwd}  # where the code is executed
   datadir: ${general.workdir}/data
