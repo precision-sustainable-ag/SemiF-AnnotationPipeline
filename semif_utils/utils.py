@@ -58,6 +58,21 @@ def get_upload_datetime(imagedir):
     return creation_dt
 
 
+def parse_dict(props_tabl):
+    """Used to parse regionprops table dictionary"""
+    ndict = {}
+    for key, val in props_tabl.items():
+        key = key.replace("-", "") if "-" in key else key
+        new_val_entry = []
+        if isinstance(val, np.ndarray) and val.shape[0] > 1:
+            for i, v in enumerate(val):
+                new_val_entry.append({f'{key}_{i+1}': float(v)})
+            ndict[key] = new_val_entry
+        else:
+            ndict[key] = float(val)
+    return ndict
+
+
 ######################################################
 ############### VEGETATION INDICES ###################
 ######################################################
