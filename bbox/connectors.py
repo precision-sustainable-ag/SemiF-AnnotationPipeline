@@ -6,7 +6,7 @@ sys.path.append("..")
 
 import numpy as np
 import pandas as pd
-from datasets import BBox, BoxCoordinates, CameraInfo, RemapImage
+from semif_utils.datasets import BBox, BoxCoordinates, CameraInfo, RemapImage
 from tqdm import tqdm
 
 
