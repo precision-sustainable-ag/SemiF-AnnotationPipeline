@@ -1,4 +1,4 @@
-import sys
+import json
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -17,19 +17,19 @@ from skimage.morphology import disk
 from skimage.segmentation import watershed
 from tqdm import tqdm
 
-sys.path.append("..")
-import json
-
-from datasets import (CUTOUT_PROPS, BatchConfigImages, BatchMetadata,
-                      BBoxMetadata, Cutout, CutoutProps, ImageData)
-from mongo_utils import Connect
-from semif_utils import (apply_mask, clear_border, crop_cutouts, dilate_erode,
-                         get_site_id, get_upload_datetime, make_exg,
-                         make_exg_minus_exr, make_exr, make_kmeans, make_ndi,
-                         otsu_thresh, reduce_holes)
+from semif_utils.datasets import (CUTOUT_PROPS, BatchConfigImages,
+                                  BatchMetadata, BBoxMetadata, Cutout,
+                                  CutoutProps, ImageData)
+from semif_utils.mongo_utils import Connect
+from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
+                               dilate_erode, get_site_id, get_upload_datetime,
+                               make_exg, make_exg_minus_exr, make_exr,
+                               make_kmeans, make_ndi, otsu_thresh,
+                               reduce_holes)
 
 
 class VegetationIndex:
+
     def exg(self, img):
         exg_vi = make_exg(img, thresh=True)
         return exg_vi
@@ -61,7 +61,9 @@ class ClassifyMask:
 
         return reduce_holes_mask
 
+
 class GenCutoutProps:
+
     def __init__(self, mask):
         """ Generate cutout properties and returns them as a dataclass.
         Args:
@@ -93,6 +95,7 @@ class GenCutoutProps:
         cutout_props = from_dict(data_class=CutoutProps, data=table)
         return cutout_props
 
+
 class SegmentVegetation:
 
     def __init__(self, bcfg, db, cfg: DictConfig) -> None:
@@ -108,18 +111,18 @@ class SegmentVegetation:
         self.batchdir = Path(cfg.general.batchdir)
         self.imagedir = Path(cfg.general.imagedir)
 
-        self.detectioncsv = self.batchdir / "detections.csv"  
+        self.detectioncsv = self.batchdir / "detections.csv"
         self.labels = [x for x in (self.batchdir / "labels").glob("*.json")]
 
         self.cutoutdir = self.get_cutoutdir()
-        self.clear_border = cfg.segment.clear_border  
+        self.clear_border = cfg.segment.clear_border
         self.sitedir, self.site_id = self.get_siteinfo()
         self.vi = bcfg.vi
         self.class_algorithm = bcfg.class_algorithm
 
         self.db = db
         self.cutout_pipeline()
-    
+
     def get_cutoutdir(self):
         cutoutdir = Path(self.batchdir, "cutouts")
         cutoutdir.mkdir(parents=True, exist_ok=True)
@@ -135,11 +138,10 @@ class SegmentVegetation:
             site_id: state id takend from sitedir
         """
         states = ['TX', 'NC', 'MD']
-        sitedir = [
-            p for st in states for p in self.imagedir.parts if st in p][0]
+        sitedir = [p for st in states for p in self.imagedir.parts
+                   if st in p][0]
         site_id = [st for st in states if st in sitedir][0]
         return sitedir, site_id
-
 
     def save_cutout(self, cutout, imgpath, cutout_num):
         """Saves cutouts to cutoutdir.
@@ -179,7 +181,7 @@ class SegmentVegetation:
             filtered_mask[output == i + 1] = 255
             list_filtered_masks.append(filtered_mask)
         return list_filtered_masks
-    
+
     def thresh_vi(self, vi, low=20, upper=100, sigma=2):
         """_summary_
 
@@ -195,9 +197,9 @@ class SegmentVegetation:
         """
         thresh_vi = np.where(vi <= 0, 0, vi)
         thresh_vi = np.where((thresh_vi > low) & (thresh_vi < upper),
-                                     thresh_vi * sigma, thresh_vi)
+                             thresh_vi * sigma, thresh_vi)
         return thresh_vi
-    
+
     def process_domain(self, img):
         """First cutout processing step of the full image."""
         ## First Round of processing
@@ -237,7 +239,7 @@ class SegmentVegetation:
                                      hole_fill=True)
         reduced_mask = reduce_holes(dil_erod_mask * 255) * 255
         return reduced_mask
-    
+
     def get_bboxmeta(self, path):
         with open(path) as f:
             j = json.load(f)
@@ -251,7 +253,7 @@ class SegmentVegetation:
         for label_set in tqdm(self.labels,
                               desc="Segmenting Vegetation",
                               colour="green"):
-            # Get image using label stem and image directory                             
+            # Get image using label stem and image directory
             imgpath = Path(f"{self.imagedir}/{label_set.stem}.jpg")
             # Get image dataclass with bbox set
             imgdata = ImageData(image_id=imgpath.stem,
@@ -259,7 +261,8 @@ class SegmentVegetation:
                                 batch_id=self.batch_id,
                                 bbox_meta=self.get_bboxmeta(label_set))
 
-            dt = datetime.strptime(imgdata.exif_meta.DateTime, "%Y:%m:%d %H:%M:%S")
+            dt = datetime.strptime(imgdata.exif_meta.DateTime,
+                                   "%Y:%m:%d %H:%M:%S")
             # Call image array
             rgb_array = imgdata.array
             ## Process on images by individual bbox detection
@@ -318,10 +321,11 @@ class SegmentVegetation:
                 to_db(self.db, imgdata, "Images")
 
 
-def to_db(db, data, collection ):
+def to_db(db, data, collection):
     # Inserts dictionaries into mongodb
     data_doc = asdict(data)
     getattr(db, collection).insert_one(data_doc)
+
 
 def main(cfg: DictConfig) -> None:
     # Create batch metadata
