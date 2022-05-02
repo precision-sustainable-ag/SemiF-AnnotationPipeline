@@ -1,13 +1,39 @@
 # SemiField Annotation Pipeline
 
-## Config
+## TODOs
 
-Set config file variables in `conf/config.yaml`. See below for task variable specifics.
+1. Automate autoSfM results and pipeline triggering
+2. Get unique bbox for cutouts in `segment_vegetation`
+3. Filter cutouts to eliminate very small results in `segment_vegetation`
+4. Improve documentation throughout
 
-s
+<br>
+
+
+## Run the pipeline
+<details>
+<br>
+
+`SEMIF.py` runs the pipeline based on `conf/config.yaml` saving results in the same `imagedir:` provided in the config file. 
+<br>
+
+Settings in `conf/config.yaml` can be modified straight from the command line. 
+
+<br>
+
+```
+python SEMIF.py general.task=segment_vegetation
+                general.vi=exg
+                general.clear_border=True
+```
+
+<br>
+
+</details>
+<br>
 
 ## Data Directory Structure
-<details open>
+<details>
 <summary>Directory and path organization for data and products.</summary>
 
 ```
@@ -28,8 +54,8 @@ SemiF-AnnotationPipeline
     │   │   │       ├── camera_reference.csv
     │   │   │       └── ...
     │   │   ├── labels
-│   │   │   │   ├── row1_1.json
-│   │   │   │   └── ...
+    │   │   │   ├── row1_1.json
+    │   │   │   └── ...
     │   │   ├── GroundControlPoints.csv
     │   │   └── detections.csv
     │   │   
@@ -46,37 +72,8 @@ SemiF-AnnotationPipeline
   ```
 
 </details>
-
-## Data Structure
-
-Data is moved through the pipeline and directly to the mongodb using  `@dataclasses` located in `datasets.py`.
-
-For examples:
-``` Python
-@dataclass
-class BatchMetadata:
-    upload_dir: str
-    site_id: str
-    upload_datetime: str
-    batch_id: uuid 
-    image_list: List 
-    schema_version: str = "v1"
-```
 <br>
 
-## Run the pipeline
-
-`SEMIF.py` runs the pipeline based on `conf/config.yaml` saving results in the same `imagedir:` provided in the config file. 
-
-Settings in `conf/config.yaml` can be modified straight from the command line. 
-
-```
-python SEMIF.py general.task=segment_vegetation
-                general.vi=exg
-                general.clear_border=True
-```
-
-<br>
 
 
 
