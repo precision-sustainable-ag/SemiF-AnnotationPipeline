@@ -24,7 +24,7 @@ from semif_utils.mongo_utils import Connect
 from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
                                dilate_erode, get_site_id, get_upload_datetime,
                                make_exg, make_exg_minus_exr, make_exr,
-                               make_kmeans, make_ndi, otsu_thresh,
+                               make_kmeans, make_ndi, otsu_thresh, parse_dict,
                                reduce_holes)
 
 
@@ -78,16 +78,9 @@ class GenCutoutProps:
         """Generates list of region properties for each cutout mask
         """
         labels = measure.label(self.mask, connectivity=connectivity)
-        props = measure.regionprops_table(labels, properties=CUTOUT_PROPS)
-        # Get largest region if multiple props detected (rare)
-        nprops = {}
-        for key, value in props.items():
-            if len(value) < 2:
-                nprops[key] = float(value)
-            else:
-                nprops[key] = float(value[0])
-        nprops["centroid"] = [nprops["centroid-0"], nprops["centroid-1"]]
-        nprops.pop("centroid-0", "centroid-1")
+        props = [measure.regionprops_table(labels, properties=CUTOUT_PROPS)]
+        # Parse regionprops_table
+        nprops = [parse_dict(d) for d in props][0]
         return nprops
 
     def to_dataclass(self):
@@ -293,10 +286,19 @@ class SegmentVegetation:
                 for cut_mask in list_cutouts_masks:
                     preproc_cutout = apply_mask(cutout_0, cut_mask, "black")
                     mask2 = self.process_cutout(preproc_cutout)
+                    if np.sum(mask2) == 0:
+                        continue
+                    if np.sum(mask2) < 50000:
+                        print(np.sum(mask2))
+                        print(Path(imgdata.image_path.name))
+
                     new_cutout = apply_mask(preproc_cutout, mask2, "black")
                     new_cropped_cutout = crop_cutouts(new_cutout)
                     # Get regionprops
                     cutprops = GenCutoutProps(mask2).to_dataclass()
+                    if type(cutprops.area
+                            ) is not list and cutprops.area < 3000:
+                        continue
                     cutout_path = self.save_cutout(new_cropped_cutout,
                                                    imgdata.image_path,
                                                    cutout_num)
