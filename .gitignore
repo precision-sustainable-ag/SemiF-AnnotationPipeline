@@ -1,11 +1,27 @@
-Assets/
-config/
-data/
-models/
-notebooks/
+## Main .gitignore file. While many are empty, directories are left inplace
+## to provide an example of directory structure.
 
-dataset2dummy_datasets.py
-DIRECTORY_STRUCTURE.MD
+#--------- Project Ignore ---------
+
+# Ignore everything in data except README and species json list (see below).
+data/*
+!data/**.json
+
+# Ignore everything in models dir except readme
+models/*
+
+# (I'm not sure what this directory is for)
+exports/*
+
+# Leave README.md files in each directory
+!**/README.md
+
+# Outputs log files form hydra
+outputs
+
+
+# ---------- Misc -----------
+# Shell scripts
 *.sh
 
 # Drawio flowcharts
