@@ -1,5 +1,6 @@
 import sys
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -17,9 +18,10 @@ from skimage.segmentation import watershed
 from tqdm import tqdm
 
 sys.path.append("..")
+import json
 
-from datasets import (CUTOUT_PROPS, BatchConfigImages, BatchMetadata, Cutout,
-                      CutoutProps, ImageData)
+from datasets import (CUTOUT_PROPS, BatchConfigImages, BatchMetadata,
+                      BBoxMetadata, Cutout, CutoutProps, ImageData)
 from mongo_utils import Connect
 from semif_utils import (apply_mask, clear_border, crop_cutouts, dilate_erode,
                          get_site_id, get_upload_datetime, make_exg,
@@ -62,7 +64,6 @@ class ClassifyMask:
 class GenCutoutProps:
     def __init__(self, mask):
         """ Generate cutout properties and returns them as a dataclass.
-
         Args:
             mask (array): 2D np array
         
@@ -72,21 +73,26 @@ class GenCutoutProps:
         self.mask = mask
 
     def from_regprops_table(self, connectivity=2):
-        # Creates regionprops table for component
+        """Generates list of region properties for each cutout mask
+        """
         labels = measure.label(self.mask, connectivity=connectivity)
         props = measure.regionprops_table(labels, properties=CUTOUT_PROPS)
-        props = dict([key, float(value)] for key, value in props.items())
-        props["centroid"] = [props["centroid-0"], props["centroid-1"]]
-        props.pop("centroid-0", "centroid-1")
-        return props
+        # Get largest region if multiple props detected (rare)
+        nprops = {}
+        for key, value in props.items():
+            if len(value) < 2:
+                nprops[key] = float(value)
+            else:
+                nprops[key] = float(value[0])
+        nprops["centroid"] = [nprops["centroid-0"], nprops["centroid-1"]]
+        nprops.pop("centroid-0", "centroid-1")
+        return nprops
 
     def to_dataclass(self):
         table = self.from_regprops_table()
         cutout_props = from_dict(data_class=CutoutProps, data=table)
         return cutout_props
 
-
-    
 class SegmentVegetation:
 
     def __init__(self, bcfg, db, cfg: DictConfig) -> None:
@@ -100,28 +106,52 @@ class SegmentVegetation:
         self.bcfg = bcfg
         self.batch_id = bcfg.batch_id
         self.batchdir = Path(cfg.general.batchdir)
-        self.detectioncsv = self.batchdir / "detections.csv"  #bcfg.detections_csv
-        self.clear_border = cfg.segment.clear_border  #bcfg.clear_border
-        self.labels = [x for x in (self.batchdir / "labels").glob("*.json")]
         self.imagedir = Path(cfg.general.imagedir)
-        states = ['TX', 'NC', 'MD']
-        self.cutoutdir = Path(self.batchdir, "cutouts")
-        self.cutoutdir.mkdir(parents=True, exist_ok=True)
 
-        self.sitedir = [
-            p for st in states for p in self.imagedir.parts if st in p
-        ][0]
+        self.detectioncsv = self.batchdir / "detections.csv"  
+        self.labels = [x for x in (self.batchdir / "labels").glob("*.json")]
 
-        self.date = self.sitedir.split("_")[-1]
-        self.site_id = [st for st in states if st in self.sitedir][0]
-
+        self.cutoutdir = self.get_cutoutdir()
+        self.clear_border = cfg.segment.clear_border  
+        self.sitedir, self.site_id = self.get_siteinfo()
         self.vi = bcfg.vi
         self.class_algorithm = bcfg.class_algorithm
 
         self.db = db
-        self.create_cutout()
+        self.cutout_pipeline()
+    
+    def get_cutoutdir(self):
+        cutoutdir = Path(self.batchdir, "cutouts")
+        cutoutdir.mkdir(parents=True, exist_ok=True)
+        return cutoutdir
+
+    def get_siteinfo(self):
+        """Uses image directory to gather site specific information.
+            Agnostic to what relative path structure is used. As in it does
+            not matter whether parent directory of images is sitedir or "developed". 
+
+        Returns:
+            sitedir: developed image parent directory name
+            site_id: state id takend from sitedir
+        """
+        states = ['TX', 'NC', 'MD']
+        sitedir = [
+            p for st in states for p in self.imagedir.parts if st in p][0]
+        site_id = [st for st in states if st in sitedir][0]
+        return sitedir, site_id
+
 
     def save_cutout(self, cutout, imgpath, cutout_num):
+        """Saves cutouts to cutoutdir.
+
+        Args:
+            cutout (np.ndarray): final processed cutout array in RGB
+            imgpath (str): filename of the original developed image
+            cutout_num (int): unique number per image
+
+        Returns:
+            cutoutpath: used for saving information to mongodb
+        """
         fname = f"{imgpath.stem}_{cutout_num}.png"
         cutout_path = self.cutoutdir / fname
         # return cutout_path
@@ -129,6 +159,14 @@ class SegmentVegetation:
         return cutout_path
 
     def seperate_components(self, mask):
+        """ Seperates multiple unconnected components in a mask
+            for seperate processing. 
+        Args:
+            mask (np.ndarray):  mask of multiple components form first processing stage
+
+        Returns:
+            list[np.ndarray]: list of multiple component masks
+        """
         # Store individual plant components in a list
         mask = mask.astype(np.uint8)
         nb_components, output, _, _ = cv2.connectedComponentsWithStats(
@@ -143,12 +181,25 @@ class SegmentVegetation:
         return list_filtered_masks
     
     def thresh_vi(self, vi, low=20, upper=100, sigma=2):
+        """_summary_
+
+        Args:
+            vi (np.ndarray): vegetation index single channel
+            low (int, optional): lower end of vi threshold. Defaults to 20.
+            upper (int, optional): upper end of vi threshold. Defaults to 100.
+            sigma (int, optional): multiplication factor applied to range within
+                                   "low" and "upper". Defaults to 2.
+
+        Returns:
+            thresh_vi: threshold vegetation index
+        """
         thresh_vi = np.where(vi <= 0, 0, vi)
         thresh_vi = np.where((thresh_vi > low) & (thresh_vi < upper),
                                      thresh_vi * sigma, thresh_vi)
         return thresh_vi
     
     def process_domain(self, img):
+        """First cutout processing step of the full image."""
         ## First Round of processing
         # Get VI
         v_index = getattr(VegetationIndex(), self.vi)
@@ -160,6 +211,8 @@ class SegmentVegetation:
         return mask
 
     def process_cutout(self, cutout):
+        """Second cutout processing step.
+        """
         # Second round of processing
         vi = make_exg(cutout, thresh=True)
         thresh_vi = np.where(vi <= 0, 0, vi)
@@ -185,7 +238,16 @@ class SegmentVegetation:
         reduced_mask = reduce_holes(dil_erod_mask * 255) * 255
         return reduced_mask
     
-    def create_cutout(self):
+    def get_bboxmeta(self, path):
+        with open(path) as f:
+            j = json.load(f)
+            bbox_meta = from_dict(data_class=BBoxMetadata, data=j)
+        return bbox_meta
+
+    def cutout_pipeline(self):
+        """ Main Processing pipeline. Reads images from list of labels in
+            labeldir,             
+        """
         for label_set in tqdm(self.labels,
                               desc="Segmenting Vegetation",
                               colour="green"):
@@ -194,13 +256,16 @@ class SegmentVegetation:
             # Get image dataclass with bbox set
             imgdata = ImageData(image_id=imgpath.stem,
                                 image_path=imgpath,
-                                batch_id=self.batch_id)
+                                batch_id=self.batch_id,
+                                bbox_meta=self.get_bboxmeta(label_set))
+
+            dt = datetime.strptime(imgdata.exif_meta.DateTime, "%Y:%m:%d %H:%M:%S")
             # Call image array
             rgb_array = imgdata.array
             ## Process on images by individual bbox detection
             cutout_num = 0
             cutout_ids = []
-            bboxes = imgdata.bbox.bboxes
+            bboxes = imgdata.bbox_meta.bboxes
             for box in tqdm(bboxes,
                             leave=False,
                             colour="#6dbc90",
@@ -227,21 +292,20 @@ class SegmentVegetation:
                     mask2 = self.process_cutout(preproc_cutout)
                     new_cutout = apply_mask(preproc_cutout, mask2, "black")
                     new_cropped_cutout = crop_cutouts(new_cutout)
+                    # Get regionprops
+                    cutprops = GenCutoutProps(mask2).to_dataclass()
                     cutout_path = self.save_cutout(new_cropped_cutout,
                                                    imgdata.image_path,
                                                    cutout_num)
                     # Save cutout ids for DB
                     cutout_ids.append(cutout_path.stem)
-                    # Get regionprops
-                    cutprops = GenCutoutProps(mask2).to_dataclass()
                     # Create dataclass
                     cutout = Cutout(site_id=self.site_id,
                                     cutout_num=cutout_num,
                                     cutout_path=str(cutout_path.name),
                                     image_id=imgdata.image_id,
-                                    days_after_planting=14,
                                     cutout_props=cutprops,
-                                    date=self.date)
+                                    datetime=dt)
                     cutout_num += 1
                     # Move cutout to database
                     if self.db is not None:
@@ -255,9 +319,9 @@ class SegmentVegetation:
 
 
 def to_db(db, data, collection ):
+    # Inserts dictionaries into mongodb
     data_doc = asdict(data)
     getattr(db, collection).insert_one(data_doc)
-
 
 def main(cfg: DictConfig) -> None:
     # Create batch metadata
@@ -271,6 +335,6 @@ def main(cfg: DictConfig) -> None:
         to_db(db, batch, "Batches")
     else:
         db = None
-
+    # Run pipeline
     bcfg = BatchConfigImages(batch, cfg)
     vegseg = SegmentVegetation(bcfg, db, cfg)
