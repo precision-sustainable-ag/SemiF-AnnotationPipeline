@@ -2,8 +2,8 @@ import math
 from typing import Dict, List
 
 import numpy as np
-from datasets import BoxCoordinates, ImageData
 from scipy.spatial.transform import Rotation
+from semif_utils.datasets import BoxCoordinates, ImageData
 
 from .bbox_utils import bb_iou, generate_hash
 
