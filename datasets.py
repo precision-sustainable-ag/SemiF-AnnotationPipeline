@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import uuid
@@ -6,9 +7,11 @@ from pathlib import Path
 from typing import List
 
 import cv2
+import exifread
 import numpy as np
-from dacite import from_dict
 from omegaconf import DictConfig
+from PIL import Image
+from PIL.ExifTags import TAGS
 
 
 @dataclass
@@ -313,6 +316,60 @@ class BatchMetadata:
 
 # Image dataclasses ----------------------------------------------------------
 
+@dataclass
+class ImageMetadata:
+    ImageWidth: int
+    ImageLength: int
+    BitsPerSample: int
+    Compression: int
+    PhotometricInterpretation: int
+    Make: str
+    Model: str
+    Orientation: int
+    SamplesPerPixel: int
+    XResolution: int
+    YResolution: int
+    PlanarConfiguration: int
+    ResolutionUnit: int
+    Software: str
+    DateTime: str 
+    Tag: int
+    Rating: int
+    ExifOffset: int
+    ExposureTime: str
+    FNumber: int
+    ExposureProgram: int
+    ISOSpeedRatings: int
+    RecommendedExposureIndex: int
+    ExifVersion: list
+    DateTimeOriginal: str
+    DateTimeDigitized: str 
+    BrightnessValue: str 
+    ExposureBiasValue: int
+    MaxApertureValue: str
+    MeteringMode: int
+    LightSource: int
+    Flash: int
+    FocalLength: int
+    FileSource: int
+    SceneType: int
+    CustomRendered: int
+    ExposureMode: int
+    WhiteBalance: int
+    DigitalZoomRatio: int
+    FocalLengthIn35mmFilm: int
+    SceneCaptureType: int
+    Contrast: int
+    Saturation: int
+    Sharpness: int
+    LensSpecification: list
+    LensModel: str
+    ImageDescription: list = None
+    MakerNote: list = None
+    UserComment: list = None
+    ApplicationNotes: list = None
+
+
 
 @dataclass
 class CameraInfo:
@@ -367,11 +424,13 @@ class Image:
     """
     image_id: str
     image_path: str
-
+    exif_meta: ImageMetadata = field(init=False)
+    
     def __post_init__(self):
         image_array = self.array
         self.width = image_array.shape[1]
         self.height = image_array.shape[0]
+        self.exif_meta = self.get_exif()
 
     @property
     def array(self):
@@ -408,6 +467,27 @@ class Image:
         except Exception as e:
             raise e
         return True
+    
+    def get_exif(self):
+        """ Parses exif data from image
+        Args:
+            path (str) : image path
+        Returns:
+            meta (dict): exif metadata   
+            """
+        # Open image file for reading (must be in binary mode)
+        f = open(self.image_path, 'rb')
+        # Return Exif tags
+        tags = exifread.process_file(f)
+        f.close()
+        meta = {}
+        for x, y in tags.items():
+            newval = y.values[0] if type(y.values) == list and len(y.values) == 1 else y.values
+            meta[x.rsplit(" ")[1]] = newval   
+        meta.pop("MakerNote"), meta.pop("UserComment"), meta.pop("ImageDescription"), meta.pop("ApplicationNotes")
+        imgmeta = ImageMetadata(**meta)
+        
+        return imgmeta
 
 
 @dataclass
@@ -425,17 +505,7 @@ class ImageData(Image):
     batch_id: uuid
     cutout_ids: List[str] = None
     camera_info: CameraInfo = None
-
-    @property
-    def bbox(self):
-        json_path = Path(self.image_path.parent.parent, "labels",
-                         self.image_id + ".json")
-
-        with open(json_path) as f:
-            j = json.load(f)
-            boxset = from_dict(data_class=BBoxMetadata, data=j)
-        return boxset
-
+    bbox_meta: BBoxMetadata = None
 
 @dataclass
 class Mask:
@@ -503,15 +573,14 @@ class Cutout:
     cutout_num: int
     image_id: str
     site_id: str
-    date: str
+    datetime: datetime.datetime
     cutout_props: CutoutProps
     cutout_id: uuid = field(init=False, default=None)
     species: str = None
-    days_after_planting: int = None
     
 
     def __post_init__(self):
-        ct_hash = self.cutout_path + self.date
+        ct_hash = self.cutout_path + self.datetime.strftime("%m%d%Y%H%M%S")
         self.cutout_id = uuid.uuid3(uuid.NAMESPACE_DNS, ct_hash)
 
     @property
