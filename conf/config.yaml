@@ -1,0 +1,27 @@
+general:
+  save_to_database: False
+  db: test  # test, trial, WIR
+  multitask: False
+  multitasks: [localize_plants, remap_labels, segment_vegetation]
+  task: segment_vegetation  # test_mongodb, , segment_vegetation, localize_plants, remap_labels
+  workdir: ${hydra:runtime.cwd}  # where the code is executed
+  datadir: ${general.workdir}/data
+  batchdir: ${general.datadir}/trial/NC_2022-03-11
+  imagedir: ${general.batchdir}/developed
+
+detect:
+  model_path: ${general.workdir}/models/plant_detector/exp/weights/best.pt
+  detections_csv: ${general.batchdir}/detections.csv
+  save_detection: False
+  detectioncropdir: ${general.imagedir} # Location to save detection crops
+
+autosfm:
+  autosfmdir: ${general.batchdir}/autosfm
+
+segment:  # Segment Vegetation
+  clear_border: True
+  cutoutdir: ${general.batchdir}/cutouts
+  save_mask: False # Not implemented
+  vi: exg
+  class_algorithm: kmeans
+  num_classes: 1

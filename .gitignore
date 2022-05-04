@@ -1,30 +1,49 @@
-# Sample data
-test
-scratch_tutorials
-data
-config
-annotate_utils.py
+## Main .gitignore file. While many are empty, directories are left inplace
+## to provide an example of directory structure.
+
+#--------- Project Ignore ---------
+
+# Ignore everything in data except README and species json list (see below).
+data/*
+!data/**.json
+
+# Ignore everything in models dir except readme
+models/*
+
+# (I'm not sure what this directory is for)
+exports/*
+
+# Leave README.md files in each directory
+!**/README.md
+
+# Outputs log files form hydra
+outputs
+
+
+# ---------- Misc -----------
+# Shell scripts
+*.sh
 
 # Drawio flowcharts
 *.drawio
 *.drawio.xml
 
+# Mac stuff
+**/.DS_Store
+
 # PDF resource docs
 *.pdf
 
 # Jupyter Notebook
-.ipynb_checkpoints
+**.ipynb_checkpoints
 
 # Pytest cache
-.pytest_cache
+**.pytest_cache
 
 # Mac OSX
-._.DS_Store
+**._.DS_Store
 
 # Pycache
-__pycache __
-
-# Scratch notebook
-scratch.ipynb
+**__pycache __
 
 *.pyc
