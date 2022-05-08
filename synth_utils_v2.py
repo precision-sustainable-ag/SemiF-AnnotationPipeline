@@ -1,3 +1,4 @@
+import uuid
 from ast import Break
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -9,9 +10,8 @@ import numpy as np
 from omegaconf import DictConfig, OmegaConf
 from tqdm import tqdm
 
-from semif_utils.datasets import Background, Cutout, Pot
+from semif_utils.datasets import Background, Cutout, Pot, TempCutout
 from semif_utils.mongo_utils import Connect
-
 """
 
 Get directories
@@ -26,32 +26,8 @@ Outputs:
 2. synth masks
 """
 
-class ValidateDirs:
-    def __init__(self, cfg: DictConfig) -> None:
-        """Checks if input and output directories exists, creates output directories if necessary,
-           and creates output directory paths for processing.
+## Create data container for cutouts, pots, and backgrounds
 
-        Args:
-            cfg (DictConfig): synth_config.yaml
-
-        Raises:
-            [directory] Directory Not Found: if the directory does not exist and needs to be created
-
-        Returns:
-            imgdir (str): path to output directory for images
-            maskdir (str): path to output directory for masks
-        """
-        self.datadir = cfg.general.datadir
-  
-## get and validate directories
-
-# get Inputs
-# validate and/or create
-
-# get Outputs
-# validate and/or create
-
-## Create data container for cutouts, pots, and backgrounds 
 
 @dataclass
 class SynthDataContainer:
@@ -66,52 +42,55 @@ class SynthDataContainer:
     Returns:
         data_container (object): Dataclass with Cutouts, Pots, and Backgrounds itemized in a mongoDB.
     """
-    datadir: Path
-    db_attr: str = "test"
-    to_db: bool = False
+    datadir: str
+    db_db: str = None
+    use_db: bool = True
     cutouts: list[Cutout] = field(init=False, default=None)
     pots: list[Pot] = field(init=False, default=None)
-    backs: list[Background] = field(init=False, default=None)
+    backgrounds: list[Background] = field(init=False, default=None)
 
     def __post_init__(self):
-        if self.to_db:
+        if self.use_db:
             self.from_db()
         else:
             self.from_dir()
-    
-    def from_dir(self):
-        self.cutouts =  self.datadir.glob("cutouts/*.png")
-        self.pots =     self.datadir.glob("pots/*.png")
-        self.backs =    self.datadir.glob("backgrounds/*.png")
 
+    def from_dir(self):
+
+        self.cutouts = Path(self.datadir).glob("cutouts/*.png")
+        self.pots = Path(self.datadir).glob("pots/*.png")
+        self.backgrounds = Path(self.datadir).glob("backgrounds/*.png")
 
     def from_db(self):
-        self.backs = self.connect_db_dir_products("Backgrounds")
+        self.backgrounds = self.connect_db_dir_products("Backgrounds")
         self.pots = self.connect_db_dir_products("Pots")
         self.cutouts = self.connect_db_dir_products("Cutouts")
 
-
     def query_db(self, db_collection):
         connection = Connect.get_connection()
-        db = getattr(connection, self.db_attr)
+        db = getattr(connection, self.db_db)
         cursor = getattr(db, db_collection).find()
         return cursor
-
 
     def connect_db_dir_products(self, collection_str):
         """Connnects documents in a database collection with items in a directory.
         Places connected items in a list of dataclasses.
-        """             
-        syn_datacls = {"cutout": Cutout, "pot": Pot, "background": Background} 
+        """
+        syn_datacls = {
+            "cutout": TempCutout,
+            "pot": Pot,
+            "background": Background
+        }
         cursor = self.query_db(collection_str.title())
-        docdir = Path(self.datadir,collection_str.lower())
+        docdir = Path(self.datadir, collection_str.lower())
         path_str_ws = collection_str.lower().replace("s", "")
         path_str = f"{path_str_ws}_path"
         docs = []
         for doc in cursor:
-            doc_path = docdir /doc[path_str]
+            doc_path = doc[path_str]  #docdir / doc[path_str]
             doc[path_str] = str(doc_path)
-            assert Path(doc_path).exists(), f"Image with path {str(doc_path)} does not exist."
+            assert Path(doc_path).exists(
+            ), f"Image with path {str(doc_path)} does not exist."
             doc.pop("_id")
             data_cls = syn_datacls[path_str_ws]
             docs.append(data_cls(**doc))
@@ -126,20 +105,9 @@ class PottedBackground:
     pot_paths: list
     pot_positions: list
     arr: np.ndarray
-    mask: np.ndarray    
+    mask: np.ndarray
 
-datadir = Path("data/synth_data_test")
-syndata = SynthDataContainer(datadir=datadir)
 
-numimgs = 20
-
-for img in syndata.cutouts:
-    im = cv2.imread(str(img))
-    print(type(im))    
-    print(im.shape)
-    print(im.dtype)
-
-    
 ## Overlay pot on background
 class OverlayPotOnBackground:
     """
@@ -163,13 +131,14 @@ class OverlayPotOnBackground:
     Returns:
         PottedBackground dataclass with image, mask, pot positions, and other info.
     """
+
     def __init__(self):
         self.pots = False
         self.background = False
 
     def get_pots(num_pots):
         pass
-    
+
     def transform_pot(self):
         pass
 
@@ -178,8 +147,8 @@ class OverlayPotOnBackground:
 class SynthData:
     pass
 
-## Overlay plant on pot
 
+## Overlay plant on pot
 """ 
 Inputs:
     PottedBackground 
@@ -192,4 +161,3 @@ Inputs:
 Methods:
     cutout_list list[Cutout]:   Gets list of cutouts for each back_w_pots images.
 """
-
