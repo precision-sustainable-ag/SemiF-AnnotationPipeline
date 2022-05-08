@@ -20,7 +20,7 @@ from tqdm import tqdm
 from semif_utils.datasets import (CUTOUT_PROPS, BatchConfigImages,
                                   BatchMetadata, BBoxMetadata, Cutout,
                                   CutoutProps, ImageData)
-from semif_utils.mongo_utils import Connect
+from semif_utils.mongo_utils import Connect, to_db
 from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
                                dilate_erode, get_site_id, get_upload_datetime,
                                make_exg, make_exg_minus_exr, make_exr,
@@ -314,19 +314,13 @@ class SegmentVegetation:
                     cutout_num += 1
                     # Move cutout to database
                     if self.db is not None:
-                        to_db(self.db, cutout, "Cutouts")
+                        to_db(self.db, "Cutouts", cutout)
 
             # Move image to database
             if self.db is not None:
                 imgdata.cutout_ids = cutout_ids
                 imgdata.image_path = imgdata.image_path.name
-                to_db(self.db, imgdata, "Images")
-
-
-def to_db(db, data, collection):
-    # Inserts dictionaries into mongodb
-    data_doc = asdict(data)
-    getattr(db, collection).insert_one(data_doc)
+                to_db(self.db, "Images", imgdata)
 
 
 def main(cfg: DictConfig) -> None:
@@ -338,7 +332,7 @@ def main(cfg: DictConfig) -> None:
     # Connect to database
     if cfg.general.save_to_database:
         db = getattr(Connect.get_connection(), cfg.general.db)
-        to_db(db, batch, "Batches")
+        to_db(db, "Batches", batch)
     else:
         db = None
     # Run pipeline
