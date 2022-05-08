@@ -599,6 +599,7 @@ class Cutout:
 
 @dataclass
 class Pot:
+    # TODO complete attributes
     pot_path: str
     pot_id: uuid = None
 
@@ -608,35 +609,50 @@ class Pot:
     @property
     def array(self):
         # Read the image from the file and return the numpy array
-        pot_array = cv2.imread(self.pot_path)
+        pot_array = cv2.imread(self.pot_path, cv2.IMREAD_UNCHANGED)
         pot_array = np.ascontiguousarray(
-            cv2.cvtColor(pot_array, cv2.COLOR_BGR2RGB))
+            cv2.cvtColor(pot_array, cv2.COLOR_BGR2RGBA))
         return pot_array
 
 
 @dataclass
 class Background:
+    # TODO complete attributes
     background_path: str
     background_id: uuid = None
 
     def __post_init__(self):
-        self.back_id = uuid.uuid4()
+        self.background_id = uuid.uuid4()
 
     @property
     def array(self):
         # Read the image from the file and return the numpy array
-        back_array = cv2.imread(self.background_path)
-        back_array = np.ascontiguousarray(
-            cv2.cvtColor(back_array, cv2.COLOR_BGR2RGB))
-        return back_array
+        background_array = cv2.imread(self.background_path)
+        background_array = np.ascontiguousarray(
+            cv2.cvtColor(background_array, cv2.COLOR_BGR2RGB))
+        return background_array
 
 
 @dataclass
-class PlantCutouts:
-    """ Per benchbot image. Standalone class for processing"""
-    batch_id: str
-    image_id: str
-    cutouts: List[Cutout]
+class TempCutout:
+    """ Per benchbot image. Standalone class for processing
+    Temporary. Should Use original Cutout dataclass.
+    For dev of synthetic pot generation.
+    """
+
+    cutout_path: str
+    cutout_id: uuid = None
+
+    def __post_init__(self):
+        self.cutout_id = uuid.uuid4()
+
+    @property
+    def array(self):
+        # Read the image from the file and return the numpy array
+        cutout_array = cv2.imread(self.cutout_path)
+        cutout_array = np.ascontiguousarray(
+            cv2.cvtColor(cutout_array, cv2.COLOR_BGR2RGB))
+        return cutout_array
 
 
 # GLOBALS -------------------------------------------------------------------------
