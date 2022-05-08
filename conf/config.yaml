@@ -1,9 +1,20 @@
+defaults:
+  - synth: default
+  - _self_
+
+hydra:
+  run:
+    dir: ./
+  output_subdir: 
+
 general:
-  save_to_database: False
+  save_to_database: True
+  from_database: True
   db: test  # test, trial, WIR
+  from_db: ${general.db}
   multitask: False
-  multitasks: [localize_plants, remap_labels, segment_vegetation]
-  task: segment_vegetation  # test_mongodb, , segment_vegetation, localize_plants, remap_labels
+  multitasks: [localize_plants, remap_labels, segment_vegetation, synthesize]
+  task: synthesize  # localize_plants, remap_labels, segment_vegetation, synthesize
   workdir: ${hydra:runtime.cwd}  # where the code is executed
   datadir: ${general.workdir}/data
   batchdir: ${general.datadir}/trial/NC_2022-03-11
@@ -25,3 +36,6 @@ segment:  # Segment Vegetation
   vi: exg
   class_algorithm: kmeans
   num_classes: 1
+
+# - synthetic: synth
+

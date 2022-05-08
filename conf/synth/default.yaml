@@ -1,0 +1,8 @@
+# Should be used to parse database
+datadir: ${general.datadir}/synth_data_test
+count: 3
+backgrounds:
+  selection: random # random, sortby
+pots:
+  selection: random # random, sortby
+  sortby: date # batch, date, location, growth, camerasettings
