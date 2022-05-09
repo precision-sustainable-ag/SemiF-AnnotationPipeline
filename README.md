@@ -15,10 +15,11 @@ Setup your environment using conda and the provided dependency file
 1. Automate autoSfM results and pipeline triggering
 2. Create cron job for processing batches dynamically (updating a list of processed batches)
 3. Make slight adjustments in data output structure to match blob container structure (cutouts in own container or within batches?)
-4. Use CPU for `localize_plants`
+4. Move inferencing to CPU if no GPU in `localize_plants`
 5. Get unique bbox for cutouts in `segment_vegetation`
 6. Filter cutouts to eliminate very small results in `segment_vegetation`
-7. Improve documentation throughout
+7. Update synth data generation code
+8. Improve documentation throughout
 
 <br>
 
