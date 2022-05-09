@@ -20,6 +20,7 @@ Setup your environment using conda and the provided dependency file
 6. Filter cutouts to eliminate very small results in `segment_vegetation`
 7. Update synth data generation code
 8. Improve documentation throughout
+9. Automate image development process
 
 <br>
 
