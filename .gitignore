@@ -19,6 +19,8 @@ exports/*
 # Outputs log files form hydra
 outputs
 
+# Hydra files
+.hydra
 
 # ---------- Misc -----------
 # Shell scripts

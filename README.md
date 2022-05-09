@@ -1,5 +1,15 @@
 # SemiField Annotation Pipeline
 
+## Dependencies
+
+Setup your environment using conda and the provided dependency file
+
+<br>
+
+```conda env create --file=environment.yml```
+
+<br>
+
 ## TODOs
 
 1. Automate autoSfM results and pipeline triggering
@@ -9,9 +19,10 @@
 
 <br>
 
+## Environment Setup
 
 ## Run the pipeline
-<details>
+<details open>
 <br>
 
 `SEMIF.py` runs the pipeline based on `conf/config.yaml` saving results in the same `imagedir:` provided in the config file. 

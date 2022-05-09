@@ -333,7 +333,7 @@ class ImageMetadata:
     ResolutionUnit: int
     Software: str
     DateTime: str
-    Tag: int
+    SubIFDs: int
     Rating: int
     ExifOffset: int
     ExposureTime: str
