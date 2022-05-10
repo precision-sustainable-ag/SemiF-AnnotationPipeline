@@ -8,13 +8,13 @@ hydra:
   output_subdir: 
 
 general:
-  save_to_database: True
-  from_database: True
+  save_to_database: False
+  from_database: False
   db: test  # test, trial, WIR
   from_db: ${general.db}
   multitask: False
-  multitasks: [localize_plants, remap_labels, segment_vegetation, synthesize]
-  task: synthesize  # localize_plants, remap_labels, segment_vegetation, synthesize
+  multitasks: [localize_plants, remap_labels, segment_vegetation] #, synthesize
+  task: segment_vegetation  # localize_plants, remap_labels, segment_vegetation, synthesize
   workdir: ${hydra:runtime.cwd}  # where the code is executed
   datadir: ${general.workdir}/data
   batchdir: ${general.datadir}/trial/NC_2022-03-11
