@@ -150,7 +150,7 @@ class SegmentVegetation:
         fname = f"{imgpath.stem}_{cutout_num}.png"
         cutout_path = self.cutoutdir / fname
         # return cutout_path
-        cv2.imwrite(str(cutout_path), cv2.cvtColor(cutout, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(str(cutout_path), cv2.cvtColor(cutout, cv2.COLOR_RGB2BGRA))
         return cutout_path
 
     def seperate_components(self, mask):
