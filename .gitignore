@@ -23,7 +23,7 @@ outputs
 
 # ---------- Misc -----------
 # Shell scripts
-*.sh
+# *.sh
 
 # Drawio flowcharts
 *.drawio
