@@ -1,5 +1,5 @@
 general:
-  batch_id: NC_2022-03-11
+  batch_id: NC_2022-04-12
   save_to_database: False
   db: test  # test, trial, WIR
   multitask: False
@@ -7,8 +7,10 @@ general:
   task: auto_sfm  # test_mongodb, , segment_vegetation, localize_plants, remap_labels, auto_sfm
   workdir: ${hydra:runtime.cwd}  # where the code is executed
   datadir: ${general.workdir}/data
-  batchdir: ${general.datadir}/trial/${general.batch_id}
+  trialdir: ${general.datadir}/trial
+  batchdir: ${general.trialdir}/${general.batch_id}
   imagedir: ${general.batchdir}/developed
+  logdir: ${general.workdir}/logs
 
 detect:
   model_path: ${general.workdir}/models/plant_detector/exp/weights/best.pt
@@ -18,9 +20,17 @@ detect:
 
 autosfm:
   autosfmdir: ${general.batchdir}/autosfm
-  # Need not be in the workdir
-  config_save_path: ${general.workdir}/autosfm_placeholder/config.yml
-  config_copy_path: ${general.workdir}/autosfm_placeholder/config_${general.batch_id}.yml
+
+  # A volume directory to be mounted onto the Docker container running the autoSfM code
+  autosfm_volume: ${general.workdir}/autosfm/volumes
+  autosfm_storage: ${general.trialdir}
+  autosfm_exports: ${general.workdir}/autosfm/exports
+
+  config_save_path: ${autosfm.autosfm_volume}/config/config.yml
+  config_copy_path: ${general.logdir}/autosfm/config_${general.batch_id}.yml
+
+  # Do not put key in the config since the file is committed to GitHub
+  metashape_key: ??? # NOTE: ??? is a special syntax. Do not remove.
 
   autosfm_config:
     # Required config
@@ -30,7 +40,7 @@ autosfm:
     # Electives
     downscale:
       enabled: True
-      factor: 0.5 # between (0, 1]
+      factor: 0.1 # between (0, 1]
 
     align_photos:
       downscale: 1 # Accuracy parameter, lower means higher accuracy
