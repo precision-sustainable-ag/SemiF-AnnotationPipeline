@@ -302,15 +302,15 @@ class BatchMetadata:
         extensions = ["*.jpg", "*.JPG", "*.jpeg", "*.JPEG"]
         images = []
         for ext in extensions:
-            images.extend(Path(self.upload_dir, "developed").glob(ext))
+            images.extend(Path(self.upload_dir).glob(ext))
         image_ids = [image.stem for image in images]
 
-        self.image_list = [{
+        image_list = [{
             "id": image_id,
             "path": str(path)
         } for image_id, path in zip(image_ids, images)]
-        # image_list = images
-        return images
+        
+        return image_list
 
 
 # Image dataclasses ----------------------------------------------------------
@@ -467,27 +467,28 @@ class Image:
             raise e
         return True
 
+    
     def get_exif(self):
-        """ Parses exif data from image
+        """Creates a dataclass dynamically by reading exif metadata, creating a dictionary, and creating dataclass form that dictionary
         Args:
             path (str) : image path
         Returns:
-            meta (dict): exif metadata   
+            object : dataclass of image exif metadata    
             """
         # Open image file for reading (must be in binary mode)
         f = open(self.image_path, 'rb')
         # Return Exif tags
-        tags = exifread.process_file(f)
+        tags = exifread.process_file(f,details=False)
         f.close()
         meta = {}
         for x, y in tags.items():
-            newval = y.values[0] if type(y.values) == list and len(
-                y.values) == 1 else y.values
+            newval = y.values[0] if type(y.values) == list and len(y.values) == 1 else y.values
+            if type(newval) != int or type(newval) != str or type(newval) != float:
+                newval = str(newval)
             meta[x.rsplit(" ")[1]] = newval
-        meta.pop("MakerNote"), meta.pop("UserComment"), meta.pop(
-            "ImageDescription"), meta.pop("ApplicationNotes")
+            pop_list = ["MakerNote", "UserComment", "ImageDescription", "ApplicationNotes"]
+            meta.pop(x.rsplit(" ")[1])  if x.rsplit(" ")[1] in pop_list else None
         imgmeta = ImageMetadata(**meta)
-
         return imgmeta
 
 
@@ -649,7 +650,7 @@ class TempCutout:
     @property
     def array(self):
         # Read the image from the file and return the numpy array
-        cutout_array = cv2.imread(self.cutout_path)
+        cutout_array = cv2.imread(self.cutout_path, cv2.IMREAD_UNCHANGED)
         cutout_array = np.ascontiguousarray(
             cv2.cvtColor(cutout_array, cv2.COLOR_BGR2RGB))
         return cutout_array
