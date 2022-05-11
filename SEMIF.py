@@ -7,6 +7,7 @@ from omegaconf import DictConfig, OmegaConf
 import localize_plants  # Do not remove
 import remap_labels  # Do not remove
 import segment_vegetation  # Do not remove
+import auto_sfm
 
 
 @hydra.main(config_path="conf", config_name="config")
