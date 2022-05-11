@@ -1,6 +1,6 @@
 # Should be used to parse database
 datadir: ${general.datadir}/synth_data_test
-count: 3
+count: 20
 backgrounds:
   selection: random # random, sortby
 pots:

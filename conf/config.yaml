@@ -8,9 +8,9 @@ hydra:
   output_subdir: 
 
 general:
-  save_to_database: False
-  from_database: False
-  db: test  # test, trial, WIR
+  save_to_database: True
+  from_database: True
+  db: test_v2  # test, trial, WIR
   from_db: ${general.db}
   multitask: False
   multitasks: [localize_plants, remap_labels, segment_vegetation] #, synthesize
@@ -36,6 +36,3 @@ segment:  # Segment Vegetation
   vi: exg
   class_algorithm: kmeans
   num_classes: 1
-
-# - synthetic: synth
-
