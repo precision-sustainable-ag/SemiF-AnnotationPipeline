@@ -1,32 +1,14 @@
-import uuid
-from ast import Break
-from dataclasses import asdict, dataclass, field
+import random
+from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List
+from pprint import pprint
 
-import cv2
-import matplotlib.pyplot as plt
 import numpy as np
-from omegaconf import DictConfig, OmegaConf
-from tqdm import tqdm
+import torch
+import torchvision.ops.boxes as bops
 
 from semif_utils.datasets import Background, Cutout, Pot, TempCutout
 from semif_utils.mongo_utils import Connect
-"""
-
-Get directories
-
-Inputs: 
-1. cutouts
-2. pots
-3. empty backgrounds
-
-Outputs:
-1. synth images
-2. synth masks
-"""
-
-## Create data container for cutouts, pots, and backgrounds
 
 
 @dataclass
@@ -77,7 +59,7 @@ class SynthDataContainer:
         Places connected items in a list of dataclasses.
         """
         syn_datacls = {
-            "cutout": TempCutout,
+            "cutout": Cutout,
             "pot": Pot,
             "background": Background
         }
@@ -93,71 +75,64 @@ class SynthDataContainer:
             ), f"Image with path {str(doc_path)} does not exist."
             doc.pop("_id")
             data_cls = syn_datacls[path_str_ws]
+            pprint(doc)
             docs.append(data_cls(**doc))
         return docs
 
+def bbox_iou(box1, box2):
+    box1 = torch.tensor([box1], dtype=torch.float)
+    box2 = torch.tensor([box2], dtype=torch.float)
+    iou = bops.box_iou(box1, box2)
+    return iou      
 
-@dataclass
-class PottedBackground:
-    background_id: str
-    background_path: str
-    pot_ids: list
-    pot_paths: list
-    pot_positions: list
-    arr: np.ndarray
-    mask: np.ndarray
+def get_img_bbox(x, y, imgshape):
+    pot_h, pot_w, _ = imgshape
+    x0, x1, y0, y1 = x, x + pot_w, y, y + pot_h
+    bbox = [x0, y0, x1, y1] # top right corner, bottom left corner
+    return bbox
 
-
-## Overlay pot on background
-class OverlayPotOnBackground:
+def center2topleft(x, y, background_imgshape):
+    """ Gets top left coordinates of an image from center point coordinate
     """
-    Inputs: 
-        background image: 
-        list of Pots    : list of pot dataclasses for overlaying on background
+    back_h, back_w, _ = background_imgshape
+    y = y - int(back_h/2)
+    x = x - int(back_w/2)
+    return x, y
 
-    Methods:
-        get_pots_for_background (# of pots): (list of data classes) list of pot dataclasses (selection choices include; random, selective, or weighted
-
-        transform_pot  (image) : (image)  add transformation (rotateion, flip, scale, change brightness, etc.). Update basic pot image data in dataclass
-
-        get_pot_center_positions (bkgd image) : a dict like, "pos1":(x,y). Get positions on background of where to place pot centers
-
-        adjust_positions : adjust pot position based on background image size and pot size. Avoid pot completely being out of frame. Should compare x,y positions and h,w background image and h,w pot image information. Update pot position data in pot dataclass
-
-        create_mask : this mask won't be saved but is used for pasting pots on background
-
-        paste_foreground : use mask to paste pots on background. 
-
-    Returns:
-        PottedBackground dataclass with image, mask, pot positions, and other info.
+def transform_position(points, imgshape, spread_factor):
+    """ Applies random jitter factor to points and transforms them to top left image coordinates. 
     """
+    y, x = points
 
-    def __init__(self):
-        self.pots = False
-        self.background = False
-
-    def get_pots(num_pots):
-        pass
-
-    def transform_pot(self):
-        pass
-
-
-@dataclass
-class SynthData:
-    pass
-
-
-## Overlay plant on pot
-""" 
-Inputs:
-    PottedBackground 
+    x, y = x + random.randint(-spread_factor, spread_factor), y + random.randint(-int(spread_factor/3), int(spread_factor/3))
     
-    Pot positions (dict)    :   pot_id:[pot_position]
-    back_w_pots (np.array)  :   background image with overlain pots
-    cutouts list[Cutout]    :   List of Cutout dataclasses representing images 
-                                to be place on that background with pots
+    x, y = center2topleft(x, y, imgshape)
+        
+    return x, y
 
-Methods:
-    cutout_list list[Cutout]:   Gets list of cutouts for each back_w_pots images.
-"""
+def center_on_background(y, x, back_shape, fore_shape):
+    # pot positions and shape top left corner
+    back_h, back_w, _ = back_shape
+    fore_h, fore_w, _ = fore_shape
+    newx = int(((back_w - fore_w) / 2) + x)
+    newy = int(((back_h - fore_h) / 2) + y)
+    return newx, newy
+
+
+def img2RGBA(img):
+    alpha = np.sum(img, axis=-1) > 0
+    alpha = np.uint8(alpha * 255)
+    img = np.dstack((img, alpha))
+    return img
+
+# Pot positioning
+sixpot = {
+    0:(1592, 1599),
+    1:(1592, 4796),
+    2:(1592, 7993),
+    3:(4776, 1599),
+    4:(4776, 4796),
+    5:(4776, 7993)
+}
+
+POTMAPS = [sixpot]
