@@ -1,15 +1,15 @@
 general:
-  batch_id: NC_2022-04-12
+  batch_id: NC_2022-03-29
   save_to_database: False
   db: test  # test, trial, WIR
   multitask: False
   multitasks: [auto_sfm, localize_plants, remap_labels, segment_vegetation]
-  task: auto_sfm  # test_mongodb, , segment_vegetation, localize_plants, remap_labels, auto_sfm
+  task: remap_labels  # test_mongodb, segment_vegetation, localize_plants, remap_labels, auto_sfm
   workdir: ${hydra:runtime.cwd}  # where the code is executed
   datadir: ${general.workdir}/data
   trialdir: ${general.datadir}/trial
   batchdir: ${general.trialdir}/${general.batch_id}
-  imagedir: ${general.batchdir}/developed
+  imagedir: ${general.batchdir}/autosfm/downscaled_photos
   logdir: ${general.workdir}/logs
 
 detect:
@@ -17,6 +17,7 @@ detect:
   detections_csv: ${general.batchdir}/detections.csv
   save_detection: False
   detectioncropdir: ${general.imagedir} # Location to save detection crops
+  device: "cpu:0"
 
 autosfm:
   autosfmdir: ${general.batchdir}/autosfm

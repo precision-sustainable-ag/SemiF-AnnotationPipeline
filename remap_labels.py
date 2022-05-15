@@ -1,11 +1,15 @@
 from pathlib import Path
+import logging
 
 from omegaconf import DictConfig
+import hydra
 from tqdm import tqdm
 
 from bbox.bbox_transformations import BBoxFilter, BBoxMapper
 from bbox.connectors import BBoxComponents, SfMComponents
 from bbox.io_utils import ParseXML, ParseYOLOCsv
+
+log = logging.getLogger(__name__)
 
 
 class RemapLabels:
@@ -33,24 +37,35 @@ class RemapLabels:
         # Initialize the connector and get a list of all the images
         box_connector = BBoxComponents(self.camera_reference, reader,
                                        self.image_dir, self.raw_label)
+        log.info("Fetching image metadata.")
         imgs = box_connector.images
         # Map the bounding boxes from local coordinates to global coordinate system
+        log.info("Staring mapping.")
         mapper = BBoxMapper(imgs)
         mapper.map()
         # Sanity check
         for img in imgs:
             for box in img.bboxes:
-                assert len(box._overlapping_bboxes) == 0
+                try:
+                    assert len(box._overlapping_bboxes) == 0
+                except AssertionError as e:
+                    log.debug("Mapping failed> Reason: {}".format(str(e)))
+                    raise e
+        log.info("Mapping complete.")
         # Apply "Non-Maxima Supression" to identify ideal boundng boxes.
         # Note that the operations are done in place, i.e. imgs, which is
         # a list of Image objects have BBox objects associated with them.
         # The properties of these objects are changed by the BBoxFilter.
+        log.info("Deduplicating bounding boxes.")
         bbox_filter = BBoxFilter(imgs)
         bbox_filter.deduplicate_bboxes()
+        log.info("Deduplication complete.")
+        log.info("Saving bounding box metadata.")
         # Save the config
         for img in imgs:
             Path(self.metadata).mkdir(parents=True, exist_ok=True)
             img.save_config(self.metadata)
+        log.info("Saving complete.")
         return imgs
 
 

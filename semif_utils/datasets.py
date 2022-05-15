@@ -333,7 +333,6 @@ class ImageMetadata:
     ResolutionUnit: int
     Software: str
     DateTime: str
-    SubIFDs: int
     Rating: int
     ExifOffset: int
     ExposureTime: str
@@ -368,6 +367,8 @@ class ImageMetadata:
     MakerNote: list = None
     UserComment: list = None
     ApplicationNotes: list = None
+    Tag: int = None
+    SubIFDs: int = None
 
 
 @dataclass
@@ -486,6 +487,7 @@ class Image:
             meta[x.rsplit(" ")[1]] = newval
         meta.pop("MakerNote"), meta.pop("UserComment"), meta.pop(
             "ImageDescription"), meta.pop("ApplicationNotes")
+        # print(type(meta["SubIFDs"]), meta["SubIFDs"])
         imgmeta = ImageMetadata(**meta)
 
         return imgmeta

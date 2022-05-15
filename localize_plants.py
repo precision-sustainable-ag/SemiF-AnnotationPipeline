@@ -3,13 +3,16 @@ from pathlib import Path
 import cv2
 import pandas as pd
 import torch
+import logging
 from omegaconf import DictConfig
 from tqdm import tqdm
+import hydra
 
+log = logging.getLogger(__name__)
 
-def load_model(model_path):
-    # TODO create option for cpu
-    device = torch.device(0)
+def load_model(model_path, device):
+
+    device = torch.device(device)
     ## load model
     model = torch.hub.load('ultralytics/yolov5',
                            'custom',
@@ -52,6 +55,13 @@ def main(cfg: DictConfig) -> None:
     imagedir = Path(cfg.general.imagedir)
     batchdir = Path(cfg.general.batchdir)
     csv_savepath = Path(cfg.general.batchdir, "detections.csv")
+    device = cfg.detect.device
+    if "cpu" in device:
+        device = "cpu"
+    elif "cuda" in device:
+        device = int(device.split(":")[1])
+    else:
+        raise ValueError("Device should be one of \"cpu\" of \"cuda:x\"")
 
     if save_detection:
         # Crop savepath
@@ -61,13 +71,14 @@ def main(cfg: DictConfig) -> None:
     ## Get image files
     images = sorted(imagedir.rglob("*.jpg"), reverse=True)
     ## Init model
-    model = load_model(model_path)
+    model = load_model(model_path, device)
     # Get images
     dfimgs = []
     for idx, imgp in tqdm(enumerate(images),
                           desc="Localizing Plants",
                           colour="#9266c4",
                           total=len(images)):
+        log.info(f"Running inference on {images[idx]}")
         if not save_detection:
             df, imgpath = inference(imgp, model, save_detection=save_detection)
 
