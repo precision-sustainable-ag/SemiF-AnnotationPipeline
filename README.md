@@ -38,10 +38,16 @@ Settings in `conf/config.yaml` can be modified straight from the command line.
 <br>
 
 ```
-python SEMIF.py general.task=segment_vegetation
-                general.vi=exg
-                general.clear_border=True
+python SEMIF.py general.batch_id=<batch_id> \
+                general.task=segment_vegetation \
+                general.vi=exg \
+                general.clear_border=True \
+                autosfm.metashape_key=<metashape_key>
 ```
+
+Note that the ```metashape_key``` isn't currently required, and hence can be replaced with any random string. The key will be required after August 2022.
+
+The ```general.batch_id``` and ```autosfm.metashape_key``` are mandatory fields.
 
 <br>
 
