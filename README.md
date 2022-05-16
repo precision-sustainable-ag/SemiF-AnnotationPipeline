@@ -12,10 +12,10 @@ Setup your environment using conda and the provided dependency file
 
 ## TODOs
 
-1. Automate autoSfM results and pipeline triggering
+1. ~~Automate autoSfM results and pipeline triggering~~
 2. Create cron job for processing batches dynamically (updating a list of processed batches)
 3. Make slight adjustments in data output structure to match blob container structure (cutouts in own container or within batches?)
-4. Move inferencing to CPU if no GPU in `localize_plants`
+4. ~~Move inferencing to CPU if no GPU in `localize_plants`~~
 5. Get unique bbox for cutouts in `segment_vegetation`
 6. Filter cutouts to eliminate very small results in `segment_vegetation`
 7. Update synth data generation code
@@ -90,10 +90,23 @@ SemiF-AnnotationPipeline
 </details>
 <br>
 
+# ```conf/config.yml``` for controlling execution
+The ```conf/config.yml``` is used for controlling the execution of the pipelne. The ```multitask``` field enables sequential execution of the tasks listed in ```multitasks```. Note that the names of the tasks are sensitive to the order of execution and the names. The names of the tasks must be from ```test_mongodb```, ```segment_vegetation```, ```localize_plants```, ```remap_labels```, ```auto_sfm```. The order of exeqution must be as follows:
 
+```auto_sfm```, ```localize_plants```, ```remap_labels```, ```segment_vegetation```
 
+# AutoSfM pipeline triggering
+```auto_sfm``` should be triggeretd and completed before ```remap_labels```. AutoSfM ([https://github.com/precision-sustainable-ag/autoSfM](https://github.com/precision-sustainable-ag/autoSfM)) is run using a Docker container, and needs a config file through which the execution is controlled. This config file is generated dynamically through the ```conf/config.yml``` file using the ```autosfm.autosfm_config``` field. This ensures that the same batch ID is used for processing both the pipelines.
 
+Following directories from the repository are used for autoSfM:
+1. ```autosfm/volumes```: This is the directory which contains the config.yml file used for controlling the execution, and the Metashape installation. The Metashape software has to be copied maually. The directiry structure of ```autosfm/volumes``` is fixed and should not be changed.
+2. ```autosfm/exports```: The products of the autoSfM are stored here. This directory is mounted onto the Docker container at ```/home/psi_docker/autoSfM/exports```.
+3. ```data/trials```: The data to be processed by autoSfM are stored here (this directory is shared with the rest of the pipeline). This directory is mounted on the Docker container at ```/home/psi_docker/autoSfM/storage```.
 
+The flow of execution is as follows:
+1. All the directories are mounted on the Docker container and the pipeline is executed.
+2. The exports are moved to ```data/trial/{batch_id}/autosfm```.
+3. The generated ```config.yml``` is copied to ```logs/autosfm/config_{batch_id}.yml``` for logging purposes.
 
 # Bounding Box Utilities
 

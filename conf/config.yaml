@@ -1,15 +1,15 @@
 general:
-  batch_id: NC_2022-03-29
+  batch_id: ??? # Control the batch_id through the command line
   save_to_database: False
   db: test  # test, trial, WIR
-  multitask: False
+  multitask: True
   multitasks: [auto_sfm, localize_plants, remap_labels, segment_vegetation]
-  task: remap_labels  # test_mongodb, segment_vegetation, localize_plants, remap_labels, auto_sfm
+  task: localize_plants  # test_mongodb, segment_vegetation, localize_plants, remap_labels, auto_sfm
   workdir: ${hydra:runtime.cwd}  # where the code is executed
   datadir: ${general.workdir}/data
   trialdir: ${general.datadir}/trial
   batchdir: ${general.trialdir}/${general.batch_id}
-  imagedir: ${general.batchdir}/autosfm/downscaled_photos
+  imagedir: ${general.batchdir}/developed
   logdir: ${general.workdir}/logs
 
 detect:
@@ -41,7 +41,7 @@ autosfm:
     # Electives
     downscale:
       enabled: True
-      factor: 0.1 # between (0, 1]
+      factor: 0.5 # between (0, 1]
 
     align_photos:
       downscale: 1 # Accuracy parameter, lower means higher accuracy
