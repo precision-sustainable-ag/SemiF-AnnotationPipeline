@@ -1,7 +1,7 @@
-BATCHES="./data/trial/*/"
+BATCHES="./blob_container/semifield-developed-images-trial/*/"
 for batch in $BATCHES
 do 
     IMAGEDIR="${batch%/*}"
     echo $IMAGEDIR
-    python SEMIF.py general.batchdir=$IMAGEDIR general.task=segment_vegetation
+    python SEMIF.py data.batchdir=$IMAGEDIR general.multitask=True general.multitasks="[segment_vegetation, synthesize]"
 done
