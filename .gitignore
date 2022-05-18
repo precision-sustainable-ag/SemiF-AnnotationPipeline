@@ -4,7 +4,7 @@
 #--------- Project Ignore ---------
 
 # Ignore everything in data except README and species json list (see below).
-blob_container
+blob_container/*/**
 data/*
 !data/**.json
 
