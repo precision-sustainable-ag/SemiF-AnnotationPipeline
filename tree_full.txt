@@ -1,0 +1,122 @@
+.
+├── Assets
+├── bbox
+│   └── __pycache__
+├── blob_container
+│   ├── semifield-cutouts-trial
+│   │   ├── NC_2022-03-11
+│   │   ├── NC_2022-03-29
+│   │   ├── NC_2022-04-05
+│   │   └── NC_2022-04-12
+│   ├── semifield-developed-images-trial
+│   │   ├── NC_2022-03-11
+│   │   │   ├── autosfm
+│   │   │   ├── images
+│   │   │   ├── masks
+│   │   │   └── metadata
+│   │   ├── NC_2022-03-29
+│   │   │   ├── autosfm
+│   │   │   ├── images
+│   │   │   ├── masks
+│   │   │   └── metadata
+│   │   ├── NC_2022-04-05
+│   │   │   ├── autosfm
+│   │   │   ├── images
+│   │   │   ├── masks
+│   │   │   └── metadata
+│   │   └── NC_2022-04-12
+│   │       ├── autosfm
+│   │       ├── images
+│   │       ├── masks
+│   │       └── metadata
+│   ├── semifield-models-trial
+│   │   └── plant_detector
+│   ├── semifield-synthetic-images-trial
+│   │   ├── backgrounds
+│   │   ├── pots
+│   │   └── synthetic-images
+│   └── semifield-upload-images-trial
+│       └── NC_2022-04-12
+├── conf
+│   └── synth
+├── data
+│   ├── db
+│   │   ├── diagnostic.data
+│   │   └── journal
+│   └── temp
+│       ├── grass_test
+│       │   ├── NC_2022-03-04
+│       │   │   └── developed
+│       │   ├── NC_2022-03-11
+│       │   │   └── developed
+│       │   ├── NC_2022-03-22
+│       │   │   └── developed
+│       │   ├── NC_2022-03-29
+│       │   │   └── developed
+│       │   ├── NC_2022-04-05
+│       │   │   └── developed
+│       │   └── NC_2022-04-12
+│       │       └── developed
+│       ├── quick_synth_test
+│       │   ├── backgrounds
+│       │   ├── cutouts
+│       │   └── pots
+│       ├── quick_test
+│       │   └── developed
+│       ├── temp_test
+│       │   ├── NC_2022-03-04
+│       │   │   ├── cutouts
+│       │   │   └── developed
+│       │   └── NC_2022-03-22
+│       │       ├── collected_images
+│       │       │   ├── Row1
+│       │       │   ├── Row2
+│       │       │   ├── Row3
+│       │       │   ├── Row4
+│       │       │   └── Row5
+│       │       └── developed
+│       └── trial
+│           ├── NC_2022-03-11
+│           │   ├── autosfm
+│           │   │   ├── annotations
+│           │   │   ├── ortho
+│           │   │   └── reference
+│           │   ├── cutouts
+│           │   ├── developed
+│           │   └── labels
+│           ├── NC_2022-03-29
+│           │   ├── autosfm
+│           │   │   └── reference
+│           │   ├── color_calibration
+│           │   ├── cutouts
+│           │   ├── developed
+│           │   ├── labels
+│           │   ├── raw
+│           │   └── test
+│           ├── NC_2022-04-05
+│           │   ├── autosfm
+│           │   │   └── reference
+│           │   ├── color_calibration
+│           │   ├── cutouts
+│           │   ├── developed
+│           │   ├── labels
+│           │   └── raw
+│           └── NC_2022-04-12
+│               ├── autosfm
+│               │   └── reference
+│               ├── color_calibration
+│               ├── cutouts
+│               ├── developed
+│               ├── labels
+│               └── raw
+├── exports
+├── models
+│   └── plant_detector
+│       └── exp
+│           └── weights
+├── notebooks
+├── __pycache__
+└── semif_utils
+    └── __pycache__
+
+119 directories
