@@ -1,8 +1,10 @@
 # Should be used to parse database
-datadir: ${general.datadir}/synth_data_test
-count: 20
+count: 10
 backgrounds:
   selection: random # random, sortby
+backgrounddir: ${data.synthdir}/backgrounds
+potdir: ${data.synthdir}/pots
+pot_jitter: [200, 500] # (min, max) extent of random placement of pots
 pots:
   selection: random # random, sortby
   sortby: date # batch, date, location, growth, camerasettings
