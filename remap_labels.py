@@ -12,15 +12,16 @@ class RemapLabels:
 
     def __init__(self, cfg: DictConfig) -> None:
         self.asfm_root = Path(cfg.autosfm.autosfmdir)
-        self.reference_path = self.asfm_root / "reference"
-        self.metadata = cfg.general.batchdir + "/labels"  #self.asfm_root / "metadata"
-
-        self.image_dir = cfg.general.imagedir
-        self.raw_label = cfg.detect.detections_csv
+        self.reference_path = self.asfm_root
+        self.batchdir = Path(cfg.data.batchdir)
+        self.image_dir = Path(self.batchdir, "images")
+        self.metadata = Path(self.batchdir, "metadata")
+        self.reference = Path(self.batchdir, "autosfm")
+        self.raw_label = self.reference / "detections.csv"
 
     @property
     def camera_reference(self):
-        connector = SfMComponents(self.reference_path)
+        connector = SfMComponents(self.reference)
         gcp_reference = connector.gcp_reference
         cam_ref = connector.camera_reference
         return cam_ref
@@ -30,6 +31,7 @@ class RemapLabels:
         # boxes to the desired format
         reader = ParseYOLOCsv(image_path=self.image_dir,
                               label_path=self.raw_label)
+
         # Initialize the connector and get a list of all the images
         box_connector = BBoxComponents(self.camera_reference, reader,
                                        self.image_dir, self.raw_label)
@@ -47,9 +49,12 @@ class RemapLabels:
         # The properties of these objects are changed by the BBoxFilter.
         bbox_filter = BBoxFilter(imgs)
         bbox_filter.deduplicate_bboxes()
+
         # Save the config
         for img in imgs:
+
             Path(self.metadata).mkdir(parents=True, exist_ok=True)
+            img.image_path = "/".join(Path(img.image_path).parts[-2:])
             img.save_config(self.metadata)
         return imgs
 
