@@ -15,8 +15,8 @@ class Connect(object):
             f"mongodb://superuser:{password}@localhost:27017/admin?")
 
 
-def to_db(db, collection, data):
-    """Turns a single dictionary into a document and inserts it into the database
+def to_db(db, collection, data_dict):
+    """Inserts dictionary in the database
 
     Args:
         db (pymongo.database.Database): connection to mongodb of choice
@@ -24,8 +24,7 @@ def to_db(db, collection, data):
         data (dict): dict and contents of wanted document
     """
     # Inserts dictionaries into mongodb
-    data_doc = asdict(data)
-    getattr(db, collection).insert_one(data_doc)
+    getattr(db, collection).insert_one(data_dict)
 
 
 def from_db(db, collection):
@@ -43,9 +42,7 @@ def from_db(db, collection):
     return list(cursor)
 
 
-# def get_individual_synth_collection(cfg: DictConfig) -> None:
-#     """ IDK where else to put this. TODO move this somewhere else???"""
-#     db = getattr(Connect.get_connection(), cfg.general.db)
-#     collection = "Cutouts"
-#     docs = from_db(db, collection)
-#     print(docs)
+def _id_query(db, query):
+    doc = db.find(query)
+    _id = str(doc["_id"])
+    return _id
