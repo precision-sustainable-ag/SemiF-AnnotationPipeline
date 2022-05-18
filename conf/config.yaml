@@ -9,29 +9,32 @@ hydra:
 
 general:
   save_to_database: True
-  from_database: True
-  db: test_v2  # test, trial, WIR
+  from_database: False
+  db: test  # test, trial, WIR
   from_db: ${general.db}
   multitask: False
-  multitasks: [localize_plants, remap_labels, segment_vegetation] #, synthesize
-  task: segment_vegetation  # localize_plants, remap_labels, segment_vegetation, synthesize
+  multitasks: [localize_plants, remap_labels, segment_vegetation, synthesize] 
+  task: synthesize  # localize_plants, remap_labels, segment_vegetation, synthesize
   workdir: ${hydra:runtime.cwd}  # where the code is executed
-  datadir: ${general.workdir}/data
-  batchdir: ${general.datadir}/trial/NC_2022-03-11
-  imagedir: ${general.batchdir}/developed
+
+data:
+  datadir: ${general.workdir}/blob_container
+  developeddir: ${data.datadir}/semifield-developed-images-trial
+  batchdir: ${data.developeddir}/NC_2022-03-29 # Is overiden by shell script
+  cutoutdir: ${data.datadir}/semifield-cutouts-trial
+  synthdir: ${data.datadir}/semifield-synthetic-images-trial
+  modeldir: ${data.datadir}/semifield-models-trial
 
 detect:
-  model_path: ${general.workdir}/models/plant_detector/exp/weights/best.pt
-  detections_csv: ${general.batchdir}/detections.csv
+  model_path: ${data.modeldir}/plant_detector/best.pt
+  detections_csv: ${data.batchdir}/autosfm
   save_detection: False
-  detectioncropdir: ${general.imagedir} # Location to save detection crops
 
 autosfm:
-  autosfmdir: ${general.batchdir}/autosfm
+  autosfmdir: ${data.batchdir}/autosfm
 
 segment:  # Segment Vegetation
   clear_border: True
-  cutoutdir: ${general.batchdir}/cutouts
   save_mask: False # Not implemented
   vi: exg
   class_algorithm: kmeans
