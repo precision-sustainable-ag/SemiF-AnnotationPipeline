@@ -49,9 +49,11 @@ def main(cfg: DictConfig) -> None:
     save_detection = cfg.detect.save_detection
     ## Define directories
     model_path = cfg.detect.model_path
-    imagedir = Path(cfg.general.imagedir)
-    batchdir = Path(cfg.general.batchdir)
-    csv_savepath = Path(cfg.general.batchdir, "detections.csv")
+    batchdir = Path(cfg.data.batchdir)
+
+    imagedir = Path(cfg.data.batchdir, "images")
+    detectiondir = Path(batchdir, "autosfm")
+    csv_savepath = Path(detectiondir, "detections.csv")
 
     if save_detection:
         # Crop savepath
@@ -64,6 +66,7 @@ def main(cfg: DictConfig) -> None:
     model = load_model(model_path)
     # Get images
     dfimgs = []
+
     for idx, imgp in tqdm(enumerate(images),
                           desc="Localizing Plants",
                           colour="#9266c4",
