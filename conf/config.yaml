@@ -8,7 +8,7 @@ hydra:
   output_subdir: 
 
 general:
-  save_to_database: True
+  save_to_database: False
   from_database: False
   db: test  # test, trial, WIR
   from_db: ${general.db}
@@ -20,7 +20,7 @@ general:
 data:
   datadir: ${general.workdir}/blob_container
   developeddir: ${data.datadir}/semifield-developed-images-trial
-  batchdir: ${data.developeddir}/NC_2022-03-29 # Is overiden by shell script
+  batchdir: ${data.developeddir}/NC_2022-03-11 # Is overiden by shell script
   cutoutdir: ${data.datadir}/semifield-cutouts-trial
   synthdir: ${data.datadir}/semifield-synthetic-images-trial
   modeldir: ${data.datadir}/semifield-models-trial
