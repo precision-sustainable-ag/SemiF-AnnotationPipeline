@@ -306,10 +306,9 @@ class SegmentVegetation:
                     cutouts.append(cutout)
                     cutout_num += 1
                     # Move cutout to database
+                    cutout = asdict(cutout)
                     if self.db is not None:
-                        cutout = asdict(cutout)
                         to_db(self.db, "Cutouts", cutout)
-
                     self.save_cutout_json(cutout, cutout_path)
 
             # To database
@@ -322,6 +321,7 @@ class SegmentVegetation:
                 imgdata = asdict(imgdata)
                 to_db(self.db, "Images", imgdata)
             # To json
+            imgdata = asdict(imgdata)
             jsparents = Path(self.data_root, self.batch_id, "metadata")
             jsonpath = Path(jsparents, imgdata["image_id"] + ".json")
             save_dataclass_json(imgdata, jsonpath)
