@@ -50,5 +50,5 @@ python SEMIF.py general.task=segment_vegetation
 
 # Global bbox mapping with AutoSfM
 
-More info can be found [here](bbox/README.md)
+More info can be found [**here**](bbox/README.md)
 

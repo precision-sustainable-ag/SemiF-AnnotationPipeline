@@ -26,10 +26,6 @@ outputs
 # Shell scripts
 # *.sh
 
-# Drawio flowcharts
-*.drawio
-*.drawio.xml
-
 # Mac stuff
 **/.DS_Store
 
