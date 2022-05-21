@@ -118,7 +118,7 @@ class ParseYOLOCsv:
                 "bottom_left": bottom_left,
                 "bottom_right": bottom_right,
                 "cls": cls,
-                "is_normalized": False
+                "is_normalized": True
             }
 
             boxes.append(bbox)
