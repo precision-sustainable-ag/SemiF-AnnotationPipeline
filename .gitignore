@@ -6,6 +6,7 @@
 # Ignore everything in data except README and species json list (see below).
 data/*
 !data/**.json
+blob_container
 
 # Ignore everything in models dir except readme
 models/*
