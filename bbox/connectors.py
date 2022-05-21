@@ -184,10 +184,9 @@ class BBoxComponents:
                                    bboxes=bboxes[image_id],
                                    camera_info=cam_info)
                 # Scale the boounding box coordinates to pixel space
-                # scale = np.array([image.width, image.height
-                #   ])  # Not needed. bbox are in original scale
+                scale = np.array([image.width, image.height])
                 for bbox in image.bboxes:
-                    # bbox.local_coordinates.set_scale(scale)
+                    bbox.local_coordinates.set_scale(scale)
                     bbox.set_local_centroid()
 
                 self._images.append(image)

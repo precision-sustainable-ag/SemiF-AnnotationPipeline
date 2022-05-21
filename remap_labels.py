@@ -18,8 +18,11 @@ class RemapLabels:
         self.asfm_root = Path(cfg.autosfm.autosfmdir)
         self.reference_path = self.asfm_root / "reference"
         self.metadata = cfg.general.batchdir + "/labels"  #self.asfm_root / "metadata"
-
-        self.image_dir = cfg.general.imagedir
+        
+        if cfg.autosfm.autosfm_config.downscale.enabled:
+            self.image_dir = Path(cfg.general.batchdir, "autosfm", "downscaled_photos")
+        else:
+            self.image_dir = cfg.general.imagedir
         self.raw_label = cfg.detect.detections_csv
 
     @property
