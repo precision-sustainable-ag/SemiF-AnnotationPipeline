@@ -4,6 +4,7 @@
 #--------- Project Ignore ---------
 
 # Ignore everything in data except README and species json list (see below).
+blob_container/*/**
 data/*
 !data/**.json
 blob_container
@@ -25,11 +26,7 @@ outputs
 
 # ---------- Misc -----------
 # Shell scripts
-*.sh
-
-# Drawio flowcharts
-*.drawio
-*.drawio.xml
+# *.sh
 
 # Mac stuff
 **/.DS_Store
