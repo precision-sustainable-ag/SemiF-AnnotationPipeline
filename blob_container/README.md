@@ -73,6 +73,11 @@ After preprocessing, batches are moved to "Developed". Each batch contains four 
 developed
    └── NC_2022-03-29
          ├── autosfm
+         │   ├── downscaled_photos
+         │   │    ├── NC_2_1_1648579721000.0.jpg
+         │   │    └── ...
+         │   ├── ortho
+         │   │    └── ortho.tif
          │   ├── camera_reference.csv
          │   ├── detections.csv
          │   ├── error_statistics.csv
