@@ -1,10 +1,10 @@
 import logging
+from dataclasses import asdict
 from pathlib import Path
-import logging
+from pprint import pprint
 
 import hydra
 from omegaconf import DictConfig
-import hydra
 from tqdm import tqdm
 
 from bbox.bbox_transformations import BBoxFilter, BBoxMapper
@@ -67,7 +67,6 @@ class RemapLabels:
         log.info("Saving bounding box metadata.")
         # Save the config
         for img in imgs:
-
             Path(self.metadata).mkdir(parents=True, exist_ok=True)
             img.image_path = "/".join(Path(img.image_path).parts[-2:])
             img.save_config(self.metadata)

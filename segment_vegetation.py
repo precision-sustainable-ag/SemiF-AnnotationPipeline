@@ -2,6 +2,7 @@ import json
 from dataclasses import asdict, make_dataclass
 from datetime import datetime
 from pathlib import Path
+from pprint import pprint
 
 import cv2
 import numpy as np
@@ -221,6 +222,7 @@ class SegmentVegetation:
             j = json.load(f)
 
             bbox_meta = BBoxMetadata(**j)
+            pprint(bbox_meta)
         return bbox_meta
 
     def get_image_meta(self, path):
@@ -239,11 +241,8 @@ class SegmentVegetation:
         for label_set in tqdm(self.labels,
                               desc="Segmenting Vegetation",
                               colour="green"):
-            # Get image using label stem and image directory
-            imgpath = Path(f"{self.imagedir}/{label_set.stem}.jpg")
-            # Get image dataclass with bbox set
-            imgpath = Path(f"{self.imagedir}/{label_set.stem}.jpg")
             imgdata = self.get_image_meta(label_set)
+            pprint(imgdata)
             dt = datetime.strptime(imgdata.exif_meta.DateTime,
                                    "%Y:%m:%d %H:%M:%S")
             # Call image array

@@ -207,7 +207,7 @@ class BBox:
         xB = min(boxA[2], boxB[2])
         yB = min(boxA[3], boxB[3])
 
-        # compute the area of intersection rectangle
+        # compute the area of intersection rectanglee
         interArea = abs(max((xB - xA, 0)) * max((yB - yA), 0))
         if interArea == 0:
             return 0
@@ -333,8 +333,13 @@ class CameraInfo:
 class Box:
     bbox_id: str
     image_id: str
+    local_centroid: list
     local_coordinates: dict
+    global_centroid: list
     global_coordinates: dict
+    is_normalized: bool
+    cls: str
+    is_primary: bool = field(init=False, default=False)
 
 
 @dataclass
@@ -354,14 +359,6 @@ class BBoxMetadata:
     width: int
     height: int
     camera_info: CameraInfo
-    # field_of_view: BBoxFOV
-    # pixel_width: float
-    # pixel_height: float
-    # yaw: float
-    # pitch: float
-    # roll: float
-    # focal_length: float
-    # camera_location: list
     exif_meta: ImageMetadata
     bboxes: list[Box]
 
