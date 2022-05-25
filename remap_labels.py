@@ -1,7 +1,5 @@
 import logging
-from dataclasses import asdict
 from pathlib import Path
-from pprint import pprint
 
 import hydra
 from omegaconf import DictConfig
@@ -20,10 +18,16 @@ class RemapLabels:
         self.asfm_root = Path(cfg.autosfm.autosfmdir)
         self.reference_path = self.asfm_root
         self.batchdir = Path(cfg.data.batchdir)
-        self.image_dir = Path(self.batchdir, "images")
+        # self.image_dir = Path(self.batchdir, "images")
         self.metadata = Path(self.batchdir, "metadata")
         self.reference = Path(self.batchdir, "autosfm")
         self.raw_label = self.reference / "detections.csv"
+
+        if cfg.autosfm.autosfm_config.downscale.enabled:
+            self.image_dir = Path(cfg.data.batchdir, "autosfm",
+                                  "downscaled_photos")
+        else:
+            self.image_dir = cfg.data.imagedir
 
     @property
     def camera_reference(self):
@@ -67,6 +71,7 @@ class RemapLabels:
         log.info("Saving bounding box metadata.")
         # Save the config
         for img in imgs:
+
             Path(self.metadata).mkdir(parents=True, exist_ok=True)
             img.image_path = "/".join(Path(img.image_path).parts[-2:])
             img.save_config(self.metadata)

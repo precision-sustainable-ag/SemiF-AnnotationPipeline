@@ -38,7 +38,7 @@ def inference(imgpath, model, save_detection=False):
     # Get results
     results = model(img, size=640)
     # Convert to pd dataframe
-    df = results.pandas().xyxy[0]
+    df = results.pandas().xyxyn[0]
     # Add imgfilename to columns
     for i, row in df.iterrows():
         df.at[i, 'imgname'] = imgpath.name

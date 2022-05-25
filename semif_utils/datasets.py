@@ -236,7 +236,7 @@ class BatchMetadata:
     site_id: str
     upload_datetime: str
     image_list: List = field(init=False)
-    blob_root: str = "blob_container"
+    blob_root: str = "data"
     schema_version: str = "v1"
 
     def __post_init__(self):
@@ -339,7 +339,7 @@ class Box:
     global_coordinates: dict
     is_normalized: bool
     cls: str
-    is_primary: bool = field(init=False, default=False)
+    is_primary: bool
 
 
 @dataclass
