@@ -19,7 +19,7 @@ general:
   workdir: ${hydra:runtime.cwd}  # where the code is executed
 
 data:
-  datadir: ${general.workdir}/blob_container
+  datadir: ${general.workdir}/data
   developeddir: ${data.datadir}/semifield-developed-images-trial
   batchdir: ${data.developeddir}/NC_2022-03-11 # Is overiden by shell script
   cutoutdir: ${data.datadir}/semifield-cutouts-trial
