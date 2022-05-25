@@ -1,5 +1,5 @@
 # Should be used to parse database
-count: 10
+count: 100
 backgrounds:
   selection: random # random, sortby
 backgrounddir: ${data.synthdir}/backgrounds
