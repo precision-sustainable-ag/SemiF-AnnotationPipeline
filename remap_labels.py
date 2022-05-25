@@ -24,6 +24,12 @@ class RemapLabels:
         self.metadata = Path(self.batchdir, "metadata")
         self.reference = Path(self.batchdir, "autosfm")
         self.raw_label = self.reference / "detections.csv"
+        
+        if cfg.autosfm.autosfm_config.downscale.enabled:
+            self.image_dir = Path(cfg.general.batchdir, "autosfm", "downscaled_photos")
+        else:
+            self.image_dir = cfg.general.imagedir
+        self.raw_label = cfg.detect.detections_csv
 
     @property
     def camera_reference(self):
