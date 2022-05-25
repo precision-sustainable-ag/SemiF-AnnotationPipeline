@@ -384,8 +384,7 @@ class Image:
     @property
     def array(self):
         # Read the image from the file and return the numpy array
-        img_path = Path("blob_container", self.data_root, self.batch_id,
-                        self.image_path)
+        img_path = Path("data", self.data_root, self.batch_id, self.image_path)
         img_array = cv2.imread(str(img_path))
         img_array = np.ascontiguousarray(
             cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB))
