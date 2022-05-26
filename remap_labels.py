@@ -1,10 +1,8 @@
 import logging
 from pathlib import Path
-import logging
 
 import hydra
 from omegaconf import DictConfig
-import hydra
 from tqdm import tqdm
 
 from bbox.bbox_transformations import BBoxFilter, BBoxMapper
@@ -20,7 +18,6 @@ class RemapLabels:
         self.asfm_root = Path(cfg.autosfm.autosfmdir)
         self.reference_path = self.asfm_root
         self.batchdir = Path(cfg.data.batchdir)
-        self.image_dir = Path(self.batchdir, "images")
         self.metadata = Path(self.batchdir, "metadata")
         self.reference = Path(self.batchdir, "autosfm")
         self.raw_label = self.reference / "detections.csv"
@@ -30,6 +27,12 @@ class RemapLabels:
         else:
             self.image_dir = cfg.general.imagedir
         self.raw_label = cfg.detect.detections_csv
+
+        if cfg.autosfm.autosfm_config.downscale.enabled:
+            self.image_dir = Path(cfg.data.batchdir, "autosfm",
+                                  "downscaled_photos")
+        else:
+            self.image_dir = Path(self.batchdir, "images")
 
     @property
     def camera_reference(self):

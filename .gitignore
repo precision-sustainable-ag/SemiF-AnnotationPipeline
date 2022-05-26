@@ -23,7 +23,7 @@ outputs
 
 # Hydra files
 .hydra
-
+SEMIF.log
 # ---------- Misc -----------
 # Shell scripts
 # *.sh
