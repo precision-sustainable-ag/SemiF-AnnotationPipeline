@@ -43,6 +43,13 @@ class BoxCoordinates:
 
         return _config
 
+    def set_scale(self, new_scale: np.ndarray):
+        self.scale = new_scale
+        self.top_left = self.top_left * self.scale
+        self.top_right = self.top_right * self.scale
+        self.bottom_left = self.bottom_left * self.scale
+        self.bottom_right = self.bottom_right * self.scale
+
 
 def init_empty():
     empty_array = np.array([])
