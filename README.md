@@ -20,8 +20,11 @@
 
 # Environment Setup
 
-After cloning this repo, setup your environment using conda and the provided dependency file. [Conda install instructions](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html). 
+Use [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html). 
 
+Clone repo and create environment with [`environment.yml`](environment.yml) in [**Python>=3.9**](https://www.python.org/).
+
+<br>
 
 ```
 conda env create --file=environment.yml
