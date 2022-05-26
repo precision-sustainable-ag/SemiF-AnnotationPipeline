@@ -1,26 +1,41 @@
+defaults:
+  - synth: synth
+  - autosfm: autosfm
+  - _self_
+
+hydra:
+  run:
+    dir: ./
+  output_subdir: 
+
 general:
+  batch_id: ??? # Control the batch_id through the command line
   save_to_database: False
+  from_database: False
   db: test  # test, trial, WIR
   multitask: False
-  multitasks: [localize_plants, remap_labels, segment_vegetation]
-  task: segment_vegetation  # test_mongodb, , segment_vegetation, localize_plants, remap_labels
+  multitasks: [auto_sfm, localize_plants, remap_labels, segment_vegetation]
+  task: segment_vegetation  # test_mongodb, segment_vegetation, localize_plants, remap_labels, auto_sfm
   workdir: ${hydra:runtime.cwd}  # where the code is executed
+
+data:
   datadir: ${general.workdir}/data
-  batchdir: ${general.datadir}/trial/NC_2022-03-11
-  imagedir: ${general.batchdir}/developed
+  developeddir: ${data.datadir}/semifield-developed-images-trial
+  batchdir: ${data.developeddir}/NC_2022-03-29 # Is overiden by shell script
+  cutoutdir: ${data.datadir}/semifield-cutouts-trial
+  synthdir: ${data.datadir}/semifield-synthetic-images-trial
+  modeldir: ${data.datadir}/semifield-models-trial
+  logdir: ${general.workdir}/logs
 
 detect:
-  model_path: ${general.workdir}/models/plant_detector/exp/weights/best.pt
-  detections_csv: ${general.batchdir}/detections.csv
+  model_path: ${data.modeldir}/plant_detector/best.pt
+  detections_csv: ${data.batchdir}/autosfm
   save_detection: False
   detectioncropdir: ${general.imagedir} # Location to save detection crops
-
-autosfm:
-  autosfmdir: ${general.batchdir}/autosfm
+  device: "cpu:0"
 
 segment:  # Segment Vegetation
   clear_border: True
-  cutoutdir: ${general.batchdir}/cutouts
   save_mask: False # Not implemented
   vi: exg
   class_algorithm: kmeans
