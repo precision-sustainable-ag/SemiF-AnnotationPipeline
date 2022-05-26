@@ -2,14 +2,15 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from omegaconf import DictConfig, OmegaConf
 import yaml
+from omegaconf import DictConfig, OmegaConf
 
 
 def main(cfg: DictConfig) -> None:
 
     save_file = cfg.autosfm.config_save_path
-    autosfm_config = OmegaConf.to_container(cfg.autosfm.autosfm_config, resolve=True)
+    autosfm_config = OmegaConf.to_container(cfg.autosfm.autosfm_config,
+                                            resolve=True)
 
     with open(save_file, "w") as f:
         yaml.dump(autosfm_config, f)
@@ -23,7 +24,7 @@ def main(cfg: DictConfig) -> None:
 
     try:
         # Run the autoSfM command
-        subprocess.run(exe_command, shell=True, check=True)    
+        subprocess.run(exe_command, shell=True, check=True)
     except Exception as e:
         raise e
 

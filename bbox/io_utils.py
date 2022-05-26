@@ -1,6 +1,7 @@
 import os
 import xml.etree.ElementTree as ET
 from glob import glob
+from pathlib import Path
 
 import pandas as pd
 
@@ -90,14 +91,13 @@ class ParseYOLOCsv:
 
     def create_image_list(self):
 
-        images = glob(os.path.join(self.image_path, "*.jpg"))
-        image_ids = [
-            image.split(os.path.sep)[-1].split(".")[0] for image in images
-        ]
+        images = Path(self.image_path).glob("*.jpg")
+        images = [x for x in images]
+        image_ids = [x.stem for x in images]
 
         self.image_list = [{
             "id": image_id,
-            "path": path
+            "path": str(path)
         } for image_id, path in zip(image_ids, images)]
 
     def parse(self, df):

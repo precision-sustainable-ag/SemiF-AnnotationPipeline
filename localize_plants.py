@@ -1,14 +1,15 @@
+import logging
 from pathlib import Path
 
 import cv2
+import hydra
 import pandas as pd
 import torch
-import logging
 from omegaconf import DictConfig
 from tqdm import tqdm
-import hydra
 
 log = logging.getLogger(__name__)
+
 
 def load_model(model_path, device):
 
@@ -51,11 +52,13 @@ def inference(imgpath, model, save_detection=False):
 def main(cfg: DictConfig) -> None:
     save_detection = cfg.detect.save_detection
     ## Define directories
+    batchdir = Path(cfg.data.batchdir)
+    imagedir = Path(cfg.data.batchdir, "images")
     model_path = cfg.detect.model_path
-    imagedir = Path(cfg.general.imagedir)
-    batchdir = Path(cfg.general.batchdir)
-    csv_savepath = Path(cfg.general.batchdir, "detections.csv")
+    detectiondir = Path(batchdir, "autosfm")
+    csv_savepath = Path(detectiondir, "detections.csv")
     device = cfg.detect.device
+
     if "cpu" in device:
         device = "cpu"
     elif "cuda" in device:
@@ -74,6 +77,7 @@ def main(cfg: DictConfig) -> None:
     model = load_model(model_path, device)
     # Get images
     dfimgs = []
+
     for idx, imgp in tqdm(enumerate(images),
                           desc="Localizing Plants",
                           colour="#9266c4",
