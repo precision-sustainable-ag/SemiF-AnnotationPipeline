@@ -110,8 +110,12 @@ class BBox:
             self.bbox_id,
             "image_id":
             self.image_id,
+            "local_centroid":
+            list(self.local_centroid),
             "local_coordinates":
             self.local_coordinates.config,
+            "global_centroid":
+            list(self.global_centroid),
             "global_coordinates":
             self.global_coordinates.config,
             "is_primary":
@@ -344,7 +348,6 @@ class Box:
     local_coordinates: dict
     global_centroid: list
     global_coordinates: dict
-    is_normalized: bool
     cls: str
     is_primary: bool
 
