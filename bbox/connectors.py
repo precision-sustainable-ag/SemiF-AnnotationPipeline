@@ -197,7 +197,6 @@ class BBoxComponents:
                 scale = np.array([image.width, image.height
                                   ])  # Not needed. bbox are in original scale
                 for bbox in image.bboxes:
-
                     bbox.local_coordinates.set_scale(scale)
                     bbox.set_local_centroid()
                 self._images.append(image)
