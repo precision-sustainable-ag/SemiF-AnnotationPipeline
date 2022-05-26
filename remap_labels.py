@@ -15,18 +15,17 @@ log = logging.getLogger(__name__)
 class RemapLabels:
 
     def __init__(self, cfg: DictConfig) -> None:
-        self.asfm_root = Path(cfg.autosfm.autosfmdir)
-        self.reference_path = self.asfm_root
+        self.data_root = Path(cfg.data.developeddir)
         self.batchdir = Path(cfg.data.batchdir)
-        self.metadata = Path(self.batchdir, "metadata")
-        self.reference = Path(self.batchdir, "autosfm")
+        self.metadata = self.batchdir / "metadata"
+        self.reference = self.batchdir / "autosfm"
         self.raw_label = self.reference / "detections.csv"
+        self.downscaled = cfg.autosfm.autosfm_config.downscale.enabled
 
-        if cfg.autosfm.autosfm_config.downscale.enabled:
-            self.image_dir = Path(cfg.data.batchdir, "autosfm",
-                                  "downscaled_photos")
+        if self.downscaled:
+            self.image_dir = self.batchdir / "autosfm" / "downscaled_photos"
         else:
-            self.image_dir = Path(self.batchdir, "images")
+            self.image_dir = self.batchdir / "images"
 
     @property
     def camera_reference(self):
@@ -72,7 +71,10 @@ class RemapLabels:
         for img in imgs:
 
             Path(self.metadata).mkdir(parents=True, exist_ok=True)
-            img.image_path = "/".join(Path(img.image_path).parts[-2:])
+
+            img.image_path = f"images/{Path(img.image_path).name}"
+            img.data_root = self.data_root.name
+            img.batch_id = self.batchdir.name
             img.save_config(self.metadata)
         log.info("Saving complete.")
         return imgs

@@ -222,7 +222,6 @@ class SegmentVegetation:
             j = json.load(f)
 
             bbox_meta = BBoxMetadata(**j)
-            pprint(bbox_meta)
         return bbox_meta
 
     def get_image_meta(self, path):
@@ -242,7 +241,6 @@ class SegmentVegetation:
                               desc="Segmenting Vegetation",
                               colour="green"):
             imgdata = self.get_image_meta(label_set)
-            pprint(imgdata)
             dt = datetime.strptime(imgdata.exif_meta.DateTime,
                                    "%Y:%m:%d %H:%M:%S")
             # Call image array
