@@ -20,6 +20,7 @@ general:
 
 data:
   datadir: ${general.workdir}/data
+  uploaddir: ${data.datadir}/semifield-upload-trial
   developeddir: ${data.datadir}/semifield-developed-images-trial
   batchdir: ${data.developeddir}/NC_2022-03-29 # Is overiden by shell script
   cutoutdir: ${data.datadir}/semifield-cutouts-trial
