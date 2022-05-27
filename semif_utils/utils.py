@@ -145,7 +145,7 @@ def make_ndi(rgb_img):
 ######################################################
 
 
-def scale_bbox(bbox):
+def rescale_bbox(bbox):
     """Scales local bbox coordinates, that were scaled to "downscaled_photo" size (height=3184, width=4796)
        to original images size (height=6368, width=9592). 
 
