@@ -141,6 +141,40 @@ def make_ndi(rgb_img):
 
 
 ######################################################
+###################### BBOX ##########################
+######################################################
+
+
+def scale_bbox(bbox):
+    """Scales local bbox coordinates, that were scaled to "downscaled_photo" size (height=3184, width=4796)
+       to original images size (height=6368, width=9592). 
+
+    Args:
+        bbox (dict): bbox metedata from bboxes from image metadata
+    
+    Returns:
+        bbox (dict): bbox metadata with scaled/updated bbox
+    """
+
+    scale = np.array([9592, 6368])
+    down_scale = np.array([4796, 3184])
+
+    bbox["local_coordinates"]["top_left"] = (
+        np.array(bbox["local_coordinates"]["top_left"]) / down_scale) * scale
+
+    bbox["local_coordinates"]["top_right"] = (
+        np.array(bbox["local_coordinates"]["top_right"]) / down_scale) * scale
+
+    bbox["local_coordinates"]["bottom_left"] = (np.array(
+        bbox["local_coordinates"]["bottom_left"]) / down_scale) * scale
+
+    bbox["local_coordinates"]["bottom_right"] = (np.array(
+        bbox["local_coordinates"]["bottom_right"]) / down_scale) * scale
+
+    return bbox
+
+
+######################################################
 ################# MORPHOLOGICAL ######################
 ######################################################
 
