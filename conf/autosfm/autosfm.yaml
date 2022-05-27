@@ -1,7 +1,7 @@
 autosfmdir: ${data.batchdir}/autosfm
 # A volume directory to be mounted onto the Docker container running the autoSfM code
 autosfm_volume: ${general.workdir}/autosfm/volumes
-autosfm_storage: ${data.developeddir}
+autosfm_storage: ${general.workdir}/autosfm/storage
 autosfm_exports: ${general.workdir}/autosfm/exports
 
 config_save_path: ${autosfm.autosfm_volume}/config/config.yml
