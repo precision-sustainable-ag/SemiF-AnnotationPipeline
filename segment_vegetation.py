@@ -26,7 +26,7 @@ from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
                                dilate_erode, get_site_id, get_upload_datetime,
                                make_exg, make_exg_minus_exr, make_exr,
                                make_kmeans, make_ndi, otsu_thresh, parse_dict,
-                               reduce_holes)
+                               reduce_holes, rescale_bbox)
 
 
 class VegetationIndex:
@@ -229,7 +229,7 @@ class SegmentVegetation:
             j = json.load(f)
             imgdata = from_dict(data_class=ImageData,
                                 data=j,
-                                config=Config(check_types=False))
+                                config=Config(check_types=True))
         return imgdata
 
     def cutout_pipeline(self):
@@ -254,6 +254,7 @@ class SegmentVegetation:
                             colour="#6dbc90",
                             desc="Generating Cutouts"):
 
+                box = rescale_bbox(box, rgb_array.shape)
                 x1, y1 = box.local_coordinates["top_left"]
                 x2, y2 = box.local_coordinates["bottom_right"]
                 x1, y1 = int(x1), int(y1)

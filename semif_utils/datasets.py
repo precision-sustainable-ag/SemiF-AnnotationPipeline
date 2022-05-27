@@ -318,12 +318,12 @@ class ImageMetadata:
     Sharpness: int
     LensSpecification: list
     LensModel: str
-    ImageDescription: list = None
-    MakerNote: list = None
-    UserComment: list = None
-    ApplicationNotes: list = None
-    Tag: int = None
-    SubIFDs: int = None
+    MakerNote: Optional[str] = None
+    ImageDescription: Optional[str] = None
+    UserComment: Optional[str] = None
+    ApplicationNotes: Optional[str] = None
+    Tag: Optional[int] = None
+    SubIFDs: Optional[int] = None
 
 
 @dataclass
@@ -452,12 +452,12 @@ class RemapImage(Image):
             if type(newval) == exifread.utils.Ratio:
                 newval = str(newval)
             meta[x.rsplit(" ")[1]] = newval
-            pop_list = [
-                "MakerNote", "UserComment", "ImageDescription",
-                "ApplicationNotes"
-            ]
-            meta.pop(
-                x.rsplit(" ")[1]) if x.rsplit(" ")[1] in pop_list else None
+            # pop_list = [
+            #     "MakerNote", "UserComment", "ImageDescription",
+            #     "ApplicationNotes"
+            # ]
+            # meta.pop(
+            #     x.rsplit(" ")[1]) if x.rsplit(" ")[1] in pop_list else None
         imgmeta = ImageMetadata(**meta)
         return imgmeta
 

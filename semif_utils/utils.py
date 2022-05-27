@@ -145,33 +145,39 @@ def make_ndi(rgb_img):
 ######################################################
 
 
-def rescale_bbox(bbox):
-    """Scales local bbox coordinates, that were scaled to "downscaled_photo" size (height=3184, width=4796)
-       to original images size (height=6368, width=9592). 
+def rescale_bbox(box, imgshape):
+    # TODO change
+    """Rescales local bbox coordinates, that were first scaled to "downscaled_photo" size (height=3184, width=4796),
+       to original image size (height=6368, width=9592). Takes in and returns "Box" dataclass.
 
     Args:
-        bbox (dict): bbox metedata from bboxes from image metadata
+        box (dataclass): box metedata from bboxes from image metadata
     
     Returns:
-        bbox (dict): bbox metadata with scaled/updated bbox
+        box (dataclass): box metadata with scaled/updated bbox
     """
-
+    print(imgshape)
     scale = np.array([9592, 6368])
     down_scale = np.array([4796, 3184])
+    box_dict = box.local_coordinates
+    print(box_dict)
+    res = {int(key): [int(i) for i in val] for key, val in box_dict.items()}
+    print(res)
 
-    bbox["local_coordinates"]["top_left"] = (
-        np.array(bbox["local_coordinates"]["top_left"]) / down_scale) * scale
+    print(box.local_coordinates["top_left"])
+    box.local_coordinates["top_left"] = (
+        np.array(box.local_coordinates["top_left"]) / down_scale) * scale
 
-    bbox["local_coordinates"]["top_right"] = (
-        np.array(bbox["local_coordinates"]["top_right"]) / down_scale) * scale
+    box.local_coordinates["top_right"] = (
+        np.array(box.local_coordinates["top_right"]) / down_scale) * scale
 
-    bbox["local_coordinates"]["bottom_left"] = (np.array(
-        bbox["local_coordinates"]["bottom_left"]) / down_scale) * scale
+    box.local_coordinates["bottom_left"] = (
+        np.array(box.local_coordinates["bottom_left"]) / down_scale) * scale
 
-    bbox["local_coordinates"]["bottom_right"] = (np.array(
-        bbox["local_coordinates"]["bottom_right"]) / down_scale) * scale
+    box.local_coordinates["bottom_right"] = (
+        np.array(box.local_coordinates["bottom_right"]) / down_scale) * scale
 
-    return bbox
+    return box
 
 
 ######################################################
