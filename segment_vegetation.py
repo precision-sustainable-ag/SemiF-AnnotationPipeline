@@ -229,7 +229,7 @@ class SegmentVegetation:
             j = json.load(f)
             imgdata = from_dict(data_class=ImageData,
                                 data=j,
-                                config=Config(check_types=True))
+                                config=Config(check_types=False))
         return imgdata
 
     def cutout_pipeline(self):
@@ -249,11 +249,9 @@ class SegmentVegetation:
             cutout_num = 0
             cutout_ids = []
             bboxes = imgdata.bboxes
-            for box in tqdm(bboxes,
-                            leave=False,
-                            colour="#6dbc90",
-                            desc="Generating Cutouts"):
-
+            for box in bboxes:
+                if not box.is_primary:
+                    continue
                 box = rescale_bbox(box, rgb_array.shape)
                 x1, y1 = box.local_coordinates["top_left"]
                 x2, y2 = box.local_coordinates["bottom_right"]

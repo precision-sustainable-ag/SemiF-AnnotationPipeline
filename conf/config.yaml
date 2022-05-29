@@ -22,7 +22,7 @@ data:
   datadir: ${general.workdir}/data
   uploaddir: ${data.datadir}/semifield-upload-images-trial
   developeddir: ${data.datadir}/semifield-developed-images-trial
-  batchdir: ${data.developeddir}/NC_2022-03-29 # Is overiden by shell script
+  batchdir: ${data.developeddir}/${general.batch_id} # Is overiden by shell script
   cutoutdir: ${data.datadir}/semifield-cutouts-trial
   synthdir: ${data.datadir}/semifield-synthetic-images-trial
   modeldir: ${data.datadir}/semifield-models-trial

@@ -156,24 +156,15 @@ def rescale_bbox(box, imgshape):
     Returns:
         box (dataclass): box metadata with scaled/updated bbox
     """
-    print(imgshape)
     scale = np.array([9592, 6368])
     down_scale = np.array([4796, 3184])
-    box_dict = box.local_coordinates
-    print(box_dict)
-    res = {int(key): [int(i) for i in val] for key, val in box_dict.items()}
-    print(res)
 
-    print(box.local_coordinates["top_left"])
     box.local_coordinates["top_left"] = (
         np.array(box.local_coordinates["top_left"]) / down_scale) * scale
-
     box.local_coordinates["top_right"] = (
         np.array(box.local_coordinates["top_right"]) / down_scale) * scale
-
     box.local_coordinates["bottom_left"] = (
         np.array(box.local_coordinates["bottom_left"]) / down_scale) * scale
-
     box.local_coordinates["bottom_right"] = (
         np.array(box.local_coordinates["bottom_right"]) / down_scale) * scale
 

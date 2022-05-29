@@ -17,13 +17,14 @@ class RemapLabels:
     def __init__(self, cfg: DictConfig) -> None:
         self.data_root = Path(cfg.data.developeddir)
         self.batchdir = Path(cfg.data.batchdir)
+        self.autosfmdir = Path(cfg.autosfm.autosfmdir)
         self.metadata = self.batchdir / "metadata"
-        self.reference = self.batchdir / "autosfm"
-        self.raw_label = self.reference / "detections.csv"
+        self.reference = self.autosfmdir / "reference"
+        self.raw_label = self.autosfmdir / "detections.csv"
         self.downscaled = cfg.autosfm.autosfm_config.downscale.enabled
 
         if self.downscaled:
-            self.image_dir = self.batchdir / "autosfm" / "downscaled_photos"
+            self.image_dir = self.autosfmdir / "downscaled_photos"
         else:
             self.image_dir = self.batchdir / "images"
 
@@ -83,4 +84,3 @@ class RemapLabels:
 def main(cfg: DictConfig) -> None:
     rmpl = RemapLabels(cfg)
     imgs = rmpl.remap_labels()
-    # TODO save to database

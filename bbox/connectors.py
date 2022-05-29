@@ -91,11 +91,8 @@ class BBoxComponents:
             self._bboxes[image_id] = boxes
 
     def get_fov(self, image_id):
-        adj_image_id = "_".join(image_id.split("_")[:-1])
-        image_id = adj_image_id.replace("NC_", "row")
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
-
         top_left_x = float(row.loc[0, "top_left_x"])
         top_left_y = float(row.loc[0, "top_left_y"])
 
@@ -118,8 +115,6 @@ class BBoxComponents:
         return fov
 
     def get_camera_location(self, image_id):
-        adj_image_id = "_".join(image_id.split("_")[:-1])
-        image_id = adj_image_id.replace("NC_", "row")
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
         camera_x = float(row.loc[0, "Estimated_X"])
@@ -129,8 +124,6 @@ class BBoxComponents:
         return [camera_x, camera_y, camera_z]
 
     def get_pixel_dims(self, image_id):
-        adj_image_id = "_".join(image_id.split("_")[:-1])
-        image_id = adj_image_id.replace("NC_", "row")
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
         pixel_width = float(row.loc[0, "pixel_width"])
@@ -139,8 +132,6 @@ class BBoxComponents:
         return pixel_width, pixel_height
 
     def get_orientation_angles(self, image_id):
-        adj_image_id = "_".join(image_id.split("_")[:-1])
-        image_id = adj_image_id.replace("NC_", "row")
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
         yaw = float(row.loc[0, "Estimated_Yaw"])
@@ -150,8 +141,6 @@ class BBoxComponents:
         return yaw, pitch, roll
 
     def get_focal_length(self, image_id):
-        adj_image_id = "_".join(image_id.split("_")[:-1])
-        image_id = adj_image_id.replace("NC_", "row")
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
         focal_length = float(row.loc[0, "f"])
