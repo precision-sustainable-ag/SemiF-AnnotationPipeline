@@ -77,13 +77,13 @@ developed
          │   │    ├── NC_2_1_1648579721000.0.jpg
          │   │    └── ...
          │   ├── ortho
-         │   │    └── ortho.tif
-         │   ├── camera_reference.csv
-         │   ├── detections.csv
-         │   ├── error_statistics.csv
-         │   ├── fov.csv
-         │   ├── gcp_reference.csv
-         │   └── run4measurements.txt
+         │   │    └── orthomosaic.tif
+         │   ├── reference
+         │   │    ├── camera_reference.csv
+         │   │    ├── error_statistics.csv
+         │   │    ├── fov.csv
+         │   │    ├── gcp_reference.csv
+         │   └── detections.csv
          ├── images
          │   ├── NC_2_1_1648579721000.0.jpg
          │   └── ...
