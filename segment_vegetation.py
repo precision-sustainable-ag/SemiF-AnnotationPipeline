@@ -250,7 +250,6 @@ class SegmentVegetation:
             for box in bboxes:
                 if not box.is_primary:
                     continue
-                box = rescale_bbox(box, rgb_array.shape)
                 x1, y1 = box.local_coordinates["top_left"]
                 x2, y2 = box.local_coordinates["bottom_right"]
                 x1, y1 = int(x1), int(y1)

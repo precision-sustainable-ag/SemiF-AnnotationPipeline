@@ -8,6 +8,7 @@ from tqdm import tqdm
 from bbox.bbox_transformations import BBoxFilter, BBoxMapper
 from bbox.connectors import BBoxComponents, SfMComponents
 from bbox.io_utils import ParseXML, ParseYOLOCsv
+from semif_utils.utils import rescale_bbox
 
 log = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ class RemapLabels:
         for img in imgs:
             for box in img.bboxes:
                 try:
+                    box = rescale_bbox(box, 0)
                     assert len(box._overlapping_bboxes) == 0
                 except AssertionError as e:
                     log.debug("Mapping failed> Reason: {}".format(str(e)))
