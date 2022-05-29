@@ -237,9 +237,7 @@ class SegmentVegetation:
             labeldir,             
         """
         cutouts = []
-        for label_set in tqdm(self.labels,
-                              desc="Segmenting Vegetation",
-                              colour="green"):
+        for label_set in tqdm(self.labels, desc="Segmenting Vegetation"):
             imgdata = self.get_image_meta(label_set)
             dt = datetime.strptime(imgdata.exif_meta.DateTime,
                                    "%Y:%m:%d %H:%M:%S")
@@ -279,8 +277,7 @@ class SegmentVegetation:
                     new_cropped_cutout = crop_cutouts(new_cutout)
                     # Get regionprops
                     cutprops = GenCutoutProps(mask2).to_dataclass()
-                    if type(cutprops.area
-                            ) is not list and cutprops.area < 3000:
+                    if type(cutprops.area) is not list and cutprops.area < 500:
                         continue
                     cutout_path = self.save_cutout(new_cropped_cutout,
                                                    Path(imgdata.image_path),
@@ -334,19 +331,21 @@ def main(cfg: DictConfig) -> None:
                           batch_id=batch_id,
                           site_id=site_id,
                           upload_datetime=upload_datetime)
+    batch = asdict(batch)
+    jsparents = Path(batch["blob_root"], data_root, batch_id)
+    jsonpath = Path(jsparents, batch_id + ".json")
+    save_dataclass_json(batch, jsonpath)
+
     # Connect to database
     if cfg.general.save_to_database:
         db = Connect.get_connection()
         db = getattr(db, cfg.general.db)
-        batch = asdict(batch)
+
         # To DB
         to_db(db, "Batches", batch)
         # Save To json
-        jsparents = Path(batch["blob_root"], data_root, batch_id)
-        jsonpath = Path(jsparents, batch_id + ".json")
-        save_dataclass_json(batch, jsonpath)
-
     else:
         db = None
+
     # Run pipeline
     vegseg = SegmentVegetation(db, cfg)

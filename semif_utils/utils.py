@@ -158,16 +158,14 @@ def rescale_bbox(box, imgshape):
     """
     scale = np.array([9592, 6368])
     down_scale = np.array([4796, 3184])
-
-    box.local_coordinates["top_left"] = (
-        np.array(box.local_coordinates["top_left"]) / down_scale) * scale
-    box.local_coordinates["top_right"] = (
-        np.array(box.local_coordinates["top_right"]) / down_scale) * scale
-    box.local_coordinates["bottom_left"] = (
-        np.array(box.local_coordinates["bottom_left"]) / down_scale) * scale
-    box.local_coordinates["bottom_right"] = (
-        np.array(box.local_coordinates["bottom_right"]) / down_scale) * scale
-
+    box.local_coordinates["top_left"] = list(
+        (box.local_coordinates["top_left"] / down_scale) * scale)
+    box.local_coordinates["top_right"] = list(
+        (box.local_coordinates["top_right"] / down_scale) * scale)
+    box.local_coordinates["bottom_left"] = list(
+        (box.local_coordinates["bottom_left"] / down_scale) * scale)
+    box.local_coordinates["bottom_right"] = list(
+        (box.local_coordinates["bottom_right"] / down_scale) * scale)
     return box
 
 

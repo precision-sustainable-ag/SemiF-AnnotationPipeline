@@ -158,8 +158,7 @@ class BBoxComponents:
         if not self._images:
             bboxes = self.bboxes
             for image in tqdm(self.image_list,
-                              desc="Remapping bbox coordinates",
-                              colour="blue"):
+                              desc="Remapping bbox coordinates"):
                 image_id = image["id"]
                 path = image["path"]
                 fov = self.get_fov(image_id)

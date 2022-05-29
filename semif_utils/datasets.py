@@ -452,12 +452,6 @@ class RemapImage(Image):
             if type(newval) == exifread.utils.Ratio:
                 newval = str(newval)
             meta[x.rsplit(" ")[1]] = newval
-            # pop_list = [
-            #     "MakerNote", "UserComment", "ImageDescription",
-            #     "ApplicationNotes"
-            # ]
-            # meta.pop(
-            #     x.rsplit(" ")[1]) if x.rsplit(" ")[1] in pop_list else None
         imgmeta = ImageMetadata(**meta)
         return imgmeta
 
