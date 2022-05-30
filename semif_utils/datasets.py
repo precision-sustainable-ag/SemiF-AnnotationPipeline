@@ -31,13 +31,16 @@ class BoxCoordinates:
             ]
         ])
 
+    def __post_init__(self):
+        self.make_copies()
+
     @property
     def config(self):
         _config = {
-            "top_left": self.top_left.tolist(),
-            "top_right": self.top_right.tolist(),
-            "bottom_left": self.bottom_left.tolist(),
-            "bottom_right": self.bottom_right.tolist(),
+            "top_left": self._top_left.tolist(),
+            "top_right": self._top_right.tolist(),
+            "bottom_left": self._bottom_left.tolist(),
+            "bottom_right": self._bottom_right.tolist(),
             # "scale": self.scale.tolist()
         }
 
@@ -45,10 +48,19 @@ class BoxCoordinates:
 
     def set_scale(self, new_scale: np.ndarray):
         self.scale = new_scale
+        # Make a copy of the normalized coordinates for
+        # config
+        self.make_copies()
         self.top_left = self.top_left * self.scale
         self.top_right = self.top_right * self.scale
         self.bottom_left = self.bottom_left * self.scale
         self.bottom_right = self.bottom_right * self.scale
+
+    def make_copies(self):
+        self._top_left = self.top_left.copy()
+        self._top_right = self.top_right.copy()
+        self._bottom_left = self.bottom_left.copy()
+        self._bottom_right = self.bottom_right.copy()
 
 
 def init_empty():
