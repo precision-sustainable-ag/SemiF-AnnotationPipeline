@@ -1,6 +1,7 @@
 defaults:
   - synth: synth
   - autosfm: autosfm
+  - model: model
   - _self_
 
 hydra:
@@ -14,22 +15,31 @@ general:
   from_database: False
   db: test  # test, trial, WIR
   multitask: False
-  multitasks: [auto_sfm, localize_plants, remap_labels, segment_vegetation]
+  multitasks: [copy_from_blob, auto_sfm, localize_plants, remap_labels, segment_vegetation, copy_products_to_blobs]
   task: segment_vegetation  # test_mongodb, segment_vegetation, localize_plants, remap_labels, auto_sfm
   workdir: ${hydra:runtime.cwd}  # where the code is executed
+
+blob_storage:
+  blobhome: /home/azureuser
+  uploaddir: ${blob_storage.blobhome}/semifield-upload-trial
+  developeddir: ${blob_storage.blobhome}/semifield-developed-images-trial
+  cutoutdir: ${blob_storage.blobhome}/semifield-cutouts-trial
+  synthdir: ${blob_storage.blobhome}/semifield-synthetic-images-trial
+  modeldir: ${blob_storage.blobhome}/semifield-models-trial
+  model_path: ${blob_storage.modeldir}/plant_detector
 
 data:
   datadir: ${general.workdir}/data
   uploaddir: ${data.datadir}/semifield-upload-trial
   developeddir: ${data.datadir}/semifield-developed-images-trial
-  batchdir: ${data.developeddir}/NC_2022-03-29 # Is overiden by shell script
   cutoutdir: ${data.datadir}/semifield-cutouts-trial
   synthdir: ${data.datadir}/semifield-synthetic-images-trial
   modeldir: ${data.datadir}/semifield-models-trial
+  batchdir: ${data.developeddir}/${general.batch_id} # Is overiden by shell script
   logdir: ${general.workdir}/logs
 
 detect:
-  model_path: ${data.modeldir}/plant_detector/best.pt
+  model_path: ${model.model_path}
   detections_csv: ${data.batchdir}/autosfm
   save_detection: False
   detectioncropdir: ${general.imagedir} # Location to save detection crops

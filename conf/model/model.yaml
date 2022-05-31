@@ -1,0 +1,2 @@
+checkpoint_name: best.pt
+model_path: ${data.modeldir}/plant_detector/${detect.checkpoint_name}
