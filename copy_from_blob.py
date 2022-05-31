@@ -15,7 +15,7 @@ def main(cfg: DictConfig) -> None:
     shutil.copy(src, dst)
 
     # Copy the Ground Control Points
-    src = Path(cfg.blob_storage.uploaddir, "GroundControlPoints.csv")
+    src = Path(cfg.blob_storage.uploaddir, batch_id, "GroundControlPoints.csv")
     dst = Path(cfg.data.developeddir)
     shutil.copy(src, dst)
 
