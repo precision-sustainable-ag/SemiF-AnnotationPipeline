@@ -49,7 +49,7 @@ class BoxCoordinates:
 
         if self.is_scaled:
             # To make the bbox write the metadata in normalized form
-            raise ValueError("Coordinated already scaled, cannot scale again")
+            raise ValueError("Coordinates already scaled, cannot scale again")
         self.scale = new_scale
 
         # Make a copy of the normalized coordinates

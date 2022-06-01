@@ -152,20 +152,16 @@ def rescale_bbox(box, imgshape):
 
     Args:
         box (dataclass): box metedata from bboxes from image metadata
+        imgshape: np.ndarray: dimensions of the image to be scaled to (widt, height)
     
     Returns:
         box (dataclass): box metadata with scaled/updated bbox
     """
-    scale = np.array([9592, 6368])
-    down_scale = np.array([4796, 3184])
-    box.local_coordinates.top_left = (box.local_coordinates.top_left /
-                                      down_scale) * scale
-    box.local_coordinates.top_right = (box.local_coordinates.top_right /
-                                       down_scale) * scale
-    box.local_coordinates.bottom_left = (box.local_coordinates.bottom_left /
-                                         down_scale) * scale
-    box.local_coordinates.bottom_right = (box.local_coordinates.bottom_right /
-                                          down_scale) * scale
+    scale = imgshape
+    box.local_coordinates.top_left = box.local_coordinates.top_left* scale
+    box.local_coordinates.top_right = box.local_coordinates.top_right* scale
+    box.local_coordinates.bottom_left = box.local_coordinates.bottom_left * scale
+    box.local_coordinates.bottom_right = box.local_coordinates.bottom_right * scale
     return box
 
 

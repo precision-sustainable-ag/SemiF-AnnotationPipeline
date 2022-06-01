@@ -55,7 +55,7 @@ class RemapLabels:
         for img in imgs:
             for box in img.bboxes:
                 try:
-                    box = rescale_bbox(box, 0)
+                    # box = rescale_bbox(box, 0)
                     assert len(box._overlapping_bboxes) == 0
                 except AssertionError as e:
                     log.debug("Mapping failed> Reason: {}".format(str(e)))
