@@ -20,7 +20,7 @@ class BoxCoordinates:
     bottom_left: np.ndarray
     bottom_right: np.ndarray
 
-    # scale: np.ndarray = field(init=False, default=np.array([]))
+    is_scaled: bool = field(init=False, default=False)
 
     def __bool__(self):
         # The bool function is to check if the coordinates are populated or not
@@ -31,24 +31,41 @@ class BoxCoordinates:
             ]
         ])
 
+    def __post_init__(self):
+        self.make_copies()
+
     @property
     def config(self):
         _config = {
-            "top_left": self.top_left.tolist(),
-            "top_right": self.top_right.tolist(),
-            "bottom_left": self.bottom_left.tolist(),
-            "bottom_right": self.bottom_right.tolist(),
-            # "scale": self.scale.tolist()
+            "top_left": self.norm_top_left.tolist(),
+            "top_right": self.norm_top_right.tolist(),
+            "bottom_left": self.norm_bottom_left.tolist(),
+            "bottom_right": self.norm_bottom_right.tolist()
         }
 
         return _config
 
     def set_scale(self, new_scale: np.ndarray):
+
+        if self.is_scaled:
+            # To make the bbox write the metadata in normalized form
+            raise ValueError("Coordinated already scaled, cannot scale again")
         self.scale = new_scale
+
+        # Make a copy of the normalized coordinates
+        # for config
+        self.make_copies()
         self.top_left = self.top_left * self.scale
         self.top_right = self.top_right * self.scale
         self.bottom_left = self.bottom_left * self.scale
         self.bottom_right = self.bottom_right * self.scale
+        self.is_scaled = True
+
+    def make_copies(self):
+        self.norm_top_left = self.top_left.copy()
+        self.norm_top_right = self.top_right.copy()
+        self.norm_bottom_left = self.bottom_left.copy()
+        self.norm_bottom_right = self.bottom_right.copy()
 
 
 def init_empty():
