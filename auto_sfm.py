@@ -46,12 +46,6 @@ def main(cfg: DictConfig) -> None:
     export_src = Path(cfg.autosfm.autosfm_exports, cfg.general.batch_id)
     export_dst = Path(cfg.data.batchdir, "autosfm")
     shutil.move(export_src, export_dst)
-    # Move the reference files
-    reference_path = Path(export_dst, "reference")
-    files = os.listdir(reference_path)
-    for file in files:
-        src = str(Path(reference_path, file))
-        shutil.move(src, export_dst)
 
     # Remove the temp storage
     shutil.rmtree(autosfm_storage)

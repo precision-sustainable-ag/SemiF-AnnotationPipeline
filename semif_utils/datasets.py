@@ -20,7 +20,7 @@ class BoxCoordinates:
     bottom_left: np.ndarray
     bottom_right: np.ndarray
 
-    # scale: np.ndarray = field(init=False, default=np.array([]))
+    is_scaled: bool = field(init=False, default=False)
 
     def __bool__(self):
         # The bool function is to check if the coordinates are populated or not
@@ -31,24 +31,41 @@ class BoxCoordinates:
             ]
         ])
 
+    def __post_init__(self):
+        self.make_copies()
+
     @property
     def config(self):
         _config = {
-            "top_left": self.top_left.tolist(),
-            "top_right": self.top_right.tolist(),
-            "bottom_left": self.bottom_left.tolist(),
-            "bottom_right": self.bottom_right.tolist(),
-            # "scale": self.scale.tolist()
+            "top_left": self.norm_top_left.tolist(),
+            "top_right": self.norm_top_right.tolist(),
+            "bottom_left": self.norm_bottom_left.tolist(),
+            "bottom_right": self.norm_bottom_right.tolist()
         }
 
         return _config
 
     def set_scale(self, new_scale: np.ndarray):
+
+        if self.is_scaled:
+            # To make the bbox write the metadata in normalized form
+            raise ValueError("Coordinates already scaled, cannot scale again")
         self.scale = new_scale
+
+        # Make a copy of the normalized coordinates
+        # for config
+        self.make_copies()
         self.top_left = self.top_left * self.scale
         self.top_right = self.top_right * self.scale
         self.bottom_left = self.bottom_left * self.scale
         self.bottom_right = self.bottom_right * self.scale
+        self.is_scaled = True
+
+    def make_copies(self):
+        self.norm_top_left = self.top_left.copy()
+        self.norm_top_right = self.top_right.copy()
+        self.norm_bottom_left = self.bottom_left.copy()
+        self.norm_bottom_right = self.bottom_right.copy()
 
 
 def init_empty():
@@ -391,7 +408,7 @@ class Image:
     @property
     def array(self):
         # Read the image from the file and return the numpy array
-        img_path = Path("data", self.data_root, self.batch_id, self.image_path)
+        img_path = Path(self.image_path)
         img_array = cv2.imread(str(img_path))
         img_array = np.ascontiguousarray(
             cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB))
@@ -428,14 +445,21 @@ class RemapImage(Image):
     """ For remapping labels (remap_labels) """
     bboxes: list[BBox]
     camera_info: CameraInfo
+    fullres_path: str
     width: int = field(init=False, default=-1)
     height: int = field(init=False, default=-1)
     exif_meta: Optional[ImageMetadata] = field(init=False, default=None)
+    fullres_height: Optional[int] = field(init=False, default=-1)
+    fullres_width: Optional[int] = field(init=False, default=-1)
 
     def __post_init__(self):
-        self.width = self.array.shape[1]
-        self.height = self.array.shape[0]
+        self.height, self.width = self.array.shape[:2]
+        self.set_fullres_dims(self.width, self.height)
         self.exif_meta = self.get_exif()
+
+    def set_fullres_dims(self, fullres_width, fullres_height):
+        self.fullres_width = fullres_width
+        self.fullres_height = fullres_height
 
     def get_exif(self):
         """Creates a dataclass by reading exif metadata, creating a dictionary, and creating dataclass form that dictionary
@@ -455,6 +479,14 @@ class RemapImage(Image):
         imgmeta = ImageMetadata(**meta)
         return imgmeta
 
+    @property
+    def config(self):
+        _config = super(RemapImage, self).config
+        _config["fullres_width"] = self.fullres_width
+        _config["fullres_height"] = self.fullres_height
+
+        return _config
+
 
 @dataclass
 class ImageData(Image):
@@ -469,6 +501,8 @@ class ImageData(Image):
     cutout_ids: List[str] = None
     camera_info: CameraInfo = None
     bboxes: list[Box] = None
+    fullres_height: int = -1
+    fullres_width: int = -1
 
 
 @dataclass
