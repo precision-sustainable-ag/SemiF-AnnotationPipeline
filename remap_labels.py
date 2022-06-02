@@ -16,7 +16,8 @@ log = logging.getLogger(__name__)
 class RemapLabels:
 
     def __init__(self, cfg: DictConfig) -> None:
-        self.data_root = Path(cfg.data.developeddir)
+
+        self.data_root = "/".join(Path(cfg.data.developeddir).parts[-2:])
         self.batchdir = Path(cfg.data.batchdir)
         self.autosfmdir = Path(cfg.autosfm.autosfmdir)
         self.metadata = self.batchdir / "metadata"
@@ -41,13 +42,16 @@ class RemapLabels:
         # Initialize the reader which will read the annotation files and convert the bounding
         # boxes to the desired format
         reader = ParseYOLOCsv(image_path=self.image_dir,
-                              label_path=self.raw_label, 
+                              label_path=self.raw_label,
                               fullres_image_path=self.fullres_image_path)
 
         # Initialize the connector and get a list of all the images
-        box_connector = BBoxComponents(self.camera_reference, reader,
-                                       self.image_dir, self.raw_label, 
-                                       fullres_image_path=self.fullres_image_path)
+        box_connector = BBoxComponents(
+            self.camera_reference,
+            reader,
+            self.image_dir,
+            self.raw_label,
+            fullres_image_path=self.fullres_image_path)
         log.info("Fetching image metadata.")
         imgs = box_connector.images
         # Map the bounding boxes from local coordinates to global coordinate system
@@ -78,8 +82,8 @@ class RemapLabels:
 
             Path(self.metadata).mkdir(parents=True, exist_ok=True)
 
-            img.image_path = img.fullres_path # f"images/{Path(img.image_path).name}"
-            img.data_root = self.data_root.name
+            img.image_path = f"images/{Path(img.image_path).name}"
+            img.data_root = self.data_root
             img.batch_id = self.batchdir.name
             img.save_config(self.metadata)
         log.info("Saving complete.")

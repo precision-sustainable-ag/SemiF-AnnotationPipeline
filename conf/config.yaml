@@ -15,7 +15,7 @@ general:
   db: test  # test, trial, WIR
   multitask: False
   multitasks: [auto_sfm, localize_plants, remap_labels, segment_vegetation]
-  task: segment_vegetation  # test_mongodb, segment_vegetation, localize_plants, remap_labels, auto_sfm
+  task: segment_vegetation  # auto_sfm, localize_plants, remap_labels, segment_vegetation
   workdir: ${hydra:runtime.cwd}  # where the code is executed
 
 data:
