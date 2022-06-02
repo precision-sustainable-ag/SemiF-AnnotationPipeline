@@ -28,6 +28,7 @@ class RemapLabels:
             self.image_dir = self.autosfmdir / "downscaled_photos"
         else:
             self.image_dir = self.batchdir / "images"
+        self.fullres_image_path = self.batchdir / "images"
 
     @property
     def camera_reference(self):
@@ -40,11 +41,13 @@ class RemapLabels:
         # Initialize the reader which will read the annotation files and convert the bounding
         # boxes to the desired format
         reader = ParseYOLOCsv(image_path=self.image_dir,
-                              label_path=self.raw_label)
+                              label_path=self.raw_label, 
+                              fullres_image_path=self.fullres_image_path)
 
         # Initialize the connector and get a list of all the images
         box_connector = BBoxComponents(self.camera_reference, reader,
-                                       self.image_dir, self.raw_label)
+                                       self.image_dir, self.raw_label, 
+                                       fullres_image_path=self.fullres_image_path)
         log.info("Fetching image metadata.")
         imgs = box_connector.images
         # Map the bounding boxes from local coordinates to global coordinate system
@@ -75,7 +78,7 @@ class RemapLabels:
 
             Path(self.metadata).mkdir(parents=True, exist_ok=True)
 
-            img.image_path = f"images/{Path(img.image_path).name}"
+            img.image_path = img.fullres_path # f"images/{Path(img.image_path).name}"
             img.data_root = self.data_root.name
             img.batch_id = self.batchdir.name
             img.save_config(self.metadata)

@@ -251,7 +251,10 @@ class SegmentVegetation:
                 if not box.is_primary:
                     continue
                 # Only scale the box that will be used for the cutout
-                box = rescale_bbox(box, 0)
+                image_width = imgdata.fullres_width
+                image_height = imgdata.fullres_height
+                scale = [image_width, image_height]
+                box = rescale_bbox(box, scale)
                 x1, y1 = box.local_coordinates["top_left"]
                 x2, y2 = box.local_coordinates["bottom_right"]
                 x1, y1 = int(x1), int(y1)

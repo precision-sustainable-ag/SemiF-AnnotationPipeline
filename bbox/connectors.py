@@ -8,6 +8,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import cv2
 from semif_utils.datasets import BBox, BoxCoordinates, CameraInfo, RemapImage
 from tqdm import tqdm
 
@@ -161,6 +162,7 @@ class BBoxComponents:
                               desc="Remapping bbox coordinates"):
                 image_id = image["id"]
                 path = image["path"]
+                fullres_path = image["fullres_path"]
                 fov = self.get_fov(image_id)
                 camera_location = self.get_camera_location(image_id)
                 pixel_width, pixel_height = self.get_pixel_dims(image_id)
@@ -180,7 +182,13 @@ class BBoxComponents:
                                    image_path=path,
                                    image_id=image_id,
                                    bboxes=bboxes[image_id],
-                                   camera_info=cam_info)
+                                   camera_info=cam_info, 
+                                   fullres_path=fullres_path)
+                # Set the full resolution height and width
+                if path != fullres_path:
+                    _image = cv2.imread(str(fullres_path))
+                    fullres_height, fullres_width = _image.shape[:2]
+                    image.set_fullres_dims(fullres_width, fullres_height)
                 # Scale the boounding box coordinates to pixel space
                 scale = np.array([image.width, image.height])
                 for bbox in image.bboxes:
