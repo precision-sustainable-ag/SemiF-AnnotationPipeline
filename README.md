@@ -12,9 +12,10 @@
 5. ~~Update synth data generation code~~
 6. ~~merge autoSfM with synth data generation~~
 7. ~~Move inferencing to CPU if no GPU in `localize_plants`~~
-8.  Get unique bbox for cutouts in `segment_vegetation`
-9.  Filter cutouts to eliminate very small results in `segment_vegetation`
-10. Generate new pot maps for synth data
+8.  ~~Get unique bbox for cutouts in `segment_vegetation`~~
+9.  ~~rescale local bbox to original image size and not downscaled_photos~~
+10. Filter cutouts to eliminate very small results in `segment_vegetation`
+11. Generate new pot maps for synth data
 
 <br>
 

@@ -26,7 +26,7 @@ from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
                                dilate_erode, get_site_id, get_upload_datetime,
                                make_exg, make_exg_minus_exr, make_exr,
                                make_kmeans, make_ndi, otsu_thresh, parse_dict,
-                               reduce_holes)
+                               reduce_holes, rescale_bbox)
 
 
 class VegetationIndex:
@@ -222,7 +222,6 @@ class SegmentVegetation:
             j = json.load(f)
 
             bbox_meta = BBoxMetadata(**j)
-            pprint(bbox_meta)
         return bbox_meta
 
     def get_image_meta(self, path):
@@ -238,11 +237,8 @@ class SegmentVegetation:
             labeldir,             
         """
         cutouts = []
-        for label_set in tqdm(self.labels,
-                              desc="Segmenting Vegetation",
-                              colour="green"):
+        for label_set in tqdm(self.labels, desc="Segmenting Vegetation"):
             imgdata = self.get_image_meta(label_set)
-            pprint(imgdata)
             dt = datetime.strptime(imgdata.exif_meta.DateTime,
                                    "%Y:%m:%d %H:%M:%S")
             # Call image array
@@ -251,11 +247,14 @@ class SegmentVegetation:
             cutout_num = 0
             cutout_ids = []
             bboxes = imgdata.bboxes
-            for box in tqdm(bboxes,
-                            leave=False,
-                            colour="#6dbc90",
-                            desc="Generating Cutouts"):
-
+            for box in bboxes:
+                if not box.is_primary:
+                    continue
+                # Only scale the box that will be used for the cutout
+                image_width = imgdata.fullres_width
+                image_height = imgdata.fullres_height
+                scale = [image_width, image_height]
+                box = rescale_bbox(box, scale)
                 x1, y1 = box.local_coordinates["top_left"]
                 x2, y2 = box.local_coordinates["bottom_right"]
                 x1, y1 = int(x1), int(y1)
@@ -282,8 +281,7 @@ class SegmentVegetation:
                     new_cropped_cutout = crop_cutouts(new_cutout)
                     # Get regionprops
                     cutprops = GenCutoutProps(mask2).to_dataclass()
-                    if type(cutprops.area
-                            ) is not list and cutprops.area < 3000:
+                    if type(cutprops.area) is not list and cutprops.area < 500:
                         continue
                     cutout_path = self.save_cutout(new_cropped_cutout,
                                                    Path(imgdata.image_path),
@@ -337,19 +335,21 @@ def main(cfg: DictConfig) -> None:
                           batch_id=batch_id,
                           site_id=site_id,
                           upload_datetime=upload_datetime)
+    batch = asdict(batch)
+    jsparents = Path(batch["blob_root"], data_root, batch_id)
+    jsonpath = Path(jsparents, batch_id + ".json")
+    save_dataclass_json(batch, jsonpath)
+
     # Connect to database
     if cfg.general.save_to_database:
         db = Connect.get_connection()
         db = getattr(db, cfg.general.db)
-        batch = asdict(batch)
+
         # To DB
         to_db(db, "Batches", batch)
         # Save To json
-        jsparents = Path(batch["blob_root"], data_root, batch_id)
-        jsonpath = Path(jsparents, batch_id + ".json")
-        save_dataclass_json(batch, jsonpath)
-
     else:
         db = None
+
     # Run pipeline
     vegseg = SegmentVegetation(db, cfg)

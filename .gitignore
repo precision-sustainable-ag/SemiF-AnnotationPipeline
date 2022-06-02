@@ -4,17 +4,14 @@
 #--------- Project Ignore ---------
 
 # Ignore everything in data except README and species json list (see below).
-blob_container/*/**
 data/*
-# Except placeholder directories where blob data will be copied.
+!data/README.md
+
 !data/semifield-developed-images-trial
 !data/semifield-upload-trial
 !data/semifield-cutouts-trial
 !data/semifield-synthetic-images-trial
 !data/semifield-models-trial
-
-!data/**.json
-blob_container
 
 # Ignore everything in models dir except readme
 models/*
