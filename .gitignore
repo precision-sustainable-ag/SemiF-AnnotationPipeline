@@ -7,6 +7,12 @@
 data/*
 !data/README.md
 
+!data/semifield-developed-images-trial
+!data/semifield-upload-trial
+!data/semifield-cutouts-trial
+!data/semifield-synthetic-images-trial
+!data/semifield-models-trial
+
 # Ignore everything in models dir except readme
 models/*
 
