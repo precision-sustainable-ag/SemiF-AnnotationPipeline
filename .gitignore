@@ -6,7 +6,7 @@
 # Ignore everything in data except README and species json list (see below).
 data/*
 !data/README.md
-
+!data/species.json
 !data/semifield-developed-images-trial
 !data/semifield-upload-trial
 !data/semifield-cutouts-trial

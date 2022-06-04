@@ -27,6 +27,7 @@ data:
   synthdir: ${data.datadir}/semifield-synthetic-images-trial
   modeldir: ${data.datadir}/semifield-models-trial
   logdir: ${general.workdir}/logs
+  species: ${data.datadir}/species.json # All species information, not batch species map
 
 detect:
   model_path: ${data.modeldir}/plant_detector/best.pt

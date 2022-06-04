@@ -1,6 +1,8 @@
+import json
 import os
 import platform
 from datetime import datetime
+from difflib import get_close_matches
 from pathlib import Path
 
 import cv2
@@ -10,6 +12,18 @@ from PIL import Image
 from scipy import ndimage
 from skimage import morphology, segmentation
 from sklearn.cluster import KMeans
+
+######################################################
+################### GENERAL ##########################
+######################################################
+
+
+def read_json(path):
+    # Opening JSON file
+    with open(path) as json_file:
+        data = json.load(json_file)
+    return data
+
 
 ######################################################
 ################## GET METADATA ######################
@@ -158,10 +172,18 @@ def rescale_bbox(box, imgshape):
         box (dataclass): box metadata with scaled/updated bbox
     """
     scale = imgshape
-    box.local_coordinates["top_left"] = [c*s for c, s in zip(box.local_coordinates["top_left"], scale)]
-    box.local_coordinates["top_right"] = [c*s for c, s in zip(box.local_coordinates["top_right"], scale)]
-    box.local_coordinates["bottom_left"] = [c*s for c, s in zip(box.local_coordinates["bottom_left"], scale)]
-    box.local_coordinates["bottom_right"] = [c*s for c, s in zip(box.local_coordinates["bottom_right"], scale)]
+    box.local_coordinates["top_left"] = [
+        c * s for c, s in zip(box.local_coordinates["top_left"], scale)
+    ]
+    box.local_coordinates["top_right"] = [
+        c * s for c, s in zip(box.local_coordinates["top_right"], scale)
+    ]
+    box.local_coordinates["bottom_left"] = [
+        c * s for c, s in zip(box.local_coordinates["bottom_left"], scale)
+    ]
+    box.local_coordinates["bottom_right"] = [
+        c * s for c, s in zip(box.local_coordinates["bottom_right"], scale)
+    ]
     return box
 
 
@@ -297,3 +319,54 @@ def crop_cutouts(img, add_padding=False):
             foreground.getbbox()[3] + 2,
         ))
     return array
+
+
+######################################################
+################# SPECIES LABELING ###################
+######################################################
+
+
+def species_dict(speciesjson, species_mapcsv, default_species="grass"):
+    """Compares entries in user provided species map csv with those from a common 
+       species data model (json). Uses 'get_close_matches' to get the best match.
+       Is meant to create flexibility in how users are defining "species" in their
+       maps.s
+
+    Args:
+        speciesjson (str): json of common specie data model (data/species.json)
+        species_mapcsv (str): csv of user provided species map by row (data/developed/[batch_id]/autosfm/specie_map.csv)
+        default_species (str, optional): Defaults to "grass". For testing purposes, if species column is left blank,
+        or if 'get_close_matches' returns an empty list.
+
+    Returns:
+        updated_species_map: dictionary of "row:common name" key-value pairs
+    """
+
+    # get species map dictionary unique to batch
+    df = pd.read_csv(species_mapcsv)
+    spec_map = df.set_index('row').T.to_dict("records")[0]
+    spec_map = eval(repr(spec_map).lower())
+    spec_map_copy = spec_map.copy()
+
+    # get species common names
+    species_data = read_json(speciesjson)
+    common_names = []
+    spec_idx = species_data["species"].keys()
+    common_name_list = [
+        species_data["species"][x]["common_name"] for x in spec_idx
+    ]
+    # Get copy species map to update
+    update_specmap = spec_map.copy()
+
+    # Compare each value in species map with common name list from species data
+    spec_dict = spec_map_copy["species"]
+    for row in spec_map:
+        comm_name = spec_map[row]
+        match = get_close_matches(comm_name, common_name_list, n=1)
+        comm_match = match if match else default_species
+
+        for x in spec_idx:
+            if species_data["species"][x]["common_name"] == comm_match:
+                species_data["species"][x]
+
+    return update_specmap
