@@ -1,6 +1,7 @@
 import datetime
 import json
 import os
+import typing
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -343,6 +344,64 @@ class ImageMetadata:
     SubIFDs: Optional[int] = None
 
 
+# @dataclass
+# class ImageMetadata:
+#     Make: typing.Any
+#     Model: typing.Any
+#     Orientation: typing.Any
+#     XResolution: typing.Any
+#     YResolution: typing.Any
+#     ResolutionUnit: typing.Any
+#     Software: typing.Any
+#     DateTime: typing.Any
+#     YCbCrPositioning: typing.Any
+#     PrintIM: typing.Any
+#     ExifOffset: typing.Any
+#     Compression: typing.Any
+#     JPEGInterchangeFormat: typing.Any
+#     JPEGInterchangeFormatLength: typing.Any
+#     ExposureTime: typing.Any
+#     FNumber: typing.Any
+#     ExposureProgram: typing.Any
+#     ISOSpeedRatings: typing.Any
+#     SensitivityType: typing.Any
+#     RecommendedExposureIndex: typing.Any
+#     ExifVersion: typing.Any
+#     DateTimeOriginal: typing.Any
+#     DateTimeDigitized: typing.Any
+#     OffsetTime: typing.Any
+#     OffsetTimeOriginal: typing.Any
+#     OffsetTimeDigitized: typing.Any
+#     ComponentsConfiguration: typing.Any
+#     CompressedBitsPerPixel: typing.Any
+#     BrightnessValue: typing.Any
+#     ExposureBiasValue: typing.Any
+#     MaxApertureValue: typing.Any
+#     MeteringMode: typing.Any
+#     LightSource: typing.Any
+#     Flash: typing.Any
+#     FocalLength: typing.Any
+#     FlashPixVersion: typing.Any
+#     ColorSpace: typing.Any
+#     ExifImageWidth: typing.Any
+#     ExifImageLength: typing.Any
+#     FileSource: typing.Any
+#     SceneType: typing.Any
+#     CustomRendered: typing.Any
+#     ExposureMode: typing.Any
+#     WhiteBalance: typing.Any
+#     DigitalZoomRatio: typing.Any
+#     FocalLengthIn35mmFilm: typing.Any
+#     SceneCaptureType: typing.Any
+#     Contrast: typing.Any
+#     Saturation: typing.Any
+#     Sharpness: typing.Any
+#     LensSpecification: typing.Any
+#     LensModel: typing.Any
+#     InteroperabilityIndex: typing.Any
+#     InteroperabilityOffset: typing.Any
+
+
 @dataclass
 class CameraInfo:
     """ 
@@ -579,6 +638,7 @@ class Cutout:
     cutout_props: CutoutProps
     cutout_id: uuid = field(init=False)
     species: str = None
+    is_primary: bool = False
     schema_version: str = "1.0"
 
     def __post_init__(self):

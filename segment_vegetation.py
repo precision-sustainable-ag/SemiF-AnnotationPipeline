@@ -248,8 +248,8 @@ class SegmentVegetation:
             cutout_ids = []
             bboxes = imgdata.bboxes
             for box in bboxes:
-                if not box.is_primary:
-                    continue
+                # if not box.is_primary:
+                # continue
                 # Only scale the box that will be used for the cutout
                 image_width = imgdata.fullres_width
                 image_height = imgdata.fullres_height
@@ -299,6 +299,7 @@ class SegmentVegetation:
                                     cutout_path=str(cutrelpath),
                                     image_id=imgdata.image_id,
                                     cutout_props=cutprops,
+                                    is_primary=box.is_primary,
                                     datetime=dt)
                     cutouts.append(cutout)
                     cutout_num += 1
@@ -335,6 +336,7 @@ def main(cfg: DictConfig) -> None:
                           batch_id=batch_id,
                           site_id=site_id,
                           upload_datetime=upload_datetime)
+    # Save To json
     batch = asdict(batch)
     jsparents = Path(batch["blob_root"], data_root, batch_id)
     jsonpath = Path(jsparents, batch_id + ".json")
@@ -344,10 +346,9 @@ def main(cfg: DictConfig) -> None:
     if cfg.general.save_to_database:
         db = Connect.get_connection()
         db = getattr(db, cfg.general.db)
-
         # To DB
         to_db(db, "Batches", batch)
-        # Save To json
+
     else:
         db = None
 

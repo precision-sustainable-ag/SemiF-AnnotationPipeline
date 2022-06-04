@@ -1,5 +1,5 @@
-import shutil
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -22,7 +22,8 @@ def main(cfg: DictConfig) -> None:
     images_dst = Path(autosfm_storage, "developed")
     shutil.copytree(images_src, images_dst)
 
-    gcp_src = Path(cfg.data.uploaddir, cfg.general.batch_id, "GroundControlPoints.csv")
+    gcp_src = Path(cfg.data.uploaddir, cfg.general.batch_id,
+                   "GroundControlPoints.csv")
     shutil.copy(gcp_src, autosfm_storage)
 
     # Compose the command
@@ -40,12 +41,12 @@ def main(cfg: DictConfig) -> None:
 
     # Make a copy of the autoSfM config for documentation
     copy_file = cfg.autosfm.config_copy_path
-    shutil.copy(save_file, copy_file)
+    # shutil.copy(save_file, copy_file)
 
     # Copy the exports to the desired location
     export_src = Path(cfg.autosfm.autosfm_exports, cfg.general.batch_id)
     export_dst = Path(cfg.data.batchdir, "autosfm")
-    shutil.move(export_src, export_dst)
+    # shutil.move(export_src, export_dst)
 
     # Remove the temp storage
     shutil.rmtree(autosfm_storage)

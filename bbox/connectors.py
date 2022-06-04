@@ -6,9 +6,9 @@ sys.path.append("..")
 
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pandas as pd
-import cv2
 from semif_utils.datasets import BBox, BoxCoordinates, CameraInfo, RemapImage
 from tqdm import tqdm
 
@@ -182,7 +182,7 @@ class BBoxComponents:
                                    image_path=path,
                                    image_id=image_id,
                                    bboxes=bboxes[image_id],
-                                   camera_info=cam_info, 
+                                   camera_info=cam_info,
                                    fullres_path=fullres_path)
                 # Set the full resolution height and width
                 if path != fullres_path:
