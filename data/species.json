@@ -1,0 +1,225 @@
+{
+    "species": [
+        {
+            "scientific_name": "Amaranthus palmeri",
+            "common_name": "Palmer amaranth",
+            "USDA_symbol": "AMPA",
+            "EPPO": "AMAPA",
+            "authority": "Watson",
+            "collection_location": "NC",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Ambrosia artemisiifolia",
+            "common_name": "Common ragweed",
+            "USDA_symbol": "AMAR2",
+            "EPPO": "AMBEL",
+            "authority": "Linnaeus",
+            "collection_location": "NC",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Senna obtusifolia",
+            "common_name": "Sicklepod",
+            "USDA_symbol": "SEOB4",
+            "EPPO": "CASOB",
+            "authority": "(Linnaeus) Irwin and Barneby",
+            "collection_location": "NC",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Xanthium strumarium",
+            "common_name": "Cocklebur",
+            "USDA_symbol": "XAST",
+            "EPPO": "XANST",
+            "authority": "Linnaeus",
+            "collection_location": "NC",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Digitaria sanguinalis",
+            "common_name": "Large crabgrass",
+            "USDA_symbol": "DISA",
+            "EPPO": "DIGSA",
+            "authority": "(Linnaeus) Scopoli",
+            "collection_location": "NC",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Eleusine indica",
+            "common_name": "Goosegrass",
+            "USDA_symbol": "ELIN3",
+            "EPPO": "ELEIN",
+            "authority": "(Linnaeus) Gärtner",
+            "collection_location": "NC",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Urochloa platyphylla",
+            "common_name": "Broadleaf signalgrass",
+            "USDA_symbol": "URPL2",
+            "EPPO": "BRAPP",
+            "authority": "(Munro ex C. Wright) R.D. Webster",
+            "collection_location": "NC",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Cyperus rotundus",
+            "common_name": "Purple nutsedge",
+            "USDA_symbol": "CYRO",
+            "EPPO": "CYPRO",
+            "authority": "Linnaeus",
+            "collection_location": "NC",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Amaranthus tuberculatus",
+            "common_name": "Waterhemp",
+            "USDA_symbol": "AMTU",
+            "EPPO": "AMATU",
+            "authority": "(Moquin-Tandon) Sauer",
+            "collection_location": "TX",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Echinochloa crus-galli",
+            "common_name": "Barnyardgrass",
+            "USDA_symbol": "ECCR",
+            "EPPO": "ECHCG",
+            "authority": "(Linnaeus) Palisot de Beauvois ",
+            "collection_location": "TX",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Echinochloa colona",
+            "common_name": "Jungle rice",
+            "USDA_symbol": "ECCO2",
+            "EPPO": "ECHCO",
+            "authority": "(Linnaeus) Link",
+            "collection_location": "TX",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Urochloa texana",
+            "common_name": "Texas millet",
+            "USDA_symbol": "URTE2",
+            "EPPO": "PANTE",
+            "authority": "(Buckley) Webster",
+            "collection_location": "TX",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Bassia scoparia",
+            "common_name": "Kochia",
+            "USDA_symbol": "BASC5",
+            "EPPO": "KCHSC",
+            "authority": "(Linnaeus) Scott",
+            "collection_location": "TX",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Helianthus annuus",
+            "common_name": "Common sunflower",
+            "USDA_symbol": "HEAN3",
+            "EPPO": "HELAN",
+            "authority": "Linnaeus",
+            "collection_location": "TX",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Parthenium hysterophorus",
+            "common_name": "Ragweed parthenium",
+            "USDA_symbol": "PAHY",
+            "EPPO": "PTNHY",
+            "authority": "Linnaeus",
+            "collection_location": "TX",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Sorghum halepense",
+            "common_name": "Johnsongrass",
+            "USDA_symbol": "SOHA",
+            "EPPO": "SORHA",
+            "authority": "(Linnaeus) Persoon",
+            "collection_location": "TX",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Amaranthus hybridus",
+            "common_name": "Smooth pigweed",
+            "USDA_symbol": "AMHY",
+            "EPPO": "AMACH",
+            "authority": "Linnaeus",
+            "collection_location": "MD",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Chenopodium album",
+            "common_name": "Common lambsquarters",
+            "USDA_symbol": "CHAL7",
+            "EPPO": "CHEAL",
+            "authority": "Linnaeus",
+            "collection_location": "MD",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Panicum dichotomiflorum",
+            "common_name": "Fall panicum",
+            "USDA_symbol": "PADI",
+            "EPPO": "PANDI",
+            "authority": "Michaux",
+            "collection_location": "MD",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Datura stramonium",
+            "common_name": "Jimson weed",
+            "USDA_symbol": "DAST",
+            "EPPO": "DATST",
+            "authority": "Linnaeus",
+            "collection_location": "MD",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Abutilon theophrasti",
+            "common_name": "Velvetleaf",
+            "USDA_symbol": "ABTH",
+            "EPPO": "ABUTH",
+            "authority": "Medicus",
+            "collection_location": "MD",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Setaria pumila",
+            "common_name": "Yellow foxtail",
+            "USDA_symbol": "SEPU8",
+            "EPPO": "SETPU",
+            "authority": "(C. Linnaeus) Römer and Schultes ",
+            "collection_location": "MD",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Setaria faberi",
+            "common_name": "Giant foxtail",
+            "USDA_symbol": "SEFA",
+            "EPPO": "SETFA",
+            "authority": "Herrmann",
+            "collection_location": "MD",
+            "polygon_id": ""
+        },
+        {
+            "scientific_name": "Erigeron canadensis",
+            "common_name": "Horseweed",
+            "USDA_symbol": "ERCA20",
+            "EPPO": "ERICA",
+            "authority": "Linnaeus",
+            "collection_location": "MD",
+            "polygon_id": ""
+        }
+    ],
+    "Note": "When difference between USDA and EPPO codes, scientific_names, or authority occured, USDA information was used.",
+    "Abbreviations": [
+        "North Carolina (MD), Texas (TX), Maryland (MD)"
+    ],
+    "Version": "1.0"
+}
