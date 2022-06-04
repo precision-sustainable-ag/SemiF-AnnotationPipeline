@@ -192,7 +192,6 @@ class BBoxComponents:
                 # Scale the boounding box coordinates to pixel space
                 scale = np.array([image.width, image.height])
                 for bbox in image.bboxes:
-                    bbox.local_coordinates.set_scale(scale)
-                    bbox.set_local_centroid()
+                    bbox.set_local_scale(scale)
                 self._images.append(image)
         return self._images
