@@ -180,7 +180,7 @@ class BBox:
         self.local_centroid = self.get_centroid(self.local_coordinates)
 
     def set_norm_local_centroid(self):
-        self.norm_local_centroid = self.get_centroid(self.norm_local_centroid)
+        self.norm_local_centroid = self.get_centroid(self.norm_local_coordinates)
 
     def set_global_centroid(self):
         self.global_centroid = self.get_centroid(self.global_coordinates)
