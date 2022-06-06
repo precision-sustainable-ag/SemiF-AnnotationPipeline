@@ -244,8 +244,8 @@
     "Notes": {
         "1": "USDA symbols are used as species index key.",
         "2": "When difference between USDA and EPPO codes, scientific_names, or authority occured, USDA information was used.",
-        "3": "Purple nutsedge (CYRO) is used by may also be yellow nutsedge (CYES)."
-        "3": "North Carolina (MD), Texas (TX), Maryland (MD)"
+        "3": "Purple nutsedge (CYRO) is used by may also be yellow nutsedge (CYES).",
+        "4": "North Carolina (MD), Texas (TX), Maryland (MD)"
     },
     "Version": "1.1"
 }
