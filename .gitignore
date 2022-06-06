@@ -13,6 +13,10 @@ data/*
 !data/semifield-synthetic-images-trial
 !data/semifield-models-trial
 
+Assets/NC*
+Assets/updates*
+Assets/ORTHO*
+*.qgz
 # Ignore everything in models dir except readme
 models/*
 

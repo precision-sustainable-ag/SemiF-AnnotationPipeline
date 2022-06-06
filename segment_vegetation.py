@@ -269,15 +269,15 @@ class SegmentVegetation:
                 # Separate components
                 list_cutouts_masks = self.seperate_components(mask)
                 # Create RGB cutout for second round of processing
-                cutout_0 = apply_mask(rgb_crop, mask, "black")
+                # cutout_0 = apply_mask(rgb_crop, mask, "black")
                 # Second round of processing
                 for cut_mask in list_cutouts_masks:
-                    preproc_cutout = apply_mask(cutout_0, cut_mask, "black")
+                    preproc_cutout = apply_mask(rgb_crop, cut_mask, "black")
                     mask2 = self.process_cutout(preproc_cutout)
                     if np.sum(mask2) == 0:
                         continue
 
-                    new_cutout = apply_mask(preproc_cutout, mask2, "black")
+                    new_cutout = apply_mask(rgb_crop, mask2, "black")
                     new_cropped_cutout = crop_cutouts(new_cutout)
                     # Get regionprops
                     cutprops = GenCutoutProps(mask2).to_dataclass()

@@ -7,9 +7,8 @@ do
     echo $IMAGEDIR
     python SEMIF.py \
     general.batch_id=$IMAGEDIR \
-    general.task=segment_vegetation \
-    autosfm.metashape_key=asd
-    # general.multitask=True \
-    # general.multitasks="[segment_vegetation]" \
+    autosfm.metashape_key=asd \
+    general.multitask=True \
+    general.multitasks="[remap_labels, segment_vegetation]"
     
 done
