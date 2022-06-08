@@ -3,3 +3,4 @@
 
 # Except this
 !.gitignore
+!plant_detector/

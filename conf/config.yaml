@@ -14,23 +14,39 @@ general:
   from_database: False
   db: test  # test, trial, WIR
   multitask: False
-  multitasks: [auto_sfm, localize_plants, remap_labels, segment_vegetation]
+  multitasks: [copy_from_blob, auto_sfm, localize_plants, remap_labels, segment_vegetation, copy_products_to_blobs]
   task: segment_vegetation  # auto_sfm, localize_plants, remap_labels, segment_vegetation
   workdir: ${hydra:runtime.cwd}  # where the code is executed
 
+blob_names:
+  upload: semifield-upload-images-trial
+  developed: semifield-developed-images-trial
+  cutout: semifield-cutouts-trial
+  synth: semifield-synthetic-images-trial
+  model: semifield-models-trial
+
+blob_storage:
+  blobhome: ${general.workdir}/blob_storage # /home/azureuser
+  uploaddir: ${blob_storage.blobhome}/${blob_names.upload}
+  developeddir: ${blob_storage.blobhome}/${blob_names.developed}
+  cutoutdir: ${blob_storage.blobhome}/${blob_names.cutout}
+  synthdir: ${blob_storage.blobhome}/${blob_names.synth}
+  modeldir: ${blob_storage.blobhome}/${blob_names.model}
+
 data:
   datadir: ${general.workdir}/data
-  uploaddir: ${data.datadir}/semifield-upload-images-trial
-  developeddir: ${data.datadir}/semifield-developed-images-trial
+  uploaddir: ${data.datadir}/${blob_names.upload}
+  developeddir: ${data.datadir}/${blob_names.developed}
   batchdir: ${data.developeddir}/${general.batch_id} # Is overiden by shell script
-  cutoutdir: ${data.datadir}/semifield-cutouts-trial
-  synthdir: ${data.datadir}/semifield-synthetic-images-trial
-  modeldir: ${data.datadir}/semifield-models-trial
+  cutoutdir: ${data.datadir}/${blob_names.cutout}
+  synthdir: ${data.datadir}/${blob_names.synth}
+  modeldir: ${data.datadir}/${blob_names.model}
   logdir: ${general.workdir}/logs
   species: ${data.datadir}/species.json # All species information, not batch species map
 
 detect:
-  model_path: ${data.modeldir}/plant_detector/best.pt
+  model_filename: best.pt
+  model_path: ${data.modeldir}/plant_detector/${detect.model_filename}
   detections_csv: ${data.batchdir}/autosfm
   save_detection: False
   detectioncropdir: ${general.imagedir} # Location to save detection crops
