@@ -394,11 +394,12 @@ class BBoxFilter:
 
 class BBoxMapper():
 
-    def __init__(self, images: List[ImageData]):
+    def __init__(self, images: List[ImageData], polygons):
         """Class to map bounding box coordinates from image cordinates
            to global coordinates
         """
         self.images = images
+        self.polygons = polygons
 
     def map(self):
         """
@@ -431,3 +432,6 @@ class BBoxMapper():
                     image.camera_info.pitch, image.camera_info.roll)
 
                 bbox.update_global_coordinates(global_coordinates)
+
+                # Assign species
+
