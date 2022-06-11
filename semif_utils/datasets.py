@@ -13,6 +13,20 @@ import numpy as np
 
 from semif_utils.mongo_utils import Connect
 
+# Pot positioning
+sixpot = {
+    0: (1592, 1599),
+    1: (1592, 4796),
+    2: (1592, 7993),
+    3: (4776, 1599),
+    4: (4776, 4796),
+    5: (4776, 7993)
+}
+
+POTMAPS = [sixpot]
+
+SCHEMA_VERSION = "1.0"
+
 
 @dataclass
 class BoxCoordinates:
@@ -45,7 +59,8 @@ class BoxCoordinates:
     def set_scale(self, new_scale: np.ndarray):
 
         if not self.is_scaleable:
-            raise ValueError("is_scalable set to False, coordinates cannot be scaled.")
+            raise ValueError(
+                "is_scalable set to False, coordinates cannot be scaled.")
         self.scale = new_scale
 
         self.top_left = self.top_left * self.scale
@@ -55,13 +70,11 @@ class BoxCoordinates:
 
     def copy(self):
 
-        return self.__class__(
-            top_left=self.top_left.copy(), 
-            top_right=self.top_right.copy(),
-            bottom_left=self.bottom_left.copy(),
-            bottom_right=self.bottom_right.copy(),
-            is_scaleable=self.is_scaleable
-        )
+        return self.__class__(top_left=self.top_left.copy(),
+                              top_right=self.top_right.copy(),
+                              bottom_left=self.bottom_left.copy(),
+                              bottom_right=self.bottom_right.copy(),
+                              is_scaleable=self.is_scaleable)
 
 
 def init_empty():
@@ -85,7 +98,7 @@ class BBox:
     global_centroid: np.ndarray = field(init=False,
                                         default_factory=lambda: np.array([]))
     is_primary: bool = field(init=False, default=False)
-    norm_local_coordinates: BoxCoordinates = field(init=False, 
+    norm_local_coordinates: BoxCoordinates = field(init=False,
                                                    default_factory=init_empty)
 
     @property
@@ -121,16 +134,28 @@ class BBox:
     @property
     def config(self):
         _config = {
-            "bbox_id": self.bbox_id,
-            "image_id": self.image_id,
-            "local_centroid": list(self.norm_local_centroid), # Always use normalized coordinates
-            "local_coordinates": self.norm_local_coordinates.config, # Always use normalized coordinates
-            "global_centroid": list(self.global_centroid),
-            "global_coordinates": self.global_coordinates.config,
-            "is_primary": self.is_primary,
-            "cls": self.cls,
-            "overlapping_bbox_ids": [box.bbox_id for box in self._overlapping_bboxes],
-            "num_overlapping_bboxes": len(self._overlapping_bboxes)
+            "bbox_id":
+            self.bbox_id,
+            "image_id":
+            self.image_id,
+            "local_centroid":
+            list(
+                self.norm_local_centroid),  # Always use normalized coordinates
+            "local_coordinates":
+            self.norm_local_coordinates.
+            config,  # Always use normalized coordinates
+            "global_centroid":
+            list(self.global_centroid),
+            "global_coordinates":
+            self.global_coordinates.config,
+            "is_primary":
+            self.is_primary,
+            "cls":
+            self.cls,
+            "overlapping_bbox_ids":
+            [box.bbox_id for box in self._overlapping_bboxes],
+            "num_overlapping_bboxes":
+            len(self._overlapping_bboxes)
         }
         return _config
 
@@ -181,7 +206,8 @@ class BBox:
         self.local_centroid = self.get_centroid(self.local_coordinates)
 
     def set_norm_local_centroid(self):
-        self.norm_local_centroid = self.get_centroid(self.norm_local_coordinates)
+        self.norm_local_centroid = self.get_centroid(
+            self.norm_local_coordinates)
 
     def set_global_centroid(self):
         self.global_centroid = self.get_centroid(self.global_coordinates)
@@ -260,19 +286,18 @@ class BBox:
 @dataclass
 class BatchMetadata:
     """ Batch metadata class for yaml loader"""
+    blob_home: str
     data_root: str
     batch_id: str
-    site_id: str
     upload_datetime: str
     image_list: List = field(init=False)
-    blob_root: str = "data"
-    schema_version: str = "v1"
+    schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self):
         self.image_list = self.get_batch_images()
 
     def get_batch_images(self):
-        imgdir = Path(self.blob_root, self.data_root, self.batch_id, "images")
+        imgdir = Path(self.blob_home, self.data_root, self.batch_id, "images")
         extensions = ["*.jpg", "*.JPG", "*.jpeg", "*.JPEG"]
         images = []
         for ext in extensions:
@@ -284,6 +309,29 @@ class BatchMetadata:
             image_list.append(str("/".join(imgp.parts[-2:])))
 
         return image_list
+
+    @property
+    def config(self):
+        _config = {
+            "blob_home": self.blob_home,
+            "data_root": self.data_root,
+            "batch_id": self.batch_id,
+            "upload_datetime": self.upload_datetime,
+            "image_list": self.image_list,
+            "schema_version": self.schema_version
+        }
+
+        return _config
+
+    def save_config(self):
+        try:
+            save_batch_path = Path(self.blob_home, self.data_root,
+                                   self.batch_id + ".json")
+            with open(save_batch_path, "w") as f:
+                json.dump(self.config, f, indent=4, default=str)
+        except Exception as e:
+            raise e
+        return True
 
 
 # Image dataclasses ----------------------------------------------------------
@@ -454,10 +502,11 @@ class Image:
     """Parent class for RemapImage and ImageData.
 
     """
-    image_id: str
-    image_path: str
+    blob_home: str
     data_root: str
     batch_id: str
+    image_path: str
+    image_id: str
 
     def __post_init__(self):
         image_array = self.array
@@ -467,8 +516,8 @@ class Image:
     @property
     def array(self):
         # Read the image from the file and return the numpy array
-        img_path = Path(self.data_root, self.batch_id, self.image_path)
-        # img_path = Path(self.image_path)
+        img_path = Path(self.blob_home, self.data_root, self.batch_id,
+                        self.image_path)
         img_array = cv2.imread(str(img_path))
         img_array = np.ascontiguousarray(
             cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB))
@@ -477,15 +526,17 @@ class Image:
     @property
     def config(self):
         _config = {
+            "blob_home": self.blob_home,
             "data_root": self.data_root,
             "batch_id": self.batch_id,
-            "image_path": self.image_path,
             "image_id": self.image_id,
-            "exif_meta": asdict(self.exif_meta),
-            "camera_info": asdict(self.camera_info),
+            "image_path": self.image_path,
             "width": self.width,
             "height": self.height,
-            "bboxes": [box.config for box in self.bboxes]
+            "exif_meta": asdict(self.exif_meta),
+            "camera_info": asdict(self.camera_info),
+            "bboxes": [box.config for box in self.bboxes],
+            "schema_version": self.schema_version
         }
 
         return _config
@@ -511,6 +562,7 @@ class RemapImage(Image):
     exif_meta: Optional[ImageMetadata] = field(init=False, default=None)
     fullres_height: Optional[int] = field(init=False, default=-1)
     fullres_width: Optional[int] = field(init=False, default=-1)
+    schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self):
         self.height, self.width = self.array.shape[:2]
@@ -551,18 +603,46 @@ class RemapImage(Image):
 @dataclass
 class ImageData(Image):
     """ Dataclass for segmentation and synthetic data generation"""
-    data_root: str
-    image_path: str
-    batch_id: str
+
     width: int
     height: int
     exif_meta: ImageMetadata
-    # cutouts: list[Cutout] = None
     cutout_ids: List[str] = None
     camera_info: CameraInfo = None
     bboxes: list[Box] = None
     fullres_height: int = -1
     fullres_width: int = -1
+    schema_version: str = "1.0"
+
+    @property
+    def config(self):
+        _config = {
+            "blob_home": self.blob_home,
+            "data_root": self.data_root,
+            "batch_id": self.batch_id,
+            "image_id": self.image_id,
+            "image_path": self.image_path,
+            "width": self.width,
+            "height": self.height,
+            "exif_meta": asdict(self.exif_meta),
+            "camera_info": asdict(self.camera_info),
+            "cutout_ids": self.cutout_ids,
+            "bboxes": [asdict(x) for x in self.bboxes],
+            "fullres_height": self.fullres_height,
+            "fullres_width": self.fullres_width,
+            "schema_version": self.schema_version
+        }
+
+        return _config
+
+    def save_config(self, save_path):
+        try:
+            save_image_path = Path(save_path, self.image_id + ".json")
+            with open(save_image_path, "w") as f:
+                json.dump(self.config, f, indent=4, default=str)
+        except Exception as e:
+            raise e
+        return True
 
 
 @dataclass
@@ -628,21 +708,22 @@ class CutoutProps:
 @dataclass
 class Cutout:
     """Per cutout. Goes to PlantCutouts"""
+    blob_home: str
     data_root: str
     batch_id: str
-    cutout_path: str
-    cutout_num: int
     image_id: str
-    site_id: str
+    cutout_num: int
     datetime: datetime.datetime  # Datetime of original image creation
     cutout_props: CutoutProps
-    cutout_id: uuid = field(init=False)
+    cutout_id: str = field(init=False)
+    cutout_path: str = field(init=False)
     species: str = None
     is_primary: bool = False
     schema_version: str = "1.0"
 
     def __post_init__(self):
-        self.cutout_id = uuid.uuid4()
+        self.cutout_id = self.image_id + "_" + str(self.cutout_num)
+        self.cutout_path = str(Path(self.batch_id, self.cutout_id + ".png"))
 
     @property
     def array(self):
@@ -651,6 +732,42 @@ class Cutout:
         cut_array = np.ascontiguousarray(
             cv2.cvtColor(cut_array, cv2.COLOR_BGR2RGB))
         return cut_array
+
+    @property
+    def config(self):
+        _config = {
+            "blob_home": self.blob_home,
+            "data_root": self.data_root,
+            "batch_id": self.batch_id,
+            "image_id": self.image_id,
+            "cutout_id": self.cutout_id,
+            "cutout_path": self.cutout_path,
+            "species": self.species,
+            "cutout_num": self.cutout_num,
+            "datetime": self.datetime,
+            "cutout_props": self.cutout_props,
+            "schema_version": self.schema_version
+        }
+
+        return _config
+
+    def save_config(self, save_path):
+        try:
+            save_cutout_path = Path(save_path, self.batch_id,
+                                    self.cutout_id + ".json")
+            with open(save_cutout_path, "w") as f:
+                json.dump(self.config, f, indent=4, default=str)
+        except Exception as e:
+            raise e
+        return True
+
+    def save_cutout(self, cutout_array):
+        fname = f"{self.cutout_id}_{self.cutout_num}.png"
+        cutout_path = Path(self.blob_home, self.data_root, self.batch_id,
+                           fname)
+        cv2.imwrite(str(cutout_path),
+                    cv2.cvtColor(cutout_array, cv2.COLOR_RGB2BGRA))
+        return True
 
 
 # Synthetic Data Generation -------------------------------------------------------------------------
@@ -825,15 +942,3 @@ CUTOUT_PROPS = [
     # "label",  # int The label in the labeled input image.
     "perimeter",  # float Perimeter of object which approximates the contour as a line through the centers of border pixels using a 4-connectivity.
 ]
-
-# Pot positioning
-sixpot = {
-    0: (1592, 1599),
-    1: (1592, 4796),
-    2: (1592, 7993),
-    3: (4776, 1599),
-    4: (4776, 4796),
-    5: (4776, 7993)
-}
-
-POTMAPS = [sixpot]

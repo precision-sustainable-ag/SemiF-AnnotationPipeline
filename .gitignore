@@ -29,6 +29,9 @@ exports/*
 # Outputs log files form hydra
 outputs
 
+#QGIS project files
+*.qgz
+
 # Hydra files
 .hydra
 SEMIF.log
