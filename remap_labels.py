@@ -16,11 +16,11 @@ log = logging.getLogger(__name__)
 class RemapLabels:
 
     def __init__(self, cfg: DictConfig) -> None:
-
-        self.data_root = "/".join(Path(cfg.data.developeddir).parts[-2:])
-        self.batchdir = Path(cfg.data.batchdir)
+        self.blob_home = Path(cfg.blob_storage.blobhome)
+        self.developed_dir = Path(cfg.data.developeddir)  # data_root
+        self.batch_dir = Path(cfg.data.batchdir)
         self.autosfmdir = Path(cfg.autosfm.autosfmdir)
-        self.metadata = self.batchdir / "metadata"
+        self.metadata = self.batch_dir / "metadata"
         self.reference = self.autosfmdir / "reference"
         self.raw_label = self.autosfmdir / "detections.csv"
         self.downscaled = cfg.autosfm.autosfm_config.downscale.enabled
@@ -28,8 +28,8 @@ class RemapLabels:
         if self.downscaled:
             self.image_dir = self.autosfmdir / "downscaled_photos"
         else:
-            self.image_dir = self.batchdir / "images"
-        self.fullres_image_path = self.batchdir / "images"
+            self.image_dir = self.batch_dir / "images"
+        self.fullres_image_path = self.batch_dir / "images"
 
     @property
     def camera_reference(self):
@@ -47,9 +47,12 @@ class RemapLabels:
 
         # Initialize the connector and get a list of all the images
         box_connector = BBoxComponents(
+            self.blob_home,
+            self.developed_dir,
+            self.batch_dir,
+            self.image_dir,
             self.camera_reference,
             reader,
-            self.image_dir,
             self.raw_label,
             fullres_image_path=self.fullres_image_path)
         log.info("Fetching image metadata.")
@@ -81,10 +84,7 @@ class RemapLabels:
         for img in imgs:
 
             Path(self.metadata).mkdir(parents=True, exist_ok=True)
-
-            img.image_path = f"images/{Path(img.image_path).name}"
-            img.data_root = self.data_root
-            img.batch_id = self.batchdir.name
+            img.image_path = Path("images", Path(img.image_path).name)
             img.save_config(self.metadata)
         log.info("Saving complete.")
         return imgs

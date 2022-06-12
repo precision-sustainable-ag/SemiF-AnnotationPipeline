@@ -1,8 +1,7 @@
 import json
-from dataclasses import asdict, make_dataclass
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from pprint import pprint
 
 import cv2
 import numpy as np
@@ -18,15 +17,13 @@ from skimage.morphology import disk
 from skimage.segmentation import watershed
 from tqdm import tqdm
 
-from semif_utils.datasets import (CUTOUT_PROPS, BatchMetadata, BBoxMetadata,
-                                  Cutout, CutoutProps, ImageData)
-from semif_utils.mongo_utils import Connect, _id_query, to_db
-from semif_utils.synth_utils import save_dataclass_json
+from semif_utils.datasets import (CUTOUT_PROPS, BatchMetadata, Cutout,
+                                  CutoutProps, ImageData)
 from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
-                               dilate_erode, get_site_id, get_upload_datetime,
-                               make_exg, make_exg_minus_exr, make_exr,
-                               make_kmeans, make_ndi, otsu_thresh, parse_dict,
-                               reduce_holes, rescale_bbox)
+                               dilate_erode, get_upload_datetime, make_exg,
+                               make_exg_minus_exr, make_exr, make_kmeans,
+                               make_ndi, otsu_thresh, parse_dict, reduce_holes,
+                               rescale_bbox)
 
 
 class VegetationIndex:
@@ -80,6 +77,7 @@ class GenCutoutProps:
         return nprops
 
     def to_dataclass(self):
+        # Used to check schema
         table = self.from_regprops_table()
         cutout_props = from_dict(data_class=CutoutProps, data=table)
         return cutout_props
@@ -87,70 +85,26 @@ class GenCutoutProps:
 
 class SegmentVegetation:
 
-    def __init__(self, db, cfg: DictConfig) -> None:
+    def __init__(self, cfg: DictConfig) -> None:
         """_summary_
 
         """
+        self.blob_home = Path(cfg.blob_storage.blobhome)
+        self.cutout_dir = Path(cfg.data.cutoutdir)
         self.batchdir = Path(cfg.data.batchdir)
-        self.data_root = Path(cfg.data.developeddir)
         self.batch_id = self.batchdir.name
         self.metadata = self.batchdir / "metadata"
-        self.autosfm = self.batchdir / "autosfm"
-        self.imagedir = self.batchdir / "images"
-        self.cutoutdir = Path(cfg.data.cutoutdir, self.batch_id)
-        self.detectioncsv = self.autosfm / "detections.csv"
-
+        self.cutout_batch_dir = self.cutout_dir / self.batch_id
         self.labels = [x for x in (self.metadata).glob("*.json")]
 
-        if not self.cutoutdir.exists():
-            self.cutoutdir.mkdir(parents=True, exist_ok=True)
+        if not self.cutout_batch_dir.exists():
+            self.cutout_batch_dir.mkdir(parents=True, exist_ok=True)
 
         self.clear_border = cfg.segment.clear_border
-        self.sitedir, self.site_id = self.get_siteinfo()
         self.vi = cfg.segment.vi
         self.class_algorithm = cfg.segment.class_algorithm
 
-        self.db = db
         self.cutout_pipeline()
-
-    def get_siteinfo(self):
-        """Uses image directory to gather site specific information.
-            Agnostic to what relative path structure is used. As in it does
-            not matter whether parent directory of images is sitedir or "developed". 
-
-        Returns:
-            sitedir: developed image parent directory name
-            site_id: state id takend from sitedir
-        """
-        states = ['TX', 'NC', 'MD']
-        sitedir = [p for st in states for p in self.imagedir.parts
-                   if st in p][0]
-        site_id = [st for st in states if st in sitedir][0]
-        return sitedir, site_id
-
-    def save_cutout(self, cutout, imgpath, cutout_num):
-        """Saves cutouts to cutoutdir.
-
-        Args:
-            cutout (np.ndarray): final processed cutout array in RGB
-            imgpath (str): filename of the original developed image
-            cutout_num (int): unique number per image
-
-        Returns:
-            cutoutpath: used for saving information to mongodb
-        """
-        fname = f"{imgpath.stem}_{cutout_num}.png"
-        cutout_path = Path(self.cutoutdir, fname)
-        # return cutout_path
-        cv2.imwrite(str(cutout_path), cv2.cvtColor(cutout, cv2.COLOR_RGB2BGRA))
-        return cutout_path
-
-    def save_cutout_json(self, cutout, cutoutpath):
-        cutout_json_path = Path(
-            Path(cutoutpath).parent,
-            Path(cutoutpath).stem + ".json")
-        with open(cutout_json_path, 'w') as j:
-            json.dump(cutout, j, indent=4, default=str)
 
     def seperate_components(self, mask):
         """ Seperates multiple unconnected components in a mask
@@ -217,13 +171,6 @@ class SegmentVegetation:
         reduced_mask = reduce_holes(dil_erod_mask * 255) * 255
         return reduced_mask
 
-    def get_bboxmeta(self, path):
-        with open(path) as f:
-            j = json.load(f)
-
-            bbox_meta = BBoxMetadata(**j)
-        return bbox_meta
-
     def get_image_meta(self, path):
         with open(path) as f:
             j = json.load(f)
@@ -236,7 +183,6 @@ class SegmentVegetation:
         """ Main Processing pipeline. Reads images from list of labels in
             labeldir,             
         """
-        cutouts = []
         for label_set in tqdm(self.labels, desc="Segmenting Vegetation"):
             imgdata = self.get_image_meta(label_set)
             dt = datetime.strptime(imgdata.exif_meta.DateTime,
@@ -279,77 +225,45 @@ class SegmentVegetation:
 
                     new_cutout = apply_mask(preproc_cutout, mask2, "black")
                     new_cropped_cutout = crop_cutouts(new_cutout)
+
                     # Get regionprops
                     cutprops = GenCutoutProps(mask2).to_dataclass()
+
                     if type(cutprops.area) is not list and cutprops.area < 500:
                         continue
-                    cutout_path = self.save_cutout(new_cropped_cutout,
-                                                   Path(imgdata.image_path),
-                                                   cutout_num)
-                    cutrelpath = Path(cutout_path).relative_to(
-                        Path(cutout_path).parent.parent)
-                    # Save cutout ids for DB
-                    cutout_ids.append(cutout_path.stem)
 
                     # Create dataclass
-                    cutout = Cutout(data_root=self.data_root.name,
+                    cutout = Cutout(blob_home=self.blob_home.name,
+                                    data_root=self.cutout_dir.name,
                                     batch_id=self.batch_id,
-                                    site_id=self.site_id,
-                                    cutout_num=cutout_num,
-                                    cutout_path=str(cutrelpath),
                                     image_id=imgdata.image_id,
-                                    cutout_props=cutprops,
-                                    datetime=dt)
-                    cutouts.append(cutout)
-                    cutout_num += 1
-                    # Move cutout to database
-                    cutout = asdict(cutout)
-                    if self.db is not None:
-                        to_db(self.db, "Cutouts", cutout)
-                    self.save_cutout_json(cutout, cutout_path)
+                                    cutout_num=cutout_num,
+                                    datetime=dt,
+                                    cutout_props=asdict(cutprops)
+                                    #cutout_species=species_cls
+                                    )
+                    cutout.save_cutout(new_cropped_cutout)
+                    cutout.save_config(self.cutout_dir)
 
-            # To database
-            if self.db is not None:
-                imgdata.cutout_ids = cutout_ids
-                # imgdata.cutouts = cutouts
-                imgdata.image_path = str(
-                    Path(imgdata.image_path).relative_to(
-                        Path(imgdata.image_path).parent.parent))
-                imgdata = asdict(imgdata)
-                to_db(self.db, "Images", imgdata)
+                    cutout_ids.append(cutout.cutout_id)
+                    cutout_num += 1
+
             # To json
-            imgdata = asdict(imgdata)
-            jsparents = Path(self.data_root, self.batch_id, "metadata")
-            jsonpath = Path(jsparents, imgdata["image_id"] + ".json")
-            save_dataclass_json(imgdata, jsonpath)
+            imgdata.cutout_ids = cutout_ids
+            imgdata.save_config(self.metadata)
 
 
 def main(cfg: DictConfig) -> None:
     # Create batch metadata
-    data_root = str(Path(cfg.data.developeddir).name)
-    batch_id = str(Path(cfg.data.batchdir).name)
-    site_id = get_site_id(cfg.data.batchdir)
+    blob_home = Path(cfg.blob_storage.blobhome)
+    data_root = Path(cfg.data.developeddir)
+    batch_dir = Path(cfg.data.batchdir)
     upload_datetime = get_upload_datetime(cfg.data.batchdir)
 
-    batch = BatchMetadata(data_root=data_root,
-                          batch_id=batch_id,
-                          site_id=site_id,
-                          upload_datetime=upload_datetime)
-    batch = asdict(batch)
-    jsparents = Path(batch["blob_root"], data_root, batch_id)
-    jsonpath = Path(jsparents, batch_id + ".json")
-    save_dataclass_json(batch, jsonpath)
-
-    # Connect to database
-    if cfg.general.save_to_database:
-        db = Connect.get_connection()
-        db = getattr(db, cfg.general.db)
-
-        # To DB
-        to_db(db, "Batches", batch)
-        # Save To json
-    else:
-        db = None
+    BatchMetadata(blob_home=blob_home.name,
+                  data_root=data_root.name,
+                  batch_id=batch_dir.name,
+                  upload_datetime=upload_datetime).save_config()
 
     # Run pipeline
-    vegseg = SegmentVegetation(db, cfg)
+    SegmentVegetation(cfg)
