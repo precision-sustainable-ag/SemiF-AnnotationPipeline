@@ -393,12 +393,11 @@ class BBoxFilter:
 
 class BBoxMapper():
 
-    def __init__(self, images: List[ImageData], polygons=None):
+    def __init__(self, images: List[ImageData]):
         """Class to map bounding box coordinates from image cordinates
            to global coordinates
         """
         self.images = images
-        self.polygons = polygons
 
     def map(self):
         """
