@@ -661,7 +661,7 @@ class Cutout:
     cutout_path: str = field(init=False)
     species: str = None
     is_primary: bool = False
-    schema_version: str = "1.0"
+    schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self):
         self.cutout_id = self.image_id + "_" + str(self.cutout_num)
@@ -686,6 +686,7 @@ class Cutout:
             "cutout_path": self.cutout_path,
             "species": self.species,
             "cutout_num": self.cutout_num,
+            "is_primary": self.is_primary,
             "datetime": self.datetime,
             "cutout_props": self.cutout_props,
             "schema_version": self.schema_version
@@ -695,8 +696,8 @@ class Cutout:
 
     def save_config(self, save_path):
         try:
-            save_cutout_path = Path(save_path, self.batch_id,
-                                    self.cutout_id + ".json")
+            save_cutout_path = Path(self.blob_home, self.data_root,
+                                    self.batch_id, self.cutout_id + ".json")
             with open(save_cutout_path, "w") as f:
                 json.dump(self.config, f, indent=4, default=str)
         except Exception as e:
@@ -704,7 +705,8 @@ class Cutout:
         return True
 
     def save_cutout(self, cutout_array):
-        fname = f"{self.cutout_id}_{self.cutout_num}.png"
+
+        fname = f"{self.image_id}_{self.cutout_num}.png"
         cutout_path = Path(self.blob_home, self.data_root, self.batch_id,
                            fname)
         cv2.imwrite(str(cutout_path),
