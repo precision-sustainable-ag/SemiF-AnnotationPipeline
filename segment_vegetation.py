@@ -116,13 +116,12 @@ class SegmentVegetation:
                 # Removes false positives that are typically very small cutouts
                 if type(cutprops.area) is not list and cutprops.area < 500:
                     continue
-                cutout_id = imgdata.image_id + "_" + str(cutout_num)
+
                 # Create dataclass
                 cutout = Cutout(blob_home=self.blob_home.name,
                                 data_root=self.cutout_dir.name,
                                 batch_id=self.batch_id,
                                 image_id=imgdata.image_id,
-                                cutout_id=cutout_id,
                                 cutout_num=cutout_num,
                                 datetime=imgdata.exif_meta.DateTime,
                                 cutout_props=asdict(cutprops),

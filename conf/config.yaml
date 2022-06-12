@@ -53,7 +53,7 @@ detect:
   device: "cpu:0"
 
 segment:  # Segment Vegetation
-  multiprocess: False
+  multiprocess: True
   clear_border: True
   save_mask: False # Not implemented
   vi: exg
