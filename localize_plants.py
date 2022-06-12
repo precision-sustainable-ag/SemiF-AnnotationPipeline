@@ -1,15 +1,10 @@
 import logging
-from difflib import get_close_matches
 from pathlib import Path
 
 import cv2
-import hydra
 import pandas as pd
 import torch
 from omegaconf import DictConfig
-from tqdm import tqdm
-
-from semif_utils.utils import read_json, species_dict
 
 log = logging.getLogger(__name__)
 
@@ -34,7 +29,7 @@ def load_model(model_path, device):
     return model
 
 
-def inference(imgpath, model, species_map, save_detection=False):
+def inference(imgpath, model, save_detection=False):
     # Load images
     img = cv2.imread(imgpath)  #[..., ::-1]
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -45,7 +40,6 @@ def inference(imgpath, model, species_map, save_detection=False):
     # Add imgfilename to columns
     for i, row in df.iterrows():
         df.at[i, 'imgname'] = imgpath.name
-
     # return df, imgpath, crops
     if save_detection:
         return df, img, imgpath
