@@ -86,10 +86,10 @@ class GenCutoutProps:
         """
         self.mask = mask
 
-    def from_regprops_table(mask, connectivity=2):
+    def from_regprops_table(self, connectivity=2):
         """Generates list of region properties for each cutout mask
         """
-        labels = measure.label(mask, connectivity=connectivity)
+        labels = measure.label(self.mask, connectivity=connectivity)
         props = [measure.regionprops_table(labels, properties=CUTOUT_PROPS)]
         # Parse regionprops_table
         nprops = [parse_dict(d) for d in props][0]
@@ -103,13 +103,13 @@ class GenCutoutProps:
 
 class ClassifyMask:
 
-    def otsu(vi):
+    def otsu(self, vi):
         # Otsu's thresh
         vi_mask = otsu_thresh(vi)
         reduce_holes_mask = reduce_holes(vi_mask * 255) * 255
         return reduce_holes_mask
 
-    def kmeans(vi):
+    def kmeans(self, vi):
         vi_mask = make_kmeans(vi)
         reduce_holes_mask = reduce_holes(vi_mask * 255) * 255
 
@@ -133,6 +133,15 @@ class VegetationIndex:
     def ndi(self, img):
         ndi_vi = make_ndi(img)
         return ndi_vi
+
+
+def get_image_meta(path):
+    with open(path) as f:
+        j = json.load(f)
+        imgdata = from_dict(data_class=ImageData,
+                            data=j,
+                            config=Config(check_types=False))
+    return imgdata
 
 
 def thresh_vi(vi, low=20, upper=100, sigma=2):
@@ -166,3 +175,24 @@ def seperate_components(mask):
         filtered_mask[output == i + 1] = 255
         list_filtered_masks.append(filtered_mask)
     return list_filtered_masks
+
+
+def prep_bbox(box, scale):
+    box = rescale_bbox(box, scale)
+    x1, y1 = box.local_coordinates["top_left"]
+    x2, y2 = box.local_coordinates["bottom_right"]
+    x1, y1 = int(x1), int(y1)
+    x2, y2 = int(x2), int(y2)
+    return box, x1, y1, x2, y2
+
+
+def get_watershed(mask, disk1=1, grad1_thresh=12, disk2=10, lbl_fact=2.5):
+    # process the watershed
+    markers = rank.gradient(mask, disk(disk1)) < grad1_thresh
+    markers = ndi.label(markers)[0]
+    gradient = rank.gradient(mask, disk(disk2))
+    labels = watershed(gradient, markers)
+    seg1 = label(labels <= 0)
+    lbls = label2rgb(seg1, image=mask, bg_label=0) * lbl_fact
+    wtrshed_lbls = rescale_intensity(lbls, in_range=(0, 1), out_range=(0, 1))
+    return wtrshed_lbls
