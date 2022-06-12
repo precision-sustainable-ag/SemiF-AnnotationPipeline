@@ -1,7 +1,7 @@
-import math
 from typing import Dict, List
 
 import numpy as np
+import matplotlib.path as mplPath
 from scipy.spatial.transform import Rotation
 from semif_utils.datasets import BoxCoordinates, ImageData
 
@@ -392,9 +392,14 @@ class BBoxFilter:
                         box1.is_primary = False
 
 
+def inpolygon(point, polygon):
+    bb_path = mplPath.Path(np.array(polygon))
+    return bb_path.contains_point(point)
+
+
 class BBoxMapper():
 
-    def __init__(self, images: List[ImageData], polygons):
+    def __init__(self, images: List[ImageData], polygons=None):
         """Class to map bounding box coordinates from image cordinates
            to global coordinates
         """
@@ -434,4 +439,29 @@ class BBoxMapper():
                 bbox.update_global_coordinates(global_coordinates)
 
                 # Assign species
+                for polygon in self.polygons:
+                    
+                    # polygon_bbox is structured as [x_lower,y_lower,x_upper,y_upper]
+                    polygon_bbox = polygon.shape.bbox
+                    # Find if significant overlap
+                    horizontal = polygon_bbox[0] < bbox.global_centroid[0] and polygon_bbox[2] > bbox.global_centroid[0]
+                    vertical = polygon_bbox[1] < bbox.global_centroid[1] and polygon_bbox[3] > bbox.global_centroid[1]
 
+                    in_polygon_bbox = horizontal and vertical
+
+                    if in_polygon_bbox:
+                        # Find if in the polygon
+                        # Fix handling polygon with inner parts
+                        parts_in_polygon = polygon.shape.parts
+
+                        if len(parts_in_polygon)==1:
+                            polygon_points = polygon.shape.points
+                        else:
+                            polygon_points = polygon.shape.points[0:parts_in_polygon[1]]
+
+                        x, y = bbox.global_centroid[0], bbox.global_centroid[1]
+                        in_polygon = inpolygon((x,y),polygon_points)
+
+                        if in_polygon:
+                            bbox.assign_species(polygon.record["species"])
+                            break
