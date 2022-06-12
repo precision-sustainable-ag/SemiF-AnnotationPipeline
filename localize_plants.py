@@ -34,14 +34,6 @@ def load_model(model_path, device):
     return model
 
 
-def map_species(imgname, speciesmap):
-
-    row = f"row{imgname.split('_')[1]}"
-    species = speciesmap[row]
-    cls = SPECIES_CLASS[species]
-    return cls, species
-
-
 def inference(imgpath, model, species_map, save_detection=False):
     # Load images
     img = cv2.imread(imgpath)  #[..., ::-1]
@@ -53,8 +45,7 @@ def inference(imgpath, model, species_map, save_detection=False):
     # Add imgfilename to columns
     for i, row in df.iterrows():
         df.at[i, 'imgname'] = imgpath.name
-        df.at[i, 'imgname'] = imgpath.name
-        df.at[i, 'imgname'] = imgpath.name
+
     # return df, imgpath, crops
     if save_detection:
         return df, img, imgpath
@@ -71,8 +62,6 @@ def main(cfg: DictConfig) -> None:
     detectiondir = Path(batchdir, "autosfm")
     csv_savepath = Path(detectiondir, "detections.csv")
     device = cfg.detect.device
-    species_map = species_dict(cfg.data.species,
-                               Path(detectiondir, "species_map.csv"))
 
     if "cpu" in device:
         device = "cpu"
@@ -96,15 +85,11 @@ def main(cfg: DictConfig) -> None:
     for idx, imgp in enumerate(images):
         log.info(f"Running inference on {images[idx]}")
         if not save_detection:
-            df, imgpath = inference(imgp,
-                                    model,
-                                    species_map,
-                                    save_detection=save_detection)
+            df, imgpath = inference(imgp, model, save_detection=save_detection)
 
         if save_detection:
             df, img, imgpath = inference(imgp,
                                          model,
-                                         species_map,
                                          save_detection=save_detection)
             num = 0
             for row in df.itertuples():
