@@ -50,6 +50,7 @@ detect:
   save_detection: False
   detectioncropdir: ${general.imagedir} # Location to save detection crops
   device: "cpu:0"
+  shapefile_path: ${detect.detections_csv}/shapefiles/${general.batch_id}.shp
 
 segment:  # Segment Vegetation
   clear_border: True
