@@ -326,7 +326,7 @@ class BatchMetadata:
     def save_config(self):
         try:
             save_batch_path = Path(self.blob_home, self.data_root,
-                                   self.batch_id + ".json")
+                                   self.batch_id, self.batch_id + ".json")
             with open(save_batch_path, "w") as f:
                 json.dump(self.config, f, indent=4, default=str)
         except Exception as e:
@@ -390,64 +390,6 @@ class ImageMetadata:
     ApplicationNotes: Optional[str] = None
     Tag: Optional[int] = None
     SubIFDs: Optional[int] = None
-
-
-# @dataclass
-# class ImageMetadata:
-#     Make: typing.Any
-#     Model: typing.Any
-#     Orientation: typing.Any
-#     XResolution: typing.Any
-#     YResolution: typing.Any
-#     ResolutionUnit: typing.Any
-#     Software: typing.Any
-#     DateTime: typing.Any
-#     YCbCrPositioning: typing.Any
-#     PrintIM: typing.Any
-#     ExifOffset: typing.Any
-#     Compression: typing.Any
-#     JPEGInterchangeFormat: typing.Any
-#     JPEGInterchangeFormatLength: typing.Any
-#     ExposureTime: typing.Any
-#     FNumber: typing.Any
-#     ExposureProgram: typing.Any
-#     ISOSpeedRatings: typing.Any
-#     SensitivityType: typing.Any
-#     RecommendedExposureIndex: typing.Any
-#     ExifVersion: typing.Any
-#     DateTimeOriginal: typing.Any
-#     DateTimeDigitized: typing.Any
-#     OffsetTime: typing.Any
-#     OffsetTimeOriginal: typing.Any
-#     OffsetTimeDigitized: typing.Any
-#     ComponentsConfiguration: typing.Any
-#     CompressedBitsPerPixel: typing.Any
-#     BrightnessValue: typing.Any
-#     ExposureBiasValue: typing.Any
-#     MaxApertureValue: typing.Any
-#     MeteringMode: typing.Any
-#     LightSource: typing.Any
-#     Flash: typing.Any
-#     FocalLength: typing.Any
-#     FlashPixVersion: typing.Any
-#     ColorSpace: typing.Any
-#     ExifImageWidth: typing.Any
-#     ExifImageLength: typing.Any
-#     FileSource: typing.Any
-#     SceneType: typing.Any
-#     CustomRendered: typing.Any
-#     ExposureMode: typing.Any
-#     WhiteBalance: typing.Any
-#     DigitalZoomRatio: typing.Any
-#     FocalLengthIn35mmFilm: typing.Any
-#     SceneCaptureType: typing.Any
-#     Contrast: typing.Any
-#     Saturation: typing.Any
-#     Sharpness: typing.Any
-#     LensSpecification: typing.Any
-#     LensModel: typing.Any
-#     InteroperabilityIndex: typing.Any
-#     InteroperabilityOffset: typing.Any
 
 
 @dataclass

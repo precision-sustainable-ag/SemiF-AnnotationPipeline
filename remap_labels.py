@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 class RemapLabels:
 
     def __init__(self, cfg: DictConfig) -> None:
-
+        self.blob_home = cfg.blob_storage.blobhome
         self.developed_dir = Path(cfg.data.developeddir)  # data_root
         self.batch_dir = Path(cfg.data.batchdir)
         self.autosfmdir = Path(cfg.autosfm.autosfmdir)

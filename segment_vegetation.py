@@ -96,13 +96,12 @@ class SegmentVegetation:
         self.metadata = self.batchdir / "metadata"
         self.cutout_batch_dir = self.cutout_dir / self.batch_id
         self.labels = [x for x in (self.metadata).glob("*.json")]
-
-        if not self.cutout_batch_dir.exists():
-            self.cutout_batch_dir.mkdir(parents=True, exist_ok=True)
-
         self.clear_border = cfg.segment.clear_border
         self.vi = cfg.segment.vi
         self.class_algorithm = cfg.segment.class_algorithm
+
+        if not self.cutout_batch_dir.exists():
+            self.cutout_batch_dir.mkdir(parents=True, exist_ok=True)
 
         self.cutout_pipeline()
 

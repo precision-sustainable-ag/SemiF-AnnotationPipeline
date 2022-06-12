@@ -26,7 +26,7 @@ blob_names:
   model: semifield-models-trial
 
 blob_storage:
-  blobhome: ${general.workdir}/blob_storage # /home/azureuser
+  blobhome: ${general.workdir}/data # /home/azureuser
   uploaddir: ${blob_storage.blobhome}/${blob_names.upload}
   developeddir: ${blob_storage.blobhome}/${blob_names.developed}
   cutoutdir: ${blob_storage.blobhome}/${blob_names.cutout}
