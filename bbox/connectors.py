@@ -6,9 +6,9 @@ sys.path.append("..")
 
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pandas as pd
-import cv2
 from semif_utils.datasets import BBox, BoxCoordinates, CameraInfo, RemapImage
 from tqdm import tqdm
 
@@ -53,15 +53,18 @@ class BBoxComponents:
     """Reads bounding box coordinate files and converts to BBox class
     """
 
-    def __init__(self, camera_reference: pd.DataFrame, reader: Callable,
-                 image_dir, *args, **kwargs):
+    def __init__(self, blob_home, developed_dir, batch_dir, image_dir,
+                 camera_reference: pd.DataFrame, reader: Callable, *args,
+                 **kwargs):
+        self.blob_home = Path(blob_home)
+        self.developed_dir = Path(developed_dir)
+        self.batch_dir = Path(batch_dir)
+        self.image_dir = Path(image_dir)
+        self.batch_id = self.batch_dir.name
 
         self.camera_reference = camera_reference
         self.reader = reader
         self.image_list, self.bounding_boxes = self.reader(*args, **kwargs)
-        self.image_dir = Path(image_dir)
-        self.data_root = self.image_dir.parent.parent.name
-        self.batch_id = self.image_dir.parent.name
         self._bboxes = dict()
 
         self._images = []
@@ -177,12 +180,13 @@ class BBoxComponents:
                                       focal_length=focal_length,
                                       fov=fov)
 
-                image = RemapImage(data_root=self.data_root,
+                image = RemapImage(blob_home=self.blob_home.name,
+                                   data_root=self.developed_dir.name,
                                    batch_id=self.batch_id,
                                    image_path=path,
                                    image_id=image_id,
                                    bboxes=bboxes[image_id],
-                                   camera_info=cam_info, 
+                                   camera_info=cam_info,
                                    fullres_path=fullres_path)
                 # Set the full resolution height and width
                 if path != fullres_path:
@@ -192,7 +196,6 @@ class BBoxComponents:
                 # Scale the boounding box coordinates to pixel space
                 scale = np.array([image.width, image.height])
                 for bbox in image.bboxes:
-                    bbox.local_coordinates.set_scale(scale)
-                    bbox.set_local_centroid()
+                    bbox.set_local_scale(scale)
                 self._images.append(image)
         return self._images

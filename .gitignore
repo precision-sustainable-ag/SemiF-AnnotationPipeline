@@ -4,7 +4,7 @@
 #--------- Project Ignore ---------
 
 # Ignore everything in data except README and species json list (see below).
-data/*
+# data/*
 !data/README.md
 
 !data/semifield-developed-images-trial
@@ -24,6 +24,9 @@ exports/*
 
 # Outputs log files form hydra
 outputs
+
+#QGIS project files
+*.qgz
 
 # Hydra files
 .hydra
