@@ -18,7 +18,7 @@ def main(cfg: DictConfig) -> None:
     if(not ( len(raw_file_list) == len(jpg_file_list))):
         assert False, "Data is likely missing from the upload folder"
     
-    output_path = Path(cfg.data.batchdir, "images")
+    output_path = Path(cfg.blob_storage.developeddir, cfg.general.batch_id, "images")
     os.makedirs(output_path, exist_ok = True)
     
     dev_profile = "2022-04-12_NC_indoor.pp3"
