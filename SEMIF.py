@@ -5,6 +5,7 @@ import hydra
 from hydra.utils import get_method, get_original_cwd, to_absolute_path
 from omegaconf import DictConfig, OmegaConf
 
+import develop_images
 import auto_sfm
 import localize_plants  # Do not remove
 import remap_labels  # Do not remove

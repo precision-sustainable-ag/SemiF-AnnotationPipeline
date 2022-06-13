@@ -14,19 +14,25 @@ general:
   from_database: False
   db: test  # test, trial, WIR
   multitask: False
-  multitasks: [auto_sfm, localize_plants, remap_labels, segment_vegetation]
-  task: segment_vegetation  # auto_sfm, localize_plants, remap_labels, segment_vegetation
+  multitasks: [develop_images, auto_sfm, localize_plants, remap_labels, segment_vegetation]
+  task: develop_images  # auto_sfm, localize_plants, remap_labels, segment_vegetation
   workdir: ${hydra:runtime.cwd}  # where the code is executed
 
 data:
   datadir: ${general.workdir}/data
-  uploaddir: ${data.datadir}/semifield-upload-images-trial
-  developeddir: ${data.datadir}/semifield-developed-images-trial
+  uploaddir: ${data.datadir}/semifield-upload
+  utilsdir: ${data.datadir}/semifield-utils
+  developeddir: ${data.datadir}/semifield-developed-images
   batchdir: ${data.developeddir}/${general.batch_id} # Is overiden by shell script
-  cutoutdir: ${data.datadir}/semifield-cutouts-trial
-  synthdir: ${data.datadir}/semifield-synthetic-images-trial
-  modeldir: ${data.datadir}/semifield-models-trial
+  cutoutdir: ${data.datadir}/semifield-cutouts
+  rawbatchdir: ${data.uploaddir}/${general.batch_id}
+  synthdir: ${data.datadir}/semifield-synthetic-images
+  modeldir: ${data.datadir}/semifield-models
   logdir: ${general.workdir}/logs
+
+im_development:
+  color_profiles_dir: ${data.utilsdir}/image_development/color_profiles
+  dev_profiles_dir: ${data.utilsdir}/image_development/dev_profiles
 
 detect:
   model_path: ${data.modeldir}/plant_detector/best.pt
