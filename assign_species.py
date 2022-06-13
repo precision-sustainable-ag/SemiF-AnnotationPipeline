@@ -14,11 +14,12 @@ def inpolygon(point, polygon):
 
 def main(cfg: DictConfig) -> None:
 
-    shapefile_path = Path(cfg.detect.shapefile_path)
+    batch_id = cfg.general.batch_id
+    location = batch_id.split("_")[0]
+    shapefile_path = Path(cfg.data.utilsdir, location, "shapefiles", f"{location}.shp")
 
     # Read the shapefiles
-    file = Path(shapefile_path)
-    sf = shapefile.Reader(file)
+    sf = shapefile.Reader(shapefile_path)
     polygons = sf.shapeRecords()
     
     metadata_path = Path(cfg.data.batchdir, "metadata")
