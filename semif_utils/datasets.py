@@ -416,6 +416,9 @@ class Box:
     cls: str
     is_primary: bool
 
+    def assign_species(self, species):
+        self.cls = species
+
 
 @dataclass
 class BBoxFOV:
@@ -554,6 +557,10 @@ class ImageData(Image):
     fullres_height: int = -1
     fullres_width: int = -1
     schema_version: str = "1.0"
+
+    def __post_init__(self):
+        self.width = self.fullres_width
+        self.height = self.fullres_height
 
     @property
     def config(self):
