@@ -16,7 +16,7 @@ log = logging.getLogger(__name__)
 class RemapLabels:
 
     def __init__(self, cfg: DictConfig) -> None:
-        self.blob_home = Path(cfg.blob_storage.blobhome)
+        self.data_dir = Path(cfg.data.datadir)
         self.developed_dir = Path(cfg.data.developeddir)  # data_root
         self.batch_dir = Path(cfg.data.batchdir)
         self.autosfmdir = Path(cfg.autosfm.autosfmdir)
@@ -47,7 +47,7 @@ class RemapLabels:
 
         # Initialize the connector and get a list of all the images
         box_connector = BBoxComponents(
-            self.blob_home,
+            self.data_dir,
             self.developed_dir,
             self.batch_dir,
             self.image_dir,

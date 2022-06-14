@@ -22,7 +22,7 @@ class SegmentVegetation:
 
     def __init__(self, cfg: DictConfig) -> None:
 
-        self.blob_home = Path(cfg.blob_storage.blobhome)
+        self.data_dir = Path(cfg.data.datadir)
         self.cutout_dir = Path(cfg.data.cutoutdir)
         self.batchdir = Path(cfg.data.batchdir)
         self.batch_id = self.batchdir.name
@@ -118,7 +118,7 @@ class SegmentVegetation:
                     continue
 
                 # Create dataclass
-                cutout = Cutout(blob_home=self.blob_home.name,
+                cutout = Cutout(blob_home=self.data_dir.name,
                                 data_root=self.cutout_dir.name,
                                 batch_id=self.batch_id,
                                 image_id=imgdata.image_id,
@@ -163,12 +163,12 @@ def create_dataclasses(metadir):
 
 def main(cfg: DictConfig) -> None:
     # Create batch metadata
-    blob_home = Path(cfg.blob_storage.blobhome)
+    data_dir = Path(cfg.data.datadir)
     data_root = Path(cfg.data.developeddir)
     batch_dir = Path(cfg.data.batchdir)
     upload_datetime = get_upload_datetime(cfg.data.batchdir)
 
-    BatchMetadata(blob_home=blob_home.name,
+    BatchMetadata(blob_home=data_dir.name,
                   data_root=data_root.name,
                   batch_id=batch_dir.name,
                   upload_datetime=upload_datetime).save_config()

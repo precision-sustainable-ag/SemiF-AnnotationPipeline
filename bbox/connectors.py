@@ -53,10 +53,10 @@ class BBoxComponents:
     """Reads bounding box coordinate files and converts to BBox class
     """
 
-    def __init__(self, blob_home, developed_dir, batch_dir, image_dir,
+    def __init__(self, data_dir, developed_dir, batch_dir, image_dir,
                  camera_reference: pd.DataFrame, reader: Callable, *args,
                  **kwargs):
-        self.blob_home = Path(blob_home)
+        self.data_dir = Path(data_dir)
         self.developed_dir = Path(developed_dir)
         self.batch_dir = Path(batch_dir)
         self.image_dir = Path(image_dir)
@@ -180,7 +180,7 @@ class BBoxComponents:
                                       focal_length=focal_length,
                                       fov=fov)
 
-                image = RemapImage(blob_home=self.blob_home.name,
+                image = RemapImage(blob_home=self.data_dir.name,
                                    data_root=self.developed_dir.name,
                                    batch_id=self.batch_id,
                                    image_path=path,
