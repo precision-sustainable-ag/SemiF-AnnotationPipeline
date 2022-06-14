@@ -125,9 +125,8 @@ class SegmentVegetation:
                                 cutout_num=cutout_num,
                                 datetime=imgdata.exif_meta.DateTime,
                                 cutout_props=asdict(cutprops),
-                                is_primary=box.is_primary
-                                #cutout_species=species_cls
-                                )
+                                is_primary=box.is_primary,
+                                cls=box.cls)
                 cutout.save_cutout(new_cropped_cutout)
                 cutout.save_config(self.cutout_dir)
 
