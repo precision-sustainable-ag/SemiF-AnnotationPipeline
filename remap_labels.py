@@ -4,6 +4,7 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig
 from tqdm import tqdm
+import shapefile
 
 from bbox.bbox_transformations import BBoxFilter, BBoxMapper
 from bbox.connectors import BBoxComponents, SfMComponents

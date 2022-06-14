@@ -26,4 +26,11 @@ def main(cfg: DictConfig) -> None:
     dst = Path(cfg.blob_storage.cutoutdir, cfg.general.batch_id)
     shutil.copytree(src, dst)
 
+    # Copy the shapefiles if needed
+    location = cfg.general.batch_id.split("_")[0]
+    src = Path(cfg.data.utilsdir, location, "shapefiles")
+    dst = Path(Path(cfg.blob_storage.utilsdir, location, "shapefiles"))
+    if not dst.exists():
+        shutil.copytree(src, dst)
+
     # TODO: Copy synthetic images

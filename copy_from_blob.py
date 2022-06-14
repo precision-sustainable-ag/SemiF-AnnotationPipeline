@@ -27,3 +27,12 @@ def main(cfg: DictConfig) -> None:
         blob_model_path = Path(cfg.blob_storage.modeldir, "plant_detector", cfg.detect.model_filename)
         dst = Path(local_model_path)
         shutil.copy(blob_model_path, dst)
+
+    # Copy the shapefiles
+    location = batch_id.split("_")[0]
+    shapefile_path = Path(cfg.data.utilsdir, location, "shapefiles")
+    if not shapefile_path.exists():
+        src = Path(cfg.blob_storage.utilsdir, location, "shapefiles")
+        assert src.exists()
+        dst = shapefile_path
+        shutil.copytree(src, dst)
