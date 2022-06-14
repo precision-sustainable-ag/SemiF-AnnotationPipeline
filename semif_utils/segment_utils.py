@@ -66,12 +66,12 @@ def save_cutout_json(cutout, cutoutpath):
         json.dump(cutout, j, indent=4, default=str)
 
 
-def get_bboxmeta(path):
+def get_species_info(path, cls, default_species="grass"):
     with open(path) as f:
-        j = json.load(f)
-
-        bbox_meta = BBoxMetadata(**j)
-    return bbox_meta
+        spec_info = json.load(f)
+        spec_info = spec_info["species"][cls] if cls in spec_info[
+            "species"].keys() else default_species
+    return spec_info
 
 
 ################################################################
@@ -196,3 +196,49 @@ def get_watershed(mask, disk1=1, grad1_thresh=12, disk2=10, lbl_fact=2.5):
     lbls = label2rgb(seg1, image=mask, bg_label=0) * lbl_fact
     wtrshed_lbls = rescale_intensity(lbls, in_range=(0, 1), out_range=(0, 1))
     return wtrshed_lbls
+
+
+def species_info(speciesjson, default_species="grass"):
+    """Compares entries in user provided species map csv with those from a common 
+       species data model (json). Uses 'get_close_matches' to get the best match.
+       Is meant to create flexibility in how users are defining "species" in their
+       maps.s
+
+    Args:
+        speciesjson (str): json of common specie data model (data/species.json)
+        species_mapcsv (str): csv of user provided species map by row (data/developed/[batch_id]/autosfm/specie_map.csv)
+        default_species (str, optional): Defaults to "grass". For testing purposes, if species column is left blank,
+        or if 'get_close_matches' returns an empty list.
+
+    Returns:
+        updated_species_map: dictionary of "row:common name" key-value pairs
+    """
+
+    # get species map dictionary unique to batch
+
+    spec_map = df.set_index('row').T.to_dict("records")[0]
+    spec_map = eval(repr(spec_map).lower())
+    spec_map_copy = spec_map.copy()
+
+    # get species common names
+    species_data = read_json(speciesjson)
+    common_names = []
+    spec_idx = species_data["species"].keys()
+    common_name_list = [
+        species_data["species"][x]["common_name"] for x in spec_idx
+    ]
+    # Get copy species map to update
+    update_specmap = spec_map.copy()
+
+    # Compare each value in species map with common name list from species data
+    spec_dict = spec_map_copy["species"]
+    for row in spec_map:
+        comm_name = spec_map[row]
+        match = get_close_matches(comm_name, common_name_list, n=1)
+        comm_match = match if match else default_species
+
+        for x in spec_idx:
+            if species_data["species"][x]["common_name"] == comm_match:
+                species_data["species"][x]
+
+    return update_specmap

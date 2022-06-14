@@ -666,7 +666,7 @@ class Cutout:
     cutout_props: CutoutProps
     cutout_id: str = field(init=False)
     cutout_path: str = field(init=False)
-    species: str = None
+    cls: str = None
     is_primary: bool = False
     schema_version: str = SCHEMA_VERSION
 
@@ -691,7 +691,7 @@ class Cutout:
             "image_id": self.image_id,
             "cutout_id": self.cutout_id,
             "cutout_path": self.cutout_path,
-            "species": self.species,
+            "cls": self.cls,
             "cutout_num": self.cutout_num,
             "is_primary": self.is_primary,
             "datetime": self.datetime,
