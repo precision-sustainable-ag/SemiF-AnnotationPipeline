@@ -1,6 +1,8 @@
+import json
 import os
 import platform
 from datetime import datetime
+from difflib import get_close_matches
 from pathlib import Path
 
 import cv2
@@ -10,6 +12,18 @@ from PIL import Image
 from scipy import ndimage
 from skimage import morphology, segmentation
 from sklearn.cluster import KMeans
+
+######################################################
+################### GENERAL ##########################
+######################################################
+
+
+def read_json(path):
+    # Opening JSON file
+    with open(path) as json_file:
+        data = json.load(json_file)
+    return data
+
 
 ######################################################
 ################## GET METADATA ######################
@@ -158,10 +172,18 @@ def rescale_bbox(box, imgshape):
         box (dataclass): box metadata with scaled/updated bbox
     """
     scale = imgshape
-    box.local_coordinates["top_left"] = [c*s for c, s in zip(box.local_coordinates["top_left"], scale)]
-    box.local_coordinates["top_right"] = [c*s for c, s in zip(box.local_coordinates["top_right"], scale)]
-    box.local_coordinates["bottom_left"] = [c*s for c, s in zip(box.local_coordinates["bottom_left"], scale)]
-    box.local_coordinates["bottom_right"] = [c*s for c, s in zip(box.local_coordinates["bottom_right"], scale)]
+    box.local_coordinates["top_left"] = [
+        c * s for c, s in zip(box.local_coordinates["top_left"], scale)
+    ]
+    box.local_coordinates["top_right"] = [
+        c * s for c, s in zip(box.local_coordinates["top_right"], scale)
+    ]
+    box.local_coordinates["bottom_left"] = [
+        c * s for c, s in zip(box.local_coordinates["bottom_left"], scale)
+    ]
+    box.local_coordinates["bottom_right"] = [
+        c * s for c, s in zip(box.local_coordinates["bottom_right"], scale)
+    ]
     return box
 
 

@@ -2,11 +2,9 @@ import logging
 from pathlib import Path
 
 import cv2
-import hydra
 import pandas as pd
 import torch
 from omegaconf import DictConfig
-from tqdm import tqdm
 
 log = logging.getLogger(__name__)
 

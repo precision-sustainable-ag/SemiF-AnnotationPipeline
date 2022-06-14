@@ -1,5 +1,5 @@
-import shutil
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -22,7 +22,8 @@ def main(cfg: DictConfig) -> None:
     images_dst = Path(autosfm_storage, "developed")
     shutil.copytree(images_src, images_dst)
 
-    gcp_src = Path(cfg.data.uploaddir, cfg.general.batch_id, "GroundControlPoints.csv")
+    gcp_src = Path(cfg.data.uploaddir, cfg.general.batch_id,
+                   "GroundControlPoints.csv")
     shutil.copy(gcp_src, autosfm_storage)
 
     # Compose the command

@@ -1,7 +1,14 @@
-BATCHES="./blob_container/semifield-developed-images-trial/*/"
+BATCHES="./data/semifield-developed-images-trial/*/"
+
 for batch in $BATCHES
 do 
-    IMAGEDIR="${batch%/*}"
+    IMAGEDIR="$(basename $batch)"
+    # IMAGEDIR=$batch
     echo $IMAGEDIR
-    python SEMIF.py data.batchdir=$IMAGEDIR general.multitask=True general.multitasks="[segment_vegetation, synthesize]"
+    python SEMIF.py \
+    general.batch_id=$IMAGEDIR \
+    autosfm.metashape_key=asd \
+    general.multitask=True \
+    general.multitasks="[remap_labels, segment_vegetation]"
+    
 done

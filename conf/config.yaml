@@ -14,7 +14,7 @@ general:
   from_database: False
   db: test  # test, trial, WIR
   multitask: False
-  multitasks: [develop_images, copy_from_blob, auto_sfm, localize_plants, remap_labels, segment_vegetation, copy_products_to_blobs]
+  multitasks: [develop_images, copy_from_blob, auto_sfm, localize_plants, remap_labels, assign_species, segment_vegetation, copy_products_to_blobs]
   task: develop_images  # auto_sfm, localize_plants, remap_labels, segment_vegetation
   workdir: ${hydra:runtime.cwd}  # where the code is executed
 
@@ -25,10 +25,9 @@ blob_names:
   cutout: semifield-cutouts-trial
   synth: semifield-synthetic-images-trial
   model: semifield-models-trial
-  utils: semifield-utils-trial
 
 blob_storage:
-  blobhome: ${general.workdir}/blob_storage # /home/azureuser
+  blobhome: ${general.workdir}/data # /home/azureuser
   uploaddir: ${blob_storage.blobhome}/${blob_names.upload}
   developeddir: ${blob_storage.blobhome}/${blob_names.developed}
   rawbatchdir: ${blob_storage.developeddir}/${general.batch_id}
@@ -36,7 +35,6 @@ blob_storage:
   cutoutdir: ${blob_storage.blobhome}/${blob_names.cutout}
   synthdir: ${blob_storage.blobhome}/${blob_names.synth}
   modeldir: ${blob_storage.blobhome}/${blob_names.model}
-  utilsdir: ${blob_storage.blobhome}/${blob_names.utils}
 
 data:
   datadir: ${general.workdir}/data
@@ -48,6 +46,7 @@ data:
   modeldir: ${data.datadir}/${blob_names.model}
   utilsdir: ${data.datadir}/${blob_names.utils}
   logdir: ${general.workdir}/logs
+  species: ${data.utilsdir}/species_info.json # All species information
 
 im_development:
   color_profiles_dir: ${blob_storage.utilsdir}/image_development/color_profiles
@@ -62,6 +61,7 @@ detect:
   device: "cpu:0"
 
 segment:  # Segment Vegetation
+  multiprocess: True
   clear_border: True
   save_mask: False # Not implemented
   vi: exg
