@@ -58,3 +58,5 @@ SEMIF.log
 **__pycache __
 
 *.pyc
+
+*.vscode

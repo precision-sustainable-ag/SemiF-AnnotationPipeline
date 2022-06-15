@@ -2,7 +2,6 @@ import datetime
 import json
 import os
 import typing
-import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List, Optional, Union
@@ -10,20 +9,6 @@ from typing import List, Optional, Union
 import cv2
 import exifread
 import numpy as np
-
-from semif_utils.mongo_utils import Connect
-
-# Pot positioning
-sixpot = {
-    0: (1592, 1599),
-    1: (1592, 4796),
-    2: (1592, 7993),
-    3: (4776, 1599),
-    4: (4776, 4796),
-    5: (4776, 7993)
-}
-
-POTMAPS = [sixpot]
 
 SCHEMA_VERSION = "1.0"
 
@@ -547,7 +532,7 @@ class RemapImage(Image):
 
 @dataclass
 class ImageData(Image):
-    """ Dataclass for segmentation and synthetic data generation"""
+    """ Dataclass for segmentation data generation"""
 
     width: int
     height: int
@@ -719,163 +704,6 @@ class Cutout:
         cv2.imwrite(str(cutout_path),
                     cv2.cvtColor(cutout_array, cv2.COLOR_RGB2BGRA))
         return True
-
-
-# Synthetic Data Generation -------------------------------------------------------------------------
-
-
-@dataclass
-class Pot:
-    # TODO complete attributes
-    pot_path: str
-    pot_id: uuid = None
-
-    def __post_init__(self):
-        self.pot_id = uuid.uuid4()
-
-    @property
-    def array(self):
-        # Read the image from the file and return the numpy array
-        pot_array = cv2.imread(self.pot_path, cv2.IMREAD_UNCHANGED)
-        pot_array = np.ascontiguousarray(
-            cv2.cvtColor(pot_array, cv2.COLOR_BGR2RGBA))
-        return pot_array
-
-
-@dataclass
-class Background:
-    # TODO complete attributes
-    background_path: str
-    background_id: uuid = None
-
-    def __post_init__(self):
-        self.background_id = uuid.uuid4()
-
-    @property
-    def array(self):
-        # Read the image from the file and return the numpy array
-        background_array = cv2.imread(self.background_path)
-        background_array = np.ascontiguousarray(
-            cv2.cvtColor(background_array, cv2.COLOR_BGR2RGB))
-        return background_array
-
-
-@dataclass
-class SynthImage:
-    data_root: str
-    synth_path: str
-    synth_maskpath: str
-    pots: list[Pot]
-    background: Background
-    cutouts: list[Cutout]
-    synth_id: str = field(init=False)
-
-    def __post_init__(self):
-        self.synth_id = uuid.uuid4()
-
-
-@dataclass
-class SynthDataContainer:
-    """Combines documents in a database with items in a directory to form data container for generating synthetic bench images. Includes lists of dataclasses for cutouts, pots, and backgrounds.
-    
-    Args:
-        datadir (Path): Parent directory that should contain "cutouts", "pots", and "backgrounds".
-        cutouts list[Cutouts]: list of Cutout dataclasses
-        pots list[Pot]: list of Pot dataclasses
-        backs list[Background]: list of Background dataclasses
-
-    Returns:
-        data_container (object): Dataclass with Cutouts, Pots, and Backgrounds itemized in a mongoDB.
-    """
-    synthdir: str
-    db_db: str = None
-    from_db: bool = True
-    background_dir: str = None
-    pot_dir: str = None
-    cutout_dir: str = None
-    cutouts: list[Cutout] = field(init=False, default=None)
-    pots: list[Pot] = field(init=False, default=None)
-    backgrounds: list[Background] = field(init=False, default=None)
-
-    def __post_init__(self):
-        self.backgrounds = self.get_dcs("Backgrounds")
-        self.pots = self.get_dcs("Pots")
-        self.cutouts = self.get_dcs("Cutouts")
-
-    def get_data_from_json(self, jsun):
-        """ Open json and create dictionary
-        """
-        # Opening JSON file
-        with open(jsun) as json_file:
-            data = json.load(json_file)
-        return data
-
-    def get_jsons(self, collection):
-        """ Gets json files
-        """
-        datas = []
-        collection = collection.lower().rstrip(collection[-1])
-        collection_dir = collection + "_dir"
-        if collection == "cutout":
-            jsondir = Path(self.cutout_dir, getattr(self, collection_dir))
-            jsons = jsondir.glob("*.json")
-            jsons = [x for x in jsons]
-        else:
-            jsons = Path(self.synthdir, getattr(self,
-                                                collection_dir)).glob("*.json")
-        jsons = [x for x in jsons]
-        for jsun in jsons:
-            data = self.get_data_from_json(jsun)
-            datas.append(data)
-        return datas
-
-    def query_db(self, db_collection):
-        connection = Connect.get_connection()
-        db = getattr(connection, self.db_db)
-        cursor = getattr(db, db_collection).find()
-        return cursor
-
-    def get_dcs(self, collection_str):
-        """Connnects documents in a database collection with items in a directory.
-        Places connected items in a list of dataclasses.
-        """
-        syn_datacls = {"cutout": Cutout, "pot": Pot, "background": Background}
-        if self.from_db:
-            cursor = self.query_db(collection_str.title())
-        else:
-            cursor = self.get_jsons(collection_str)
-
-        if collection_str == "Cutouts":
-            docdir = Path(self.cutout_dir).parent
-        else:
-            docdir = Path(self.synthdir)
-
-        path_str_ws = collection_str.lower().replace("s", "")
-        path_str = f"{path_str_ws}_path"
-
-        docs = []
-        for doc in cursor:
-            doc_path = docdir / doc[path_str]
-            doc[path_str] = str(doc_path)
-
-            assert Path(doc_path).exists(
-            ), f"Image with path {str(doc_path)} does not exist."
-
-            # Clean up doc and json by removoing _id from db
-            if "_id" in doc:
-                doc.pop("_id")
-            if "cutout_id" in doc:
-                cut_id = doc["cutout_id"]
-                doc.pop("cutout_id")
-
-            data_cls = syn_datacls[path_str_ws]
-            dc = data_cls(**doc)
-            if hasattr(dc, "cutout_id"):
-                dc.cutout_id = cut_id
-
-            docs.append(dc)
-
-        return docs
 
 
 # GLOBALS -------------------------------------------------------------------------

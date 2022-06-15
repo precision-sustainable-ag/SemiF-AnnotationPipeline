@@ -1,5 +1,4 @@
 defaults:
-  - synth: synth
   - autosfm: autosfm
   - _self_
 
@@ -23,7 +22,6 @@ blob_names:
   developed: semifield-developed-images
   utils: semifield-utils
   cutout: semifield-cutouts-trial
-  synth: semifield-synthetic-images-trial
   model: semifield-models-trial
 
 blob_storage:
@@ -33,7 +31,6 @@ blob_storage:
   rawbatchdir: ${blob_storage.developeddir}/${general.batch_id}
   utilsdir: ${blob_storage.blobhome}/${blob_names.utils}
   cutoutdir: ${blob_storage.blobhome}/${blob_names.cutout}
-  synthdir: ${blob_storage.blobhome}/${blob_names.synth}
   modeldir: ${blob_storage.blobhome}/${blob_names.model}
 
 data:
@@ -42,7 +39,6 @@ data:
   developeddir: ${data.datadir}/${blob_names.developed}
   batchdir: ${data.developeddir}/${general.batch_id} # Is overiden by shell script
   cutoutdir: ${data.datadir}/${blob_names.cutout}
-  synthdir: ${data.datadir}/${blob_names.synth}
   modeldir: ${data.datadir}/${blob_names.model}
   utilsdir: ${data.datadir}/${blob_names.utils}
   logdir: ${general.workdir}/logs
