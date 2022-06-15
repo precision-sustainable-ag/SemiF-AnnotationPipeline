@@ -6,6 +6,7 @@ sys.path.append("..")
 
 from pathlib import Path
 
+import cv2
 import numpy as np
 import pandas as pd
 from semif_utils.datasets import BBox, BoxCoordinates, CameraInfo, RemapImage
@@ -52,15 +53,18 @@ class BBoxComponents:
     """Reads bounding box coordinate files and converts to BBox class
     """
 
-    def __init__(self, camera_reference: pd.DataFrame, reader: Callable,
-                 image_dir, *args, **kwargs):
+    def __init__(self, data_dir, developed_dir, batch_dir, image_dir,
+                 camera_reference: pd.DataFrame, reader: Callable, *args,
+                 **kwargs):
+        self.data_dir = Path(data_dir)
+        self.developed_dir = Path(developed_dir)
+        self.batch_dir = Path(batch_dir)
+        self.image_dir = Path(image_dir)
+        self.batch_id = self.batch_dir.name
 
         self.camera_reference = camera_reference
         self.reader = reader
         self.image_list, self.bounding_boxes = self.reader(*args, **kwargs)
-        self.image_dir = Path(image_dir)
-        self.data_root = self.image_dir.parent.parent.name
-        self.batch_id = self.image_dir.parent.name
         self._bboxes = dict()
 
         self._images = []
@@ -91,11 +95,8 @@ class BBoxComponents:
             self._bboxes[image_id] = boxes
 
     def get_fov(self, image_id):
-        adj_image_id = "_".join(image_id.split("_")[:-1])
-        image_id = adj_image_id.replace("NC_", "row")
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
-
         top_left_x = float(row.loc[0, "top_left_x"])
         top_left_y = float(row.loc[0, "top_left_y"])
 
@@ -118,8 +119,6 @@ class BBoxComponents:
         return fov
 
     def get_camera_location(self, image_id):
-        adj_image_id = "_".join(image_id.split("_")[:-1])
-        image_id = adj_image_id.replace("NC_", "row")
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
         camera_x = float(row.loc[0, "Estimated_X"])
@@ -129,8 +128,6 @@ class BBoxComponents:
         return [camera_x, camera_y, camera_z]
 
     def get_pixel_dims(self, image_id):
-        adj_image_id = "_".join(image_id.split("_")[:-1])
-        image_id = adj_image_id.replace("NC_", "row")
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
         pixel_width = float(row.loc[0, "pixel_width"])
@@ -139,8 +136,6 @@ class BBoxComponents:
         return pixel_width, pixel_height
 
     def get_orientation_angles(self, image_id):
-        adj_image_id = "_".join(image_id.split("_")[:-1])
-        image_id = adj_image_id.replace("NC_", "row")
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
         yaw = float(row.loc[0, "Estimated_Yaw"])
@@ -150,8 +145,6 @@ class BBoxComponents:
         return yaw, pitch, roll
 
     def get_focal_length(self, image_id):
-        adj_image_id = "_".join(image_id.split("_")[:-1])
-        image_id = adj_image_id.replace("NC_", "row")
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
         focal_length = float(row.loc[0, "f"])
@@ -169,10 +162,10 @@ class BBoxComponents:
         if not self._images:
             bboxes = self.bboxes
             for image in tqdm(self.image_list,
-                              desc="Remapping bbox coordinates",
-                              colour="blue"):
+                              desc="Remapping bbox coordinates"):
                 image_id = image["id"]
                 path = image["path"]
+                fullres_path = image["fullres_path"]
                 fov = self.get_fov(image_id)
                 camera_location = self.get_camera_location(image_id)
                 pixel_width, pixel_height = self.get_pixel_dims(image_id)
@@ -187,17 +180,22 @@ class BBoxComponents:
                                       focal_length=focal_length,
                                       fov=fov)
 
-                image = RemapImage(data_root=self.data_root,
+                image = RemapImage(blob_home=self.data_dir.name,
+                                   data_root=self.developed_dir.name,
                                    batch_id=self.batch_id,
                                    image_path=path,
                                    image_id=image_id,
                                    bboxes=bboxes[image_id],
-                                   camera_info=cam_info)
+                                   camera_info=cam_info,
+                                   fullres_path=fullres_path)
+                # Set the full resolution height and width
+                if path != fullres_path:
+                    _image = cv2.imread(str(fullres_path))
+                    fullres_height, fullres_width = _image.shape[:2]
+                    image.set_fullres_dims(fullres_width, fullres_height)
                 # Scale the boounding box coordinates to pixel space
-                scale = np.array([image.width, image.height
-                                  ])  # Not needed. bbox are in original scale
+                scale = np.array([image.width, image.height])
                 for bbox in image.bboxes:
-                    bbox.local_coordinates.set_scale(scale)
-                    bbox.set_local_centroid()
+                    bbox.set_local_scale(scale)
                 self._images.append(image)
         return self._images

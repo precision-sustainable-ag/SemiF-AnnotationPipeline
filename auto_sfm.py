@@ -1,3 +1,4 @@
+import os
 import shutil
 import subprocess
 from pathlib import Path
@@ -14,6 +15,16 @@ def main(cfg: DictConfig) -> None:
 
     with open(save_file, "w") as f:
         yaml.dump(autosfm_config, f)
+
+    # Copy the developed images to a compatible location
+    images_src = Path(cfg.data.batchdir, "images")
+    autosfm_storage = Path(cfg.autosfm.autosfm_storage, cfg.general.batch_id)
+    images_dst = Path(autosfm_storage, "developed")
+    shutil.copytree(images_src, images_dst)
+
+    gcp_src = Path(cfg.data.uploaddir, cfg.general.batch_id,
+                   "GroundControlPoints.csv")
+    shutil.copy(gcp_src, autosfm_storage)
 
     # Compose the command
     exe_command = f"docker run \
@@ -34,5 +45,8 @@ def main(cfg: DictConfig) -> None:
 
     # Copy the exports to the desired location
     export_src = Path(cfg.autosfm.autosfm_exports, cfg.general.batch_id)
-    export_dst = Path(cfg.general.batchdir, "autosfm")
+    export_dst = Path(cfg.data.batchdir, "autosfm")
     shutil.move(export_src, export_dst)
+
+    # Remove the temp storage
+    shutil.rmtree(autosfm_storage)

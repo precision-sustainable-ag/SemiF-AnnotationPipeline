@@ -4,11 +4,19 @@
 #--------- Project Ignore ---------
 
 # Ignore everything in data except README and species json list (see below).
-blob_container/*/**
-data/*
-!data/**.json
-blob_container
+# data/*
+!data/README.md
+!data/species.json
+!data/semifield-developed-images-trial
+!data/semifield-upload-trial
+!data/semifield-cutouts-trial
+!data/semifield-synthetic-images-trial
+!data/semifield-models-trial
 
+Assets/NC*
+Assets/updates*
+Assets/ORTHO*
+*.qgz
 # Ignore everything in models dir except readme
 models/*
 
@@ -20,6 +28,9 @@ exports/*
 
 # Outputs log files form hydra
 outputs
+
+#QGIS project files
+*.qgz
 
 # Hydra files
 .hydra

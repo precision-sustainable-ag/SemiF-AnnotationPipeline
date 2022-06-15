@@ -4,10 +4,12 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig
 from tqdm import tqdm
+import shapefile
 
 from bbox.bbox_transformations import BBoxFilter, BBoxMapper
 from bbox.connectors import BBoxComponents, SfMComponents
 from bbox.io_utils import ParseXML, ParseYOLOCsv
+from semif_utils.utils import rescale_bbox
 
 log = logging.getLogger(__name__)
 
@@ -15,18 +17,20 @@ log = logging.getLogger(__name__)
 class RemapLabels:
 
     def __init__(self, cfg: DictConfig) -> None:
-        self.asfm_root = Path(cfg.autosfm.autosfmdir)
-        self.reference_path = self.asfm_root
-        self.batchdir = Path(cfg.data.batchdir)
-        self.metadata = Path(self.batchdir, "metadata")
-        self.reference = Path(self.batchdir, "autosfm")
-        self.raw_label = self.reference / "detections.csv"
+        self.data_dir = Path(cfg.data.datadir)
+        self.developed_dir = Path(cfg.data.developeddir)  # data_root
+        self.batch_dir = Path(cfg.data.batchdir)
+        self.autosfmdir = Path(cfg.autosfm.autosfmdir)
+        self.metadata = self.batch_dir / "metadata"
+        self.reference = self.autosfmdir / "reference"
+        self.raw_label = self.autosfmdir / "detections.csv"
+        self.downscaled = cfg.autosfm.autosfm_config.downscale.enabled
 
-        if cfg.autosfm.autosfm_config.downscale.enabled:
-            self.image_dir = Path(cfg.data.batchdir, "autosfm",
-                                  "downscaled_photos")
+        if self.downscaled:
+            self.image_dir = self.autosfmdir / "downscaled_photos"
         else:
-            self.image_dir = Path(self.batchdir, "images")
+            self.image_dir = self.batch_dir / "images"
+        self.fullres_image_path = self.batch_dir / "images"
 
     @property
     def camera_reference(self):
@@ -39,11 +43,19 @@ class RemapLabels:
         # Initialize the reader which will read the annotation files and convert the bounding
         # boxes to the desired format
         reader = ParseYOLOCsv(image_path=self.image_dir,
-                              label_path=self.raw_label)
+                              label_path=self.raw_label,
+                              fullres_image_path=self.fullres_image_path)
 
         # Initialize the connector and get a list of all the images
-        box_connector = BBoxComponents(self.camera_reference, reader,
-                                       self.image_dir, self.raw_label)
+        box_connector = BBoxComponents(
+            self.data_dir,
+            self.developed_dir,
+            self.batch_dir,
+            self.image_dir,
+            self.camera_reference,
+            reader,
+            self.raw_label,
+            fullres_image_path=self.fullres_image_path)
         log.info("Fetching image metadata.")
         imgs = box_connector.images
         # Map the bounding boxes from local coordinates to global coordinate system
@@ -54,6 +66,7 @@ class RemapLabels:
         for img in imgs:
             for box in img.bboxes:
                 try:
+                    # box = rescale_bbox(box, 0)
                     assert len(box._overlapping_bboxes) == 0
                 except AssertionError as e:
                     log.debug("Mapping failed> Reason: {}".format(str(e)))
@@ -72,7 +85,7 @@ class RemapLabels:
         for img in imgs:
 
             Path(self.metadata).mkdir(parents=True, exist_ok=True)
-            img.image_path = "/".join(Path(img.image_path).parts[-2:])
+            img.image_path = Path("images", Path(img.image_path).name)
             img.save_config(self.metadata)
         log.info("Saving complete.")
         return imgs
@@ -81,4 +94,3 @@ class RemapLabels:
 def main(cfg: DictConfig) -> None:
     rmpl = RemapLabels(cfg)
     imgs = rmpl.remap_labels()
-    # TODO save to database

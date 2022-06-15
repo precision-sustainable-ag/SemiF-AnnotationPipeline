@@ -1,0 +1,6 @@
+# Ignore everything
+*
+
+# Except this
+!.gitignore
+!plant_detector/

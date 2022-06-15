@@ -2,11 +2,9 @@ import logging
 from pathlib import Path
 
 import cv2
-import hydra
 import pandas as pd
 import torch
 from omegaconf import DictConfig
-from tqdm import tqdm
 
 log = logging.getLogger(__name__)
 
@@ -78,10 +76,7 @@ def main(cfg: DictConfig) -> None:
     # Get images
     dfimgs = []
 
-    for idx, imgp in tqdm(enumerate(images),
-                          desc="Localizing Plants",
-                          colour="#9266c4",
-                          total=len(images)):
+    for idx, imgp in enumerate(images):
         log.info(f"Running inference on {images[idx]}")
         if not save_detection:
             df, imgpath = inference(imgp, model, save_detection=save_detection)

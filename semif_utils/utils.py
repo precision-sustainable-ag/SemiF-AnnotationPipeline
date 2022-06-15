@@ -1,6 +1,8 @@
+import json
 import os
 import platform
 from datetime import datetime
+from difflib import get_close_matches
 from pathlib import Path
 
 import cv2
@@ -10,6 +12,18 @@ from PIL import Image
 from scipy import ndimage
 from skimage import morphology, segmentation
 from sklearn.cluster import KMeans
+
+######################################################
+################### GENERAL ##########################
+######################################################
+
+
+def read_json(path):
+    # Opening JSON file
+    with open(path) as json_file:
+        data = json.load(json_file)
+    return data
+
 
 ######################################################
 ################## GET METADATA ######################
@@ -138,6 +152,39 @@ def make_ndi(rgb_img):
     # print("Min ndi: ", ndi.min())
 
     return ndi
+
+
+######################################################
+###################### BBOX ##########################
+######################################################
+
+
+def rescale_bbox(box, imgshape):
+    # TODO change
+    """Rescales local bbox coordinates, that were first scaled to "downscaled_photo" size (height=3184, width=4796),
+       to original image size (height=6368, width=9592). Takes in and returns "Box" dataclass.
+
+    Args:
+        box (dataclass): box metedata from bboxes from image metadata
+        imgshape: np.ndarray: dimensions of the image to be scaled to (widt, height)
+    
+    Returns:
+        box (dataclass): box metadata with scaled/updated bbox
+    """
+    scale = imgshape
+    box.local_coordinates["top_left"] = [
+        c * s for c, s in zip(box.local_coordinates["top_left"], scale)
+    ]
+    box.local_coordinates["top_right"] = [
+        c * s for c, s in zip(box.local_coordinates["top_right"], scale)
+    ]
+    box.local_coordinates["bottom_left"] = [
+        c * s for c, s in zip(box.local_coordinates["bottom_left"], scale)
+    ]
+    box.local_coordinates["bottom_right"] = [
+        c * s for c, s in zip(box.local_coordinates["bottom_right"], scale)
+    ]
+    return box
 
 
 ######################################################
