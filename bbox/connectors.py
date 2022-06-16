@@ -1,6 +1,7 @@
 import os
 import sys
 from typing import Callable
+from multiprocessing import Pool, cpu_count
 
 sys.path.append("..")
 
@@ -54,13 +55,14 @@ class BBoxComponents:
     """
 
     def __init__(self, data_dir, developed_dir, batch_dir, image_dir,
-                 camera_reference: pd.DataFrame, reader: Callable, *args,
-                 **kwargs):
+                 camera_reference: pd.DataFrame, reader: Callable, multiprocessing: bool, 
+                 *args, **kwargs):
         self.data_dir = Path(data_dir)
         self.developed_dir = Path(developed_dir)
         self.batch_dir = Path(batch_dir)
         self.image_dir = Path(image_dir)
         self.batch_id = self.batch_dir.name
+        self.multiprocessing = multiprocessing
 
         self.camera_reference = camera_reference
         self.reader = reader
@@ -157,45 +159,59 @@ class BBoxComponents:
             self.convert_bboxes()
         return self._bboxes
 
+    def _fetch_image_metadata(self, image):
+
+        image_id = image["id"]
+        path = image["path"]
+        fullres_path = image["fullres_path"]
+        fov = self.get_fov(image_id)
+        camera_location = self.get_camera_location(image_id)
+        pixel_width, pixel_height = self.get_pixel_dims(image_id)
+        yaw, pitch, roll = self.get_orientation_angles(image_id)
+        focal_length = self.get_focal_length(image_id)
+        cam_info = CameraInfo(camera_location=camera_location,
+                                pixel_width=pixel_width,
+                                pixel_height=pixel_height,
+                                yaw=yaw,
+                                pitch=pitch,
+                                roll=roll,
+                                focal_length=focal_length,
+                                fov=fov)
+
+        remap_image = RemapImage(blob_home=self.data_dir.name,
+                            data_root=self.developed_dir.name,
+                            batch_id=self.batch_id,
+                            image_path=path,
+                            image_id=image_id,
+                            bboxes=self.bboxes[image_id],
+                            camera_info=cam_info,
+                            fullres_path=fullres_path)
+        # Set the full resolution height and width
+        if path != fullres_path:
+            _image = cv2.imread(str(fullres_path))
+            fullres_height, fullres_width = _image.shape[:2]
+            remap_image.set_fullres_dims(fullres_width, fullres_height)
+        # Scale the boounding box coordinates to pixel space
+        scale = np.array([remap_image.width, remap_image.height])
+        for bbox in remap_image.bboxes:
+            bbox.set_local_scale(scale)
+
+        return remap_image
+
     @property
     def images(self):
         if not self._images:
-            bboxes = self.bboxes
-            for image in tqdm(self.image_list,
-                              desc="Remapping bbox coordinates"):
-                image_id = image["id"]
-                path = image["path"]
-                fullres_path = image["fullres_path"]
-                fov = self.get_fov(image_id)
-                camera_location = self.get_camera_location(image_id)
-                pixel_width, pixel_height = self.get_pixel_dims(image_id)
-                yaw, pitch, roll = self.get_orientation_angles(image_id)
-                focal_length = self.get_focal_length(image_id)
-                cam_info = CameraInfo(camera_location=camera_location,
-                                      pixel_width=pixel_width,
-                                      pixel_height=pixel_height,
-                                      yaw=yaw,
-                                      pitch=pitch,
-                                      roll=roll,
-                                      focal_length=focal_length,
-                                      fov=fov)
 
-                image = RemapImage(blob_home=self.data_dir.name,
-                                   data_root=self.developed_dir.name,
-                                   batch_id=self.batch_id,
-                                   image_path=path,
-                                   image_id=image_id,
-                                   bboxes=bboxes[image_id],
-                                   camera_info=cam_info,
-                                   fullres_path=fullres_path)
-                # Set the full resolution height and width
-                if path != fullres_path:
-                    _image = cv2.imread(str(fullres_path))
-                    fullres_height, fullres_width = _image.shape[:2]
-                    image.set_fullres_dims(fullres_width, fullres_height)
-                # Scale the boounding box coordinates to pixel space
-                scale = np.array([image.width, image.height])
-                for bbox in image.bboxes:
-                    bbox.set_local_scale(scale)
-                self._images.append(image)
+            if self.multiprocessing:
+                n_processes = cpu_count()
+                with Pool(processes=n_processes) as p:
+                    _images = list(tqdm(p.imap(self._fetch_image_metadata, self.image_list), 
+                                               desc="Fetching Image metadata and creating RemapImage", 
+                                               total=len(self.image_list)))
+                self._images = _images
+            else:
+                for image in tqdm(self.image_list,
+                                desc="Fetching Image metadata and creating RemapImage"):
+                    remap_image = self._fetch_image_metadata(image)
+                    self._images.append(remap_image)
         return self._images
