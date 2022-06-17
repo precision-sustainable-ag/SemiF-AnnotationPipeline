@@ -54,6 +54,7 @@ class RemapLabels:
             self.image_dir,
             self.camera_reference,
             reader,
+            True,
             self.raw_label,
             fullres_image_path=self.fullres_image_path)
         log.info("Fetching image metadata.")
