@@ -5,17 +5,18 @@
 
 # TODOs
 
-1. Create cron job for processing batches dynamically (updating a list of processed batches)
-2. Test full pipeline in VM
-3. Automate image development process
-4. ~~Automate autoSfM results and pipeline triggering~~
-5. ~~Update synth data generation code~~
-6. ~~merge autoSfM with synth data generation~~
-7. ~~Move inferencing to CPU if no GPU in `localize_plants`~~
-8.  ~~Get unique bbox for cutouts in `segment_vegetation`~~
-9.  ~~rescale local bbox to original image size and not downscaled_photos~~
-10. Filter cutouts to eliminate very small results in `segment_vegetation`
-11. Generate new pot maps for synth data
+1. Test full pipeline in VM
+2. Improve docs
+3. Develop evaluation method
+5. ~~Create cron job for processing batches dynamically (updating a list of processed batches)~~
+6. ~~Automate image development process~~
+7. ~~Automate autoSfM results and pipeline triggering~~
+8. ~~Update synth data generation code~~
+9. ~~merge autoSfM with synth data generation~~
+10. ~~Move inferencing to CPU if no GPU in `localize_plants`~~
+11.  ~~Get unique bbox for cutouts in `segment_vegetation`~~
+12.  ~~rescale local bbox to original image size and not downscaled_photos~~
+13. ~~Filter cutouts to eliminate very small results in `segment_vegetation`~~
 
 <br>
 
@@ -48,12 +49,11 @@ python SEMIF.py general.batch_id=<batch_id> \
                 general.vi=exg \
                 general.clear_border=True \
                 autosfm.metashape_key=<metashape_key>
-conda env create --file=environment.yml
 ```
 
 Note that the ```metashape_key``` isn't currently required, and hence can be replaced with any random string. The key will be required after August 2022.
 
-The ```general.batch_id``` and ~~```autosfm.metashape_key```~~ are mandatory fields.
+The ```general.batch_id``` and ```autosfm.metashape_key``` are mandatory fields.
 
 <br>
 
