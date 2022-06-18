@@ -8,8 +8,6 @@ def main(cfg: DictConfig) -> None:
 
     batch_ids = cfg.maintenance.batch_ids
 
-    print(batch_ids)
-
     for batch_id in batch_ids:
 
         # Remove upload
