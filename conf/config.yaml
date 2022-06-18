@@ -1,5 +1,6 @@
 defaults:
   - autosfm: autosfm
+  - maintenance: maintenance
   - _self_
 
 hydra:
@@ -21,8 +22,8 @@ blob_names:
   upload: semifield-upload-images
   developed: semifield-developed-images
   utils: semifield-utils
-  cutout: semifield-cutouts-trial
-  model: semifield-models-trial
+  cutout: semifield-cutouts
+  model: semifield-models
 
 blob_storage:
   blobhome: ${general.workdir}/data # /home/azureuser
