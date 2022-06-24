@@ -26,7 +26,7 @@ blob_names:
   model: semifield-models
 
 blob_storage:
-  blobhome: ${general.workdir}/data # /home/azureuser
+  blobhome: ${general.workdir}/blob_storage # /home/azureuser
   uploaddir: ${blob_storage.blobhome}/${blob_names.upload}
   developeddir: ${blob_storage.blobhome}/${blob_names.developed}
   rawbatchdir: ${blob_storage.developeddir}/${general.batch_id}

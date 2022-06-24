@@ -42,13 +42,13 @@ def main(cfg: DictConfig) -> None:
             # Sort according to timestamp
             row_files.sort(key=lambda x: x[2])
             # Rename
-            row_files = [(f[0], rename(f[1], row, idx, f[2], f[3])) for idx, f in enumerate(row_files)]
             for idx, file in enumerate(row_files):
                 org_file, state, timestamp, ext = file
-                renamed_file = rename(state, row, idx, timestamp)
+                renamed_file = rename(state, row, idx+1, timestamp, ext)
 
                 _src = Path(dst, org_file)
                 _dst = Path(dst, renamed_file)
+                shutil.move(_src, _dst)
 
     # Copy the Ground Control Points
     src = Path(cfg.blob_storage.uploaddir, batch_id, "GroundControlPoints.csv")
