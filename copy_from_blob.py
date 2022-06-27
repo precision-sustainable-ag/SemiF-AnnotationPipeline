@@ -1,7 +1,20 @@
+import os
 import shutil
+import re
 from pathlib import Path
 
 from omegaconf import DictConfig
+
+def parse(filename):
+
+    # Parse MD_Row-3_1655826853.JPG
+    state, row, timestamp = re.findall("(MD|NC|TX)_Row-(\d+)_(\d+)", filename)[0]
+    ext = filename.split(".")[-1]
+    return state, int(row), int(timestamp), ext
+
+def rename(state, row, pot, timestamp, ext):
+
+    return f"{state}_{row}_{pot}_{timestamp}.0.{ext}"
 
 def main(cfg: DictConfig) -> None:
 
@@ -13,6 +26,29 @@ def main(cfg: DictConfig) -> None:
     src = Path(cfg.blob_storage.developeddir, batch_id, "images")
     dst = Path(developed_home, "images")
     shutil.copytree(src, dst)
+
+    if cfg.data.rename:
+        files = os.listdir(dst)
+        rowmap = dict()
+        for file in files:
+            state, row, timestamp, ext = parse(file)
+            row_files = rowmap.get(row, [])
+            row_files.append((file, state, timestamp, ext))
+            rowmap[row] = row_files
+        
+        # Sort
+        for row, row_files in rowmap.items():
+
+            # Sort according to timestamp
+            row_files.sort(key=lambda x: x[2])
+            # Rename
+            for idx, file in enumerate(row_files):
+                org_file, state, timestamp, ext = file
+                renamed_file = rename(state, row, idx+1, timestamp, ext)
+
+                _src = Path(dst, org_file)
+                _dst = Path(dst, renamed_file)
+                shutil.move(_src, _dst)
 
     # Copy the Ground Control Points
     src = Path(cfg.blob_storage.uploaddir, batch_id, "GroundControlPoints.csv")

@@ -26,7 +26,7 @@ blob_names:
   model: semifield-models
 
 blob_storage:
-  blobhome: ${general.workdir}/data # /home/azureuser
+  blobhome: ${general.workdir}/blob_storage # /home/azureuser
   uploaddir: ${blob_storage.blobhome}/${blob_names.upload}
   developeddir: ${blob_storage.blobhome}/${blob_names.developed}
   rawbatchdir: ${blob_storage.developeddir}/${general.batch_id}
@@ -44,6 +44,7 @@ data:
   utilsdir: ${data.datadir}/${blob_names.utils}
   logdir: ${general.workdir}/logs
   species: ${data.utilsdir}/species_info.json # All species information
+  rename: True
 
 im_development:
   color_profiles_dir: ${blob_storage.utilsdir}/image_development/color_profiles
