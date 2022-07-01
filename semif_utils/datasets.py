@@ -369,6 +369,7 @@ class ImageMetadata:
     Sharpness: int
     LensSpecification: list
     LensModel: str
+    BodySerialNumber: Optional[str] = None
     MakerNote: Optional[str] = None
     ImageDescription: Optional[str] = None
     UserComment: Optional[str] = None
