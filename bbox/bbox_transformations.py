@@ -2,7 +2,7 @@ from typing import Dict, List
 
 import numpy as np
 from scipy.spatial.transform import Rotation
-from semif_utils.datasets import BoxCoordinates, ImageData
+from semif_utils.datasets import BoxCoordinates, ImageData, BBox
 
 from .bbox_utils import bb_iou, generate_hash
 
@@ -31,6 +31,34 @@ def image_to_global_transform(focal_length: float, pixel_dim: float,
     global_coords = signs * global_distances
 
     return global_coords
+
+
+def global_to_image_transform(focal_length: float, pixel_dim: float,
+                              coords: np.ndarray, camera_height: float):
+    """Find the object dimensions in the image plane using the camera model
+
+    Args:
+        focal_length (float): Focal length of the camera (in pixels)
+        pixel_dim (float): pixel width and pixel height
+        coords (np.ndarray): global coordinates to transform
+        camera_height (float): Height of the camera (in global coordinate units, i.e., meters)
+
+    Returns:
+        _type_: _description_
+    """
+    f = focal_length * pixel_dim
+    # Distances from the center
+    distances = np.abs(coords)
+    signs = np.sign(coords)
+
+    image_distances = distances * (f / camera_height)
+
+    # This is in global units. Convert to pixels
+    image_distances = image_distances / pixel_dim
+
+    image_coords = signs * image_distances
+
+    return image_coords
 
 
 def find_global_coords(unrotated_coords: np.ndarray, yaw_angle: float,
@@ -430,3 +458,132 @@ class BBoxMapper():
                     image.camera_info.pitch, image.camera_info.roll)
 
                 bbox.update_global_coordinates(global_coordinates)
+
+
+class GlobalToLocalMaper:
+
+    def __init__(self, images: List[ImageData]):
+        """Class to map bounding box coordinates from global cordinates
+           to image coordinates
+        """
+        self.images = images
+
+    def map(self, global_box_coordinates: BBox):
+
+        local_coordinates = self.bbox_to_local(global_box_coordinates)
+        return local_coordinates
+
+    def map_to_image(self, global_bbox, image):
+
+        global_coordinates = global_bbox.global_coordinates
+        coordinates = np.array([
+            global_coordinates.top_left, global_coordinates.top_right,
+            global_coordinates.bottom_left, global_coordinates.bottom_right
+        ])
+
+        # Shift the origin
+        center = image.camera_info.camera_location[:2]
+        coordinates = coordinates - np.expand_dims(center, axis=0)
+
+        # Add the z coordinate (height of the camera measured down from the camera)
+        coordinates = np.concatenate(
+            (coordinates, -image.camera_info.camera_location[-1] * np.ones((4, 1))), axis=1)
+
+        yaw_angle = image.camera_info.yaw
+        roll_angle = image.camera_info.roll
+        pitch_angle = image.camera_info.pitch
+
+        if yaw_angle < 180:
+            _yaw_angle = 360. - yaw_angle
+        else:
+            _yaw_angle = yaw_angle
+
+        # # Inverse rotation
+        R = Rotation.from_euler("XYZ",
+                                np.array([-pitch_angle, -roll_angle, -_yaw_angle]),
+                                degrees=True)
+        # R = Rotation.from_euler("ZYX",
+        #                     np.array([-_yaw_angle, -roll_angle, -pitch_angle]),
+        #                     degrees=True)
+
+        R_quat = R.as_quat()
+        rotation = Rotation.from_quat(R_quat)
+        image_coordinates = rotation.apply(coordinates)[:, :2] # Don't need the Z coordinate
+
+        focal_length = image.camera_info.focal_length
+        pixel_height = image.camera_info.pixel_height
+        pixel_width = image.camera_info.pixel_width
+        camera_height = image.camera_info.camera_location[-1]
+
+        image_coordinates[:, 0] = global_to_image_transform(
+            focal_length, pixel_width, 
+            image_coordinates[:, 0], camera_height)
+
+        image_coordinates[:, 1] = global_to_image_transform(
+            focal_length, pixel_height, 
+            image_coordinates[:, 1], camera_height)
+
+        return image_coordinates
+    
+    def shift_and_scale(self, image_bbox, image):
+        # Change the origin back to bottom left
+        origin = np.array([[image.width / 2., image.height / 2.]])
+        image_bbox = image_bbox + origin
+
+        # Change to image coordinate system: top left is 0, 0
+        image_bbox[:, 1] = image.height - image_bbox[:, 1]
+
+        # Determine the 4 points
+        mask = np.argsort(image_bbox[:, 0])
+
+        # Determine which is the top_left and bottom_left
+        left_coordinates = image_bbox[mask[:2], :]
+        # Determine which point is on the top
+        # (reversed argsort since the y axis gos from) top to bottom
+        top_sort = np.argsort(left_coordinates[:, 1])[::-1]
+        bottom_left = left_coordinates[top_sort[0], :]
+        top_left = left_coordinates[top_sort[1], :]
+
+        # Determine which is the top_right and bottom_right
+        right_coordinates = image_bbox[mask[2:], :]
+        # Determine which point is on the top 
+        # (reversed argsort since the y axis gos from) top to bottom
+        top_sort = np.argsort(right_coordinates[:, 1])[::-1]
+        bottom_right = right_coordinates[top_sort[0], :]
+        top_right = right_coordinates[top_sort[1], :]
+
+        # Normalize the coordinates
+        scale = np.array([image.width, image.height])
+        top_left = top_left / scale
+        top_right = top_right / scale
+        bottom_left = bottom_left / scale
+        bottom_right = bottom_right / scale
+
+        # Update the local coordinates bounding box
+        box_coordinates = BoxCoordinates(top_left=top_left, top_right=top_right, 
+                                         bottom_left=bottom_left, bottom_right=bottom_right)
+
+        return box_coordinates
+
+    def bbox_to_local(self, global_bbox: BBox):
+
+        assert not global_bbox.local_coordinates, "The global box contains existing local coordinates"\
+                                                  "Mapping operation will overwrite them."
+
+        def distance(camera_center):
+
+            xy = np.array(camera_center[:2])
+
+            return np.sum((xy - global_bbox.global_centroid)**2)
+
+        # Find the closest image
+        centroids = np.array([distance(image.camera_info.camera_location) for image in self.images])
+        min_dist_idx = np.argmin(centroids)
+
+        image = self.images[min_dist_idx]
+
+        image_bbox = self.map_to_image(global_bbox, image)
+
+        box_coordinates = self.shift_and_scale(image_bbox, image)
+        
+        return box_coordinates
