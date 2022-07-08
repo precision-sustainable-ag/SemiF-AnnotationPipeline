@@ -502,9 +502,6 @@ class GlobalToLocalMaper:
         R = Rotation.from_euler("XYZ",
                                 np.array([-pitch_angle, -roll_angle, -_yaw_angle]),
                                 degrees=True)
-        # R = Rotation.from_euler("ZYX",
-        #                     np.array([-_yaw_angle, -roll_angle, -pitch_angle]),
-        #                     degrees=True)
 
         R_quat = R.as_quat()
         rotation = Rotation.from_quat(R_quat)
