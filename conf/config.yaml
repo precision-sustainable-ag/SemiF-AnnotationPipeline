@@ -1,6 +1,7 @@
 defaults:
   - autosfm: autosfm
   - maintenance: maintenance
+  - segment: segment
   - _self_
 
 hydra:
@@ -56,12 +57,4 @@ detect:
   detections_csv: ${data.batchdir}/autosfm
   save_detection: False
   detectioncropdir: ${general.imagedir} # Location to save detection crops
-  device: "cpu:0"
-
-segment:  # Segment Vegetation
-  multiprocess: True
-  clear_border: True
-  save_mask: False # Not implemented
-  vi: exg
-  class_algorithm: kmeans
-  num_classes: 1
+  device: "cuda:0"

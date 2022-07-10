@@ -2,16 +2,25 @@ import json
 import os
 import platform
 from datetime import datetime
-from difflib import get_close_matches
 from pathlib import Path
 
 import cv2
 import numpy as np
 import pandas as pd
+from dacite import Config, from_dict
 from PIL import Image
 from scipy import ndimage
+from scipy import ndimage as ndi
 from skimage import morphology, segmentation
+from skimage.color import label2rgb
+from skimage.exposure import rescale_intensity
+from skimage.filters import rank
+from skimage.measure import label
+from skimage.morphology import disk
+from skimage.segmentation import watershed
 from sklearn.cluster import KMeans
+
+from semif_utils.datasets import CUTOUT_PROPS, CutoutProps, ImageData
 
 ######################################################
 ################### GENERAL ##########################
@@ -33,9 +42,8 @@ def read_json(path):
 def get_bbox_info(csv_path):
 
     df = pd.read_csv(csv_path).drop(columns=["Unnamed: 0"])
-    bbox_dict = df.groupby(by="imgname", sort=True).apply(
-        lambda x: x.to_dict(orient="records")
-    )
+    bbox_dict = df.groupby(
+        by="imgname", sort=True).apply(lambda x: x.to_dict(orient="records"))
     img_list = list(bbox_dict.keys())
     return bbox_dict, img_list
 
@@ -68,7 +76,8 @@ def creation_date(path_to_file):
 def get_upload_datetime(imagedir):
 
     creation_dt = creation_date(imagedir)
-    creation_dt = datetime.fromtimestamp(creation_dt).strftime("%Y-%m-%d_%H:%M:%S")
+    creation_dt = datetime.fromtimestamp(creation_dt).strftime(
+        "%Y-%m-%d_%H:%M:%S")
     return creation_dt
 
 
@@ -85,6 +94,15 @@ def parse_dict(props_tabl):
         else:
             ndict[key] = float(val)
     return ndict
+
+
+def get_image_meta(path):
+    with open(path) as f:
+        j = json.load(f)
+        imgdata = from_dict(data_class=ImageData,
+                            data=j,
+                            config=Config(check_types=False))
+    return imgdata
 
 
 ######################################################
@@ -143,12 +161,30 @@ def make_ndi(rgb_img):
     red = img[:, :, 0]
     gminr = green - red
     gplusr = green + red
-    gdivr = np.true_divide(gminr, gplusr, out=np.zeros_like(gminr), where=gplusr != 0)
+    gdivr = np.true_divide(gminr,
+                           gplusr,
+                           out=np.zeros_like(gminr),
+                           where=gplusr != 0)
     ndi = 128 * (gdivr + 1)
     # print("Max ndi: ", ndi.max())
     # print("Min ndi: ", ndi.min())
 
     return ndi
+
+
+def thresh_vi(vi, low=20, upper=100, sigma=2):
+    """
+    Args:
+        vi (np.ndarray): vegetation index single channel
+        low (int, optional): lower end of vi threshold. Defaults to 20.
+        upper (int, optional): upper end of vi threshold. Defaults to 100.
+        sigma (int, optional): multiplication factor applied to range within
+                                "low" and "upper". Defaults to 2.
+    """
+    thresh_vi = np.where(vi <= 0, 0, vi)
+    thresh_vi = np.where((thresh_vi > low) & (thresh_vi < upper),
+                         thresh_vi * sigma, thresh_vi)
+    return thresh_vi
 
 
 ######################################################
@@ -203,7 +239,11 @@ def clean_mask(mask, kernel_size=3, iterations=1, dilation=True):
     return mask
 
 
-def dilate_erode(mask, kernel_size=3, dil_iters=5, eros_iters=3, hole_fill=True):
+def dilate_erode(mask,
+                 kernel_size=3,
+                 dil_iters=5,
+                 eros_iters=3,
+                 hole_fill=True):
     mask = mask.astype(np.float32)
 
     if int(kernel_size):
@@ -230,10 +270,27 @@ def reduce_holes(mask, min_object_size=1000, min_hole_size=1000):
     mask = mask.astype(np.bool8)
     # mask = measure.label(mask, connectivity=2)
     mask = morphology.remove_small_holes(
-        morphology.remove_small_objects(mask, min_hole_size), min_object_size
-    )
+        morphology.remove_small_objects(mask, min_hole_size), min_object_size)
     # mask = morphology.opening(mask, morphology.disk(3))
     return mask
+
+
+def seperate_components(mask):
+    """Seperates multiple unconnected components in a mask
+    for seperate processing.
+    """
+    # Store individual plant components in a list
+    mask = mask.astype(np.uint8)
+    nb_components, output, _, _ = cv2.connectedComponentsWithStats(
+        mask, connectivity=8)
+    # Remove background component
+    nb_components = nb_components - 1
+    list_filtered_masks = []
+    for i in range(0, nb_components):
+        filtered_mask = np.zeros((output.shape))
+        filtered_mask[output == i + 1] = 255
+        list_filtered_masks.append(filtered_mask)
+    return list_filtered_masks
 
 
 ######################################################
@@ -261,10 +318,21 @@ def make_kmeans(exg_mask):
 
 def otsu_thresh(mask, kernel_size=(3, 3)):
     mask_blur = cv2.GaussianBlur(mask, kernel_size, 0).astype("uint16")
-    ret3, mask_th3 = cv2.threshold(
-        mask_blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-    )
+    ret3, mask_th3 = cv2.threshold(mask_blur, 0, 255,
+                                   cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return mask_th3
+
+
+def get_watershed(mask, disk1=1, grad1_thresh=12, disk2=10, lbl_fact=2.5):
+    # process the watershed
+    markers = rank.gradient(mask, disk(disk1)) < grad1_thresh
+    markers = ndi.label(markers)[0]
+    gradient = rank.gradient(mask, disk(disk2))
+    labels = watershed(gradient, markers)
+    seg1 = label(labels <= 0)
+    lbls = label2rgb(seg1, image=mask, bg_label=0) * lbl_fact
+    wtrshed_lbls = rescale_intensity(lbls, in_range=(0, 1), out_range=(0, 1))
+    return wtrshed_lbls
 
 
 ######################################################
@@ -307,14 +375,12 @@ def crop_cutouts(img, add_padding=False):
     pil_crop_frground = foreground.crop(foreground.getbbox())
     array = np.array(pil_crop_frground)
     if add_padding:
-        pil_crop_frground = foreground.crop(
-            (
-                foreground.getbbox()[0] - 2,
-                foreground.getbbox()[1] - 2,
-                foreground.getbbox()[2] + 2,
-                foreground.getbbox()[3] + 2,
-            )
-        )
+        pil_crop_frground = foreground.crop((
+            foreground.getbbox()[0] - 2,
+            foreground.getbbox()[1] - 2,
+            foreground.getbbox()[2] + 2,
+            foreground.getbbox()[3] + 2,
+        ))
     return array
 
 
@@ -345,9 +411,9 @@ def transform_position(points, imgshape, spread_factor):
     """Applies random jitter factor to points and transforms them to top left image coordinates."""
     y, x = points
 
-    x, y = x + random.randint(-spread_factor, spread_factor), y + random.randint(
-        -int(spread_factor / 3), int(spread_factor / 3)
-    )
+    x, y = x + random.randint(
+        -spread_factor, spread_factor), y + random.randint(
+            -int(spread_factor / 3), int(spread_factor / 3))
 
     x, y = center2topleft(x, y, imgshape)
 
@@ -371,12 +437,14 @@ def img2RGBA(img):
 
 
 class Point(object):
+
     def __init__(self, x, y):
         self.x = x
         self.y = y
 
 
 class Rect(object):
+
     def __init__(self, p1, p2):
         """Store the top, bottom, left and right values for points
         p1 and p2 are the (corners) in either order
@@ -389,9 +457,9 @@ class Rect(object):
 
 def overlap(r1, r2):
     """Overlapping rectangles overlap both horizontally & vertically"""
-    return range_overlap(r1.left, r1.right, r2.left, r2.right) and range_overlap(
-        r1.bottom, r1.top, r2.bottom, r2.top
-    )
+    return range_overlap(r1.left, r1.right,
+                         r2.left, r2.right) and range_overlap(
+                             r1.bottom, r1.top, r2.bottom, r2.top)
 
 
 def range_overlap(a_min, a_max, b_min, b_max):
@@ -413,14 +481,14 @@ def clean_data(data):
     stored in json and db.
     """
     data["background"]["background_path"] = "/".join(
-        Path(data["background"]["background_path"]).parts[-2:]
-    )
+        Path(data["background"]["background_path"]).parts[-2:])
     pots = data["pots"]
     for pot in pots:
         pot["pot_path"] = "/".join(Path(pot["pot_path"]).parts[-2:])
 
     for cutout in data["cutouts"]:
-        cutout["cutout_path"] = "/".join(Path(cutout["cutout_path"]).parts[-2:])
+        cutout["cutout_path"] = "/".join(
+            Path(cutout["cutout_path"]).parts[-2:])
 
     return data
 

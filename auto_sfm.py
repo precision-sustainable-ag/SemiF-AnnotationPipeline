@@ -22,8 +22,13 @@ def main(cfg: DictConfig) -> None:
     images_dst = Path(autosfm_storage, "developed")
     shutil.copytree(images_src, images_dst)
 
-    gcp_src = Path(cfg.data.uploaddir, cfg.general.batch_id,
-                   "GroundControlPoints.csv")
+    # gcp_src = Path(cfg.data.uploaddir, cfg.general.batch_id,
+    #    "GroundControlPoints.csv")
+
+    batch_prefix = cfg.general.batch_id.split("_")[0]
+    gcp_src = Path(cfg.data.utilsdir, "autosfm", "GroundControlPoints",
+                   batch_prefix, "GroundControlPoints.csv")
+
     shutil.copy(gcp_src, autosfm_storage)
 
     # Compose the command

@@ -1,0 +1,11 @@
+multiprocess: True
+vi: exg
+class_algorithm: kmeans
+clear_border: True
+
+  
+
+cutout:
+  vi: exg
+  class_algorithm: kmeans
+  clear_border: True

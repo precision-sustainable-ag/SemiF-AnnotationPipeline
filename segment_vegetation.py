@@ -3,17 +3,17 @@ from dataclasses import asdict
 from multiprocessing import Manager, Pool, Process, cpu_count
 from pathlib import Path
 
+import cv2
 import numpy as np
 from omegaconf import DictConfig
 
 from semif_utils.datasets import BatchMetadata, Cutout
 from semif_utils.segment_utils import (ClassifyMask, GenCutoutProps,
-                                       VegetationIndex, get_image_meta,
-                                       get_watershed, prep_bbox,
-                                       seperate_components, thresh_vi)
+                                       VegetationIndex, prep_bbox)
 from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
-                               dilate_erode, get_upload_datetime, make_exg,
-                               reduce_holes)
+                               dilate_erode, get_image_meta,
+                               get_upload_datetime, get_watershed, make_exg,
+                               reduce_holes, seperate_components, thresh_vi)
 
 log = logging.getLogger(__name__)
 
@@ -95,6 +95,8 @@ class SegmentVegetation:
 
             # Crop image to bbox
             rgb_crop = rgb_array[y1:y2, x1:x2]
+            if rgb_crop.sum() == 0:
+                continue
             mask = self.process_domain(rgb_crop)
             # Clear borders
             if self.clear_border:
@@ -112,6 +114,9 @@ class SegmentVegetation:
                 new_cropped_cutout = crop_cutouts(new_cutout)
 
                 # Get regionprops
+                cv2.imwrite("test.png", mask2 * 255)
+                if np.sum(mask2 == 0) == mask2.shape[0] * mask2.shape[1]:
+                    continue
                 cutprops = GenCutoutProps(mask2).to_dataclass()
                 # Removes false positives that are typically very small cutouts
                 if type(cutprops.area) is not list and cutprops.area < 500:
@@ -146,7 +151,7 @@ def return_dataclass_list(label, return_lbls):
 
 def create_dataclasses(metadir):
     log.info("Creating dataclasses")
-    labels = [str(x) for x in (metadir).glob("*.json")]
+    labels = sorted([str(x) for x in (metadir).glob("*.json")])
     jobs = []
     manager = Manager()
     return_list = manager.list()
@@ -193,7 +198,7 @@ def main(cfg: DictConfig) -> None:
     else:
         # Single process
         log.info("Processing image data.")
-        labels = [str(x) for x in (metadir).glob("*.json")]
+        labels = sorted([str(x) for x in (metadir).glob("*.json")])
         for label in labels:
             svg.cutout_pipeline(label)
         log.info("Finished segmenting vegetation")
