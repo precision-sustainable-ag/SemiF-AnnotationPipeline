@@ -1,23 +1,27 @@
 import json
 import os
 import platform
+import random
 from datetime import datetime
 from pathlib import Path
 
 import cv2
 import numpy as np
 import pandas as pd
+import skimage
+import torch
 from dacite import Config, from_dict
 from PIL import Image
 from scipy import ndimage
 from scipy import ndimage as ndi
-from skimage import morphology, segmentation
+from skimage import (color, feature, filters, measure, morphology,
+                     segmentation, util)
 from skimage.color import label2rgb
 from skimage.exposure import rescale_intensity
 from skimage.filters import rank
 from skimage.measure import label
 from skimage.morphology import disk
-from skimage.segmentation import watershed
+from skimage.segmentation import random_walker, watershed
 from sklearn.cluster import KMeans
 
 from semif_utils.datasets import CUTOUT_PROPS, CutoutProps, ImageData
@@ -126,7 +130,7 @@ def make_exg(img, normalize=False, thresh=0):
         return exg.astype("uint8")
 
 
-def make_exr(rgb_img):
+def make_exr(rgb_img, thresh=0):
     # rgb_img: np array in [RGB] channel order
     # exr: single band vegetation index as np array
     # EXR = 1.4 * R - G
@@ -137,20 +141,24 @@ def make_exr(rgb_img):
     red = img[:, :, 0]
 
     exr = 1.4 * red - green
-    exr = np.where(exr < 0, 0, exr)  # Thresholding removes low negative values
+    if thresh is not None:
+        exr = np.where(exr < thresh, 0,
+                       exr)  # Thresholding removes low negative values
     return exr.astype("uint8")
 
 
-def make_exg_minus_exr(img):
+def make_exg_minus_exr(img, thresh=0):
     img = img.astype(float)  # Rgb image
     exg = make_exg(img)
     exr = make_exr(img)
     exgr = exg - exr
-    exgr = np.where(exgr < 25, 0, exgr)
+    if thresh is not None:
+        exgr = np.where(exgr < thresh, 0, exgr)
+    exgr = cv2.bitwise_not(exgr)
     return exgr.astype("uint8")
 
 
-def make_ndi(rgb_img):
+def make_ndi(rgb_img, thresh=0):
     # rgb_img: np array in [RGB] channel order
     # exr: single band vegetation index as np array
     # NDI = 128 * (((G - R) / (G + R)) + 1)
@@ -323,16 +331,22 @@ def otsu_thresh(mask, kernel_size=(3, 3)):
     return mask_th3
 
 
-def get_watershed(mask, disk1=1, grad1_thresh=12, disk2=10, lbl_fact=2.5):
+def get_watershed(vi, disk1=1, grad1_thresh=12, disk2=10, lbl_fact=2.5):
     # process the watershed
-    markers = rank.gradient(mask, disk(disk1)) < grad1_thresh
+    markers = rank.gradient(vi, disk(disk1)) < grad1_thresh
     markers = ndi.label(markers)[0]
-    gradient = rank.gradient(mask, disk(disk2))
+    gradient = rank.gradient(vi, disk(disk2))
     labels = watershed(gradient, markers)
     seg1 = label(labels <= 0)
-    lbls = label2rgb(seg1, image=mask, bg_label=0) * lbl_fact
+    lbls = label2rgb(seg1, image=vi, bg_label=0) * lbl_fact
     wtrshed_lbls = rescale_intensity(lbls, in_range=(0, 1), out_range=(0, 1))
     return wtrshed_lbls
+
+
+def multiple_otsu(vi):
+    thresholds = filters.threshold_multiotsu(vi, classes=3)
+    regions = np.digitize(vi, bins=thresholds)
+    return regions
 
 
 ######################################################

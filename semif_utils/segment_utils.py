@@ -8,9 +8,10 @@ from dacite import Config, from_dict
 from skimage import measure
 
 from semif_utils.datasets import CUTOUT_PROPS, CutoutProps, ImageData
-from semif_utils.utils import (make_exg, make_exg_minus_exr, make_exr,
-                               make_kmeans, make_ndi, otsu_thresh, parse_dict,
-                               read_json, reduce_holes, rescale_bbox)
+from semif_utils.utils import (get_watershed, make_exg, make_exg_minus_exr,
+                               make_exr, make_kmeans, make_ndi, multiple_otsu,
+                               otsu_thresh, parse_dict, read_json,
+                               reduce_holes, rescale_bbox)
 
 ################################################################
 ########################## SETUP ###############################
@@ -74,7 +75,7 @@ class GenCutoutProps:
         return cutout_props
 
 
-class ClassifyMask:
+class SegmentMask:
 
     def otsu(self, vi):
         # Otsu's thresh
@@ -85,26 +86,35 @@ class ClassifyMask:
     def kmeans(self, vi):
         vi_mask = make_kmeans(vi)
         reduce_holes_mask = reduce_holes(vi_mask * 255) * 255
+        return reduce_holes_mask
 
+    def watershed(self, vi):
+        vi_mask = get_watershed(vi)
+        reduce_holes_mask = reduce_holes(vi_mask * 255) * 255
+        return reduce_holes_mask
+
+    def multi_otsu(self, vi):
+        vi_mask = multiple_otsu(vi)
+        reduce_holes_mask = reduce_holes(vi_mask * 255) * 255
         return reduce_holes_mask
 
 
 class VegetationIndex:
 
-    def exg(self, img):
-        exg_vi = make_exg(img, thresh=True)
+    def exg(self, img, thresh=0):
+        exg_vi = make_exg(img, thresh=0)
         return exg_vi
 
-    def exr(self, img):
-        exr_vi = make_exr(img)
+    def exr(self, img, thresh=0):
+        exr_vi = make_exr(img, thresh=0)
         return exr_vi
 
-    def exg_minus_exr(self, img):
-        gmr_vi = make_exg_minus_exr(img)
+    def exg_minus_exr(self, img, thresh=0):
+        gmr_vi = make_exg_minus_exr(img, thresh=0)
         return gmr_vi
 
-    def ndi(self, img):
-        ndi_vi = make_ndi(img)
+    def ndi(self, img, thresh=0):
+        ndi_vi = make_ndi(img, thresh=0)
         return ndi_vi
 
 
