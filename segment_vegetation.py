@@ -162,7 +162,6 @@ class SegmentVegetation:
         imgdata.cutout_ids = cutout_ids
         imgdata.save_config(self.metadata)
 
-
 def return_dataclass_list(label, return_lbls):
     dc = get_image_meta(label)
     return_lbls.append(dc)
