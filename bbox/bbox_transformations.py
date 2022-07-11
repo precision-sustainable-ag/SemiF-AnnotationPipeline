@@ -468,9 +468,9 @@ class GlobalToLocalMaper:
         """
         self.images = images
 
-    def map(self, global_box_coordinates: BBox):
+    def map(self, global_box_coordinates: BBox, map_to: str):
 
-        local_coordinates = self.bbox_to_local(global_box_coordinates)
+        local_coordinates = self.bbox_to_local(global_box_coordinates, map_to)
         return local_coordinates
 
     def map_to_image(self, global_bbox, image):
@@ -562,7 +562,7 @@ class GlobalToLocalMaper:
 
         return box_coordinates
 
-    def bbox_to_local(self, global_bbox: BBox):
+    def bbox_to_local(self, global_bbox: BBox, map_to: str):
 
         assert not global_bbox.local_coordinates, "The global box contains existing local coordinates"\
                                                   "Mapping operation will overwrite them."
@@ -577,7 +577,9 @@ class GlobalToLocalMaper:
         centroids = np.array([distance(image.camera_info.camera_location) for image in self.images])
         min_dist_idx = np.argmin(centroids)
 
-        image = self.images[min_dist_idx]
+        # image = self.images[min_dist_idx]
+        image = [img for img in self.images if img.image_id == map_to][0]
+        print(image.image_id)
 
         image_bbox = self.map_to_image(global_bbox, image)
 
