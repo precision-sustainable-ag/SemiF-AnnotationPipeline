@@ -7,8 +7,7 @@ import numpy as np
 from omegaconf import DictConfig
 from tqdm import trange
 
-from semif_utils.datasets import POTMAPS, SynthDataContainer, SynthImage
-from semif_utils.mongo_utils import Connect, to_db
+from semif_utils.datasets import SynthDataContainer, SynthImage
 from semif_utils.synth_utils import (SynthPipeline, center_on_background,
                                      clean_data, get_cutout_dir, img2RGBA,
                                      save_dataclass_json, transform_position)
@@ -18,10 +17,8 @@ def main(cfg: DictConfig) -> None:
     cutout_dir = get_cutout_dir(cfg.data.batchdir, cfg.data.cutoutdir)
 
     # Create synth data container
-    data = SynthDataContainer(synthdir=cfg.data.synthdir,
-                              db_db=cfg.general.db,
-                              from_db=cfg.general.from_database,
-                              cutout_dir=cutout_dir,
+    data = SynthDataContainer(synthdir=cfg.synth.synthdir,
+                              cutout_dir=cfg.synth.cutout_batchdir,
                               pot_dir=cfg.synth.potdir,
                               background_dir=cfg.synth.backgrounddir)
 
@@ -99,12 +96,6 @@ def main(cfg: DictConfig) -> None:
         # Clean dataclass
         data_dict = asdict(synimage)
         synimage = clean_data(data_dict)
-
-        # DC to database
-        if cfg.general.save_to_database:
-            connect = Connect.get_connection()
-            db = getattr(connect, cfg.general.db)
-            to_db(db, str(data_root), synimage)
 
         # To json
         jsonpath = Path(syn.json_dir, savestem + ".json")

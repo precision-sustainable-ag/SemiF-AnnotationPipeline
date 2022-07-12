@@ -10,6 +10,7 @@ import develop_images
 import localize_plants  # Do not remove
 import remap_labels  # Do not remove
 import segment_vegetation  # Do not remove
+import synthesize  # Do not remove
 
 log = logging.getLogger(__name__)
 

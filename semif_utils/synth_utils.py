@@ -1,3 +1,4 @@
+import itertools
 import json
 import random
 import uuid
@@ -284,3 +285,32 @@ def get_cutout_dir(batch_dir, cutout_dir):
     batch = Path(batch_dir).name
     cutout_dir = Path(cutout_dir, batch)
     return cutout_dir
+
+def pot_grid(img_shape, num_pots):
+    imght, imgwid = img_shape[:2]
+    # adj_pots = random.randint(0, pots)
+
+    if num_pots >= 10:
+        num = random.choice([2,3])
+        wid = list(np.linspace(0,imgwid,4 if num==3 else 5, dtype=int))
+        ht = list(np.linspace(0, imght, num, dtype=int))
+
+    if num_pots == 11:
+        pops =+ 1 if num == 3 else 0
+
+    if num_pots == 10:
+        pops =+ 2 if num == 3 else 0
+
+    if num_pots == 9:
+        num = random.choice([2,3])
+        wid = list(np.linspace(0,imgwid,3 if num==3 else 5, dtype=int))
+        ht = list(np.linspace(0, imght, num, dtype=int))
+        pops =+ 1 if num==2 else 0
+
+
+    coords = list(itertools.product(wid, ht))
+        
+    for po in range(pops):
+        coords.pop(random.randrange(len(coords)))
+    
+    return coords

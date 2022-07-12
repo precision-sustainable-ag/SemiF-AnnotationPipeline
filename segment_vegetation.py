@@ -36,6 +36,10 @@ class SegmentVegetation:
         self.dom_th_up = cfg.segment.domain.th_up
         self.dom_th_sig = cfg.segment.domain.th_sig
         self.dom_algo = cfg.segment.domain.class_algo
+        self.dom_kern_size=cfg.segment.domain.kern_size
+        self.dom_dil_iter=cfg.segment.domain.dil_iter
+        self.dom_ero_iter=cfg.segment.domain.ero_iter
+        self.dom_hole_fill=cfg.segment.domain.hole_fill
 
         self.cut_vi = cfg.segment.cutout.vi
         self.cut_vi_th = cfg.segment.cutout.vi_th
@@ -63,7 +67,12 @@ class SegmentVegetation:
                           sigma=self.dom_th_sig)
         clalgo = getattr(SegmentMask(), self.dom_algo)
         mask = clalgo(th_vi)
-        return mask
+        dil_ero_mask = dilate_erode(mask,
+                                    kernel_size=self.dom_kern_size,
+                                    dil_iters=self.dom_dil_iter,
+                                    eros_iters=self.dom_ero_iter,
+                                    hole_fill=self.dom_hole_fill)
+        return dil_ero_mask
 
     def process_cutout(self, cutout):
         """Second cutout processing step.
@@ -74,8 +83,7 @@ class SegmentVegetation:
                           low=self.cut_th_low,
                           upper=self.cut_th_up,
                           sigma=self.cut_th_sig)
-        # process the watershed
-        # wtrshed_lbls = get_watershed(th_vi)
+        
 
         clalgo = getattr(SegmentMask(), self.dom_algo)
         mask = clalgo(th_vi)
@@ -166,7 +174,6 @@ def return_dataclass_list(label, return_lbls):
     dc = get_image_meta(label)
     return_lbls.append(dc)
     return return_lbls
-
 
 def create_dataclasses(metadir):
     log.info("Creating dataclasses")

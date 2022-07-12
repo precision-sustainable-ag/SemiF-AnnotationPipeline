@@ -2,6 +2,7 @@ defaults:
   - autosfm: autosfm
   - maintenance: maintenance
   - segment: segment
+  - synth: synth
   - _self_
 
 hydra:
