@@ -203,7 +203,7 @@ class BBoxComponents:
         if not self._images:
 
             if self.multiprocessing:
-                n_processes = cpu_count()
+                n_processes = cpu_count() - 1
                 with Pool(processes=n_processes) as p:
                     _images = list(tqdm(p.imap(self._fetch_image_metadata, self.image_list), 
                                                desc="Fetching Image metadata and creating RemapImage", 

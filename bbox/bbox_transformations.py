@@ -1,10 +1,12 @@
-from typing import Dict, List
+from typing import Dict, List, Type
 
 import numpy as np
 from scipy.spatial.transform import Rotation
 from semif_utils.datasets import BoxCoordinates, ImageData, BBox
 
 from .bbox_utils import bb_iou, generate_hash
+
+import Metashape
 
 FOV_IOU_THRESH = 0.1
 BBOX_OVERLAP_THRESH = 0.3
@@ -91,6 +93,10 @@ def find_global_coords(unrotated_coords: np.ndarray, yaw_angle: float,
         focal_length, pixel_height, global_unrotated_coords[:, 1],
         camera_height)
 
+    # Add the z coordinate for 3D rotation
+    # The z coordinate is the -camera_height since the 
+    # z vector is assumed to point downward, and the global plane
+    # is on the ground
     global_unrotated_coords = np.concatenate(
         (global_unrotated_coords, -camera_height * np.ones((4, 1))), axis=1)
 
@@ -108,6 +114,10 @@ def find_global_coords(unrotated_coords: np.ndarray, yaw_angle: float,
     R_quat = R.as_quat()
     rotation = Rotation.from_quat(R_quat)
     rotated_coordinates = rotation.apply(global_unrotated_coords)
+
+    # Project onto z = -camera_height plane
+    rotated_coordinates[:, 0] = -camera_height * (rotated_coordinates[:, 0] / rotated_coordinates[:, 2])
+    rotated_coordinates[:, 1] = -camera_height * (rotated_coordinates[:, 1] / rotated_coordinates[:, 2])
 
     return rotated_coordinates[:, :2]
 
@@ -158,16 +168,21 @@ def img_to_global_coord(image_coordinates: np.ndarray,
           float(image_height // 2)]])
     _image_coordinates -= image_center
 
-    # Find the coordinates wrt to the camera location
+    # Find the coordinates with the origin at the camera location
+    # using the camera model
     global_coordinates = find_global_coords(_image_coordinates, yaw_angle,
                                             focal_length, pixel_width,
                                             pixel_height, camera_height,
                                             pitch_angle, roll_angle)
 
-    # Shift the origin back to the global origin (0, 0)
+    # Shift the origin from the camera location back to the global origin (0, 0)
     global_coordinates += _camera_center
 
     if is_bbox:
+
+        # To stay consistent with the convention,
+        # assign top_left, top_right, bottom_left, bottom_right
+        # the respective x and y coordinates
         mask = np.argsort(global_coordinates[:, 0])
 
         # Determine which is the top_left and bottom_left
@@ -231,6 +246,7 @@ def bbox_to_global(top_left: np.ndarray, top_right: np.ndarray,
 
     image_coordinates = np.concatenate(
         [_top_right, _bottom_left, _top_left, _bottom_right])
+
     # Change the origin to bottom-left of the image
     image_coordinates[:, 1] = image_height - image_coordinates[:, 1]
 
@@ -431,14 +447,41 @@ class BBoxMapper():
         """
         Maps all the bounding boxes to a global coordinate space
         """
+
+        # Open the metashape project
+        doc = Metashape.Document()
+        doc.open("/home/chinmays/Documents/Research/PSI_Research/v3/prs/SemiF-AnnotationPipeline/data/semifield-developed-images/NC_2022-03-11/autosfm/projects/semif-trial.psx")    
+
         for image in self.images:
+
+            base, row, pot, timestamp = image.image_id.split("_")
+            image_id = "_".join([base, pot])
+
+            # Isolate the chunk
+            camera_chunk = None
+            for chunk in doc.chunks:
+                cameras = [camera.label for camera in chunk.cameras]
+                if image_id in cameras:
+                    camera_chunk = chunk
+                    camera = [cam for cam in chunk.cameras if cam.label == image_id][0]
+                    break
+            
+            assert camera_chunk is not None
+
+            # From: https://www.agisoft.com/forum/index.php?topic=13875.0
+            surface = camera_chunk.dense_cloud
+            crs = camera_chunk.crs
+            T = camera_chunk.transform.matrix
 
             camera_location = image.camera_info.camera_location
             camera_x = camera_location[0]
             camera_y = camera_location[1]
             camera_height = camera_z = camera_location[2]
 
+            # This is the center of the image
             camera_center = [camera_x, camera_y]
+
+            image_center = [image.width / 2., image.height / 2.]
 
             global_coordinates = dict()
             for bbox in image.bboxes:
@@ -447,17 +490,66 @@ class BBoxMapper():
                 bottom_left = bbox.local_coordinates.bottom_left
                 top_right = bbox.local_coordinates.top_right
                 bottom_right = bbox.local_coordinates.bottom_right
+                
+                try:
+                    mapped_coordinates = []
 
-                # Transformation
-                global_coordinates = bbox_to_global(
-                    top_left, top_right, bottom_left, bottom_right,
-                    camera_center, image.camera_info.pixel_width,
-                    image.camera_info.pixel_height,
-                    image.camera_info.focal_length, image.width, image.height,
-                    camera_height, image.camera_info.yaw,
-                    image.camera_info.pitch, image.camera_info.roll)
+                    co_type = ["top_left", "bottom_left", "top_right", "bottom_right"]
 
-                bbox.update_global_coordinates(global_coordinates)
+                    for co, coords in zip(co_type, [top_left, bottom_left, top_right, bottom_right]):
+
+                        x_coord = (coords[0]) - image_center[0]
+                        x_coord = x_coord * image.camera_info.pixel_width
+                        y_coord = (image.height - coords[1] - image_center[1]) * image.camera_info.pixel_height
+                        # x_coord = coords[0]
+                        # y_coord = coords[1]
+                        
+                        ray_origin = camera.center # camera.unproject(Metashape.Vector([x_coord, y_coord, 0]))
+                        ray_target = camera.unproject(Metashape.Vector([x_coord, y_coord, 1]))
+                        
+                        # point = T.mulp(surface.pickPoint(ray_origin, ray_target))
+                        # global_coord = crs.project(point)[:2]
+                        global_coord = surface.pickPoint(ray_origin, ray_target)
+                        # print(global_coord)
+                        # print(camera.center)
+
+                        if global_coord is None:
+                            raise TypeError()
+                        mapped_coordinates.append(global_coord)
+                        
+
+                        
+
+                        # coords_2D = Metashape.Vector([x_coord, y_coord])
+                        # point_internal  = camera_chunk.model.pickPoint(camera.center, camera.unproject(coords_2D))
+                        # global_coord = camera_chunk.crs.project(camera_chunk.transform.matrix.mulp(point_internal))
+
+                        
+
+                    top_left = np.array(mapped_coordinates[0])
+                    top_right = np.array(mapped_coordinates[2])
+                    bottom_left = np.array(mapped_coordinates[1])
+                    bottom_right = np.array(mapped_coordinates[3])
+
+                    global_coordinates = BoxCoordinates(top_left, top_right, bottom_left,
+                                            bottom_right)
+                    bbox.update_global_coordinates(global_coordinates)
+                except TypeError:
+                    print(image_id, bbox.bbox_id, co)
+                    print(ray_origin)
+                    print(ray_target)
+                    print(surface.pickPoint(ray_origin, ray_target))
+
+                    # Transformation
+                    global_coordinates = bbox_to_global(
+                        top_left, top_right, bottom_left, bottom_right,
+                        camera_center, image.camera_info.pixel_width,
+                        image.camera_info.pixel_height,
+                        image.camera_info.focal_length, image.width, image.height,
+                        camera_height, image.camera_info.yaw,
+                        image.camera_info.pitch, image.camera_info.roll)
+
+                    bbox.update_global_coordinates(global_coordinates)
 
 
 class GlobalToLocalMaper:

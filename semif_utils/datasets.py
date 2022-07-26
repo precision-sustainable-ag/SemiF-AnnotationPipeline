@@ -36,7 +36,7 @@ class BoxCoordinates:
             _top_left = self.top_left.tolist()
             _top_right = self.top_right.tolist()
             _bottom_left = self.bottom_left.tolist()
-            _bottom_right = self.bottom_right.to_list()
+            _bottom_right = self.bottom_right.tolist()
         else:
             _top_left = self.top_left
             _top_right = self.top_right
@@ -420,6 +420,7 @@ class Box:
     global_coordinates: BoxCoordinates
     cls: str
     is_primary: bool
+    overlapping_bbox_ids: List[BBox] = field(init=False, default_factory=lambda : [])
 
     def assign_species(self, species):
         self.cls = species
