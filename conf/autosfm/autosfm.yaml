@@ -41,6 +41,8 @@ autosfm_config:
     enabled: True
     export: 
       enabled: True
+      max_height: 30000
+      max_width: 80000
     autosave: True
 
   camera_fov:
