@@ -469,7 +469,7 @@ class BBoxMapper():
             assert camera_chunk is not None
 
             # From: https://www.agisoft.com/forum/index.php?topic=13875.0
-            surface = camera_chunk.dense_cloud
+            surface = camera_chunk.point_cloud
             crs = camera_chunk.crs
             T = camera_chunk.transform.matrix
 
@@ -498,32 +498,28 @@ class BBoxMapper():
 
                     for co, coords in zip(co_type, [top_left, bottom_left, top_right, bottom_right]):
 
-                        x_coord = (coords[0]) - image_center[0]
-                        x_coord = x_coord * image.camera_info.pixel_width
-                        y_coord = (image.height - coords[1] - image_center[1]) * image.camera_info.pixel_height
-                        # x_coord = coords[0]
-                        # y_coord = coords[1]
+                        # x_coord = (coords[0]) - image_center[0]
+                        # x_coord = x_coord * image.camera_info.pixel_width
+                        # y_coord = (image.height - coords[1] - image_center[1]) * image.camera_info.pixel_height
+                        x_coord = coords[0]
+                        y_coord = coords[1]
                         
                         ray_origin = camera.center # camera.unproject(Metashape.Vector([x_coord, y_coord, 0]))
-                        ray_target = camera.unproject(Metashape.Vector([x_coord, y_coord, 1]))
+                        ray_target = camera.unproject(Metashape.Vector([x_coord, y_coord]))
                         
                         # point = T.mulp(surface.pickPoint(ray_origin, ray_target))
                         # global_coord = crs.project(point)[:2]
-                        global_coord = surface.pickPoint(ray_origin, ray_target)
+                        point_internal = surface.pickPoint(ray_origin, ray_target)
                         # print(global_coord)
                         # print(camera.center)
 
-                        if global_coord is None:
+                        if point_internal is None:
                             raise TypeError()
-                        mapped_coordinates.append(global_coord)
                         
-
-                        
-
                         # coords_2D = Metashape.Vector([x_coord, y_coord])
                         # point_internal  = camera_chunk.model.pickPoint(camera.center, camera.unproject(coords_2D))
-                        # global_coord = camera_chunk.crs.project(camera_chunk.transform.matrix.mulp(point_internal))
-
+                        global_coord = camera_chunk.crs.project(camera_chunk.transform.matrix.mulp(point_internal))[:2]
+                        mapped_coordinates.append(global_coord)
                         
 
                     top_left = np.array(mapped_coordinates[0])
