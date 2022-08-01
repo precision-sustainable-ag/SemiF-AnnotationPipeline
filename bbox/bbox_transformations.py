@@ -443,7 +443,7 @@ class BBoxMapper():
         """
         self.images = images
         self.doc = Metashape.Document()
-        self.doc.open(project_path)
+        self.doc.open(str(project_path))
 
     def map(self):
         """
@@ -516,7 +516,7 @@ class GlobalToLocalMaper:
         """
         self.images = images
         self.doc = Metashape.Document()
-        self.doc.open(project_path)
+        self.doc.open(str(project_path))
 
     def map(self, global_box_coordinates: BBox, map_to: str):
 
