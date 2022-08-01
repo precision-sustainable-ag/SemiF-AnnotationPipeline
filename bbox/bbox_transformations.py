@@ -437,29 +437,28 @@ class BBoxFilter:
 
 class BBoxMapper():
 
-    def __init__(self, images: List[ImageData]):
+    def __init__(self, project_path: str, images: List[ImageData]):
         """Class to map bounding box coordinates from image cordinates
            to global coordinates
         """
         self.images = images
+        self.doc = Metashape.Document()
+        self.doc.open(project_path)
 
     def map(self):
         """
         Maps all the bounding boxes to a global coordinate space
         """
 
-        # Open the metashape project
-        doc = Metashape.Document()
-        doc.open("/home/chinmays/Documents/Research/PSI_Research/v3/prs/SemiF-AnnotationPipeline/data/semifield-developed-images/NC_2022-03-11/autosfm/projects/semif-trial.psx")    
-
         for image in self.images:
 
-            base, row, pot, timestamp = image.image_id.split("_")
-            image_id = "_".join([base, pot])
+            # base, row, pot, timestamp = image.image_id.split("_")
+            # image_id = "_".join([base, pot])
+            image_id = image.image_id
 
             # Isolate the chunk
             camera_chunk = None
-            for chunk in doc.chunks:
+            for chunk in self.doc.chunks:
                 cameras = [camera.label for camera in chunk.cameras]
                 if image_id in cameras:
                     camera_chunk = chunk
@@ -470,18 +469,6 @@ class BBoxMapper():
 
             # From: https://www.agisoft.com/forum/index.php?topic=13875.0
             surface = camera_chunk.point_cloud
-            crs = camera_chunk.crs
-            T = camera_chunk.transform.matrix
-
-            camera_location = image.camera_info.camera_location
-            camera_x = camera_location[0]
-            camera_y = camera_location[1]
-            camera_height = camera_z = camera_location[2]
-
-            # This is the center of the image
-            camera_center = [camera_x, camera_y]
-
-            image_center = [image.width / 2., image.height / 2.]
 
             global_coordinates = dict()
             for bbox in image.bboxes:
@@ -491,173 +478,63 @@ class BBoxMapper():
                 top_right = bbox.local_coordinates.top_right
                 bottom_right = bbox.local_coordinates.bottom_right
                 
-                try:
-                    mapped_coordinates = []
+                mapped_coordinates = []
 
-                    co_type = ["top_left", "bottom_left", "top_right", "bottom_right"]
+                co_type = ["top_left", "bottom_left", "top_right", "bottom_right"]
 
-                    for co, coords in zip(co_type, [top_left, bottom_left, top_right, bottom_right]):
+                for co, coords in zip(co_type, [top_left, bottom_left, top_right, bottom_right]):
 
-                        x_coord = coords[0]
-                        y_coord = coords[1]
-                        
-                        ray_origin = camera.center # camera.unproject(Metashape.Vector([x_coord, y_coord, 0]))
-                        ray_target = camera.unproject(Metashape.Vector([x_coord, y_coord]))
+                    x_coord = coords[0]
+                    y_coord = coords[1]
+                    
+                    ray_origin = camera.center # camera.unproject(Metashape.Vector([x_coord, y_coord, 0]))
+                    ray_target = camera.unproject(Metashape.Vector([x_coord, y_coord]))
 
-                        point_internal = surface.pickPoint(ray_origin, ray_target)
+                    point_internal = surface.pickPoint(ray_origin, ray_target)
 
-                        if point_internal is None:
-                            raise TypeError()
-                        
-                        # From https://www.agisoft.com/forum/index.php?topic=12781.0
-                        global_coord = camera_chunk.crs.project(camera_chunk.transform.matrix.mulp(point_internal))[:2]
-                        mapped_coordinates.append(global_coord)
-                        
+                    if point_internal is None:
+                        raise TypeError()
+                    
+                    # From https://www.agisoft.com/forum/index.php?topic=12781.0
+                    global_coord = camera_chunk.crs.project(camera_chunk.transform.matrix.mulp(point_internal))[:2]
+                    mapped_coordinates.append(global_coord)
+                    
+                top_left = np.array(mapped_coordinates[0])
+                top_right = np.array(mapped_coordinates[2])
+                bottom_left = np.array(mapped_coordinates[1])
+                bottom_right = np.array(mapped_coordinates[3])
 
-                    top_left = np.array(mapped_coordinates[0])
-                    top_right = np.array(mapped_coordinates[2])
-                    bottom_left = np.array(mapped_coordinates[1])
-                    bottom_right = np.array(mapped_coordinates[3])
-
-                    global_coordinates = BoxCoordinates(top_left, top_right, bottom_left,
-                                            bottom_right)
-                    bbox.update_global_coordinates(global_coordinates)
-                except TypeError:
-                    print(image_id, bbox.bbox_id, co)
-                    print(ray_origin)
-                    print(ray_target)
-                    print(surface.pickPoint(ray_origin, ray_target))
-
-                    # Transformation
-                    global_coordinates = bbox_to_global(
-                        top_left, top_right, bottom_left, bottom_right,
-                        camera_center, image.camera_info.pixel_width,
-                        image.camera_info.pixel_height,
-                        image.camera_info.focal_length, image.width, image.height,
-                        camera_height, image.camera_info.yaw,
-                        image.camera_info.pitch, image.camera_info.roll)
-
-                    bbox.update_global_coordinates(global_coordinates)
+                global_coordinates = BoxCoordinates(top_left, top_right, bottom_left, bottom_right)
+                bbox.update_global_coordinates(global_coordinates)
 
 
 class GlobalToLocalMaper:
 
-    def __init__(self, images: List[ImageData]):
+    def __init__(self, project_path: str, images: List[ImageData]):
         """Class to map bounding box coordinates from global cordinates
            to image coordinates
         """
         self.images = images
+        self.doc = Metashape.Document()
+        self.doc.open(project_path)
 
     def map(self, global_box_coordinates: BBox, map_to: str):
 
         local_coordinates = self.bbox_to_local(global_box_coordinates, map_to)
         return local_coordinates
 
-    def map_to_image(self, global_bbox, image):
-
-        global_coordinates = global_bbox.global_coordinates
-        coordinates = np.array([
-            global_coordinates.top_left, global_coordinates.top_right,
-            global_coordinates.bottom_left, global_coordinates.bottom_right
-        ])
-
-        # Shift the origin
-        center = image.camera_info.camera_location[:2]
-        coordinates = coordinates - np.expand_dims(center, axis=0)
-
-        # Add the z coordinate (height of the camera measured down from the camera)
-        coordinates = np.concatenate(
-            (coordinates, -image.camera_info.camera_location[-1] * np.ones((4, 1))), axis=1)
-
-        yaw_angle = image.camera_info.yaw
-        roll_angle = image.camera_info.roll
-        pitch_angle = image.camera_info.pitch
-
-        if yaw_angle < 180:
-            _yaw_angle = 360. - yaw_angle
-        else:
-            _yaw_angle = yaw_angle
-
-        # # Inverse rotation
-        R = Rotation.from_euler("XYZ",
-                                np.array([-pitch_angle, -roll_angle, -_yaw_angle]),
-                                degrees=True)
-
-        R_quat = R.as_quat()
-        rotation = Rotation.from_quat(R_quat)
-        image_coordinates = rotation.apply(coordinates)[:, :2] # Don't need the Z coordinate
-
-        focal_length = image.camera_info.focal_length
-        pixel_height = image.camera_info.pixel_height
-        pixel_width = image.camera_info.pixel_width
-        camera_height = image.camera_info.camera_location[-1]
-
-        image_coordinates[:, 0] = global_to_image_transform(
-            focal_length, pixel_width, 
-            image_coordinates[:, 0], camera_height)
-
-        image_coordinates[:, 1] = global_to_image_transform(
-            focal_length, pixel_height, 
-            image_coordinates[:, 1], camera_height)
-
-        return image_coordinates
-    
-    def shift_and_scale(self, image_bbox, image):
-        # Change the origin back to bottom left
-        origin = np.array([[image.width / 2., image.height / 2.]])
-        image_bbox = image_bbox + origin
-
-        # Change to image coordinate system: top left is 0, 0
-        image_bbox[:, 1] = image.height - image_bbox[:, 1]
-
-        # Determine the 4 points
-        mask = np.argsort(image_bbox[:, 0])
-
-        # Determine which is the top_left and bottom_left
-        left_coordinates = image_bbox[mask[:2], :]
-        # Determine which point is on the top
-        # (reversed argsort since the y axis gos from) top to bottom
-        top_sort = np.argsort(left_coordinates[:, 1])[::-1]
-        bottom_left = left_coordinates[top_sort[0], :]
-        top_left = left_coordinates[top_sort[1], :]
-
-        # Determine which is the top_right and bottom_right
-        right_coordinates = image_bbox[mask[2:], :]
-        # Determine which point is on the top 
-        # (reversed argsort since the y axis gos from) top to bottom
-        top_sort = np.argsort(right_coordinates[:, 1])[::-1]
-        bottom_right = right_coordinates[top_sort[0], :]
-        top_right = right_coordinates[top_sort[1], :]
-
-        # Normalize the coordinates
-        scale = np.array([image.width, image.height])
-        top_left = top_left / scale
-        top_right = top_right / scale
-        bottom_left = bottom_left / scale
-        bottom_right = bottom_right / scale
-
-        # Update the local coordinates bounding box
-        box_coordinates = BoxCoordinates(top_left=top_left, top_right=top_right, 
-                                         bottom_left=bottom_left, bottom_right=bottom_right)
-
-        return box_coordinates
-
-    def bbox_to_local(self, global_bbox: BBox, map_to: str):
+    def bbox_to_local(self, global_bbox: BBox, map_to_image: ImageData):
 
         assert not global_bbox.local_coordinates, "The global box contains existing local coordinates"\
                                                   "Mapping operation will overwrite them."
 
-
-        # Open the metashape project
-        doc = Metashape.Document()
-        doc.open("/home/chinmays/Documents/Research/PSI_Research/v3/prs/SemiF-AnnotationPipeline/data/semifield-developed-images/NC_2022-03-11/autosfm/projects/semif-trial.psx")    
-
-        base, row, pot, timestamp = map_to.split("_")
-        image_id = "_".join([base, pot])
+        # base, row, pot, timestamp = map_to.split("_")
+        # image_id = "_".join([base, pot])
+        image_id = map_to_image.image_id
 
         # Isolate the chunk
         camera_chunk = None
-        for chunk in doc.chunks:
+        for chunk in self.doc.chunks:
             cameras = [camera.label for camera in chunk.cameras]
             if image_id in cameras:
                 camera_chunk = chunk
@@ -667,7 +544,6 @@ class GlobalToLocalMaper:
         assert camera_chunk is not None
 
         # From: https://www.agisoft.com/forum/index.php?topic=13875.0
-        surface = camera_chunk.point_cloud
         crs = camera_chunk.crs
         T = camera_chunk.transform.matrix
 
@@ -680,15 +556,15 @@ class GlobalToLocalMaper:
 
         co_type = ["top_left", "bottom_left", "top_right", "bottom_right"]
 
-        scale = np.array([4796, 3184])
+        scale = np.array([map_to_image.width, map_to_image.height])
 
         for co, coords in zip(co_type, [top_left, bottom_left, top_right, bottom_right]):
 
             x_coord = coords[0]
             y_coord = coords[1]
-            z_coord = 0.
+            z_coord = 0. # Assuming 0 height. This could be tuned further
 
-            point = Metashape.Vector([x_coord, y_coord, z_coord]) #point of interest in geographic coord
+            point = Metashape.Vector([x_coord, y_coord, z_coord]) # point of interest in geographic coord
             point_internal = T.inv().mulp(crs.unproject(point))
             coords_2D = camera.project(point_internal)
             # Normalize
@@ -698,23 +574,5 @@ class GlobalToLocalMaper:
                                          top_right=mapped_coordinates["top_right"], 
                                          bottom_left=mapped_coordinates["bottom_left"], 
                                          bottom_right=mapped_coordinates["bottom_right"])
-
-        # def distance(camera_center):
-
-        #     xy = np.array(camera_center[:2])
-
-        #     return np.sum((xy - global_bbox.global_centroid)**2)
-
-        # # Find the closest image
-        # centroids = np.array([distance(image.camera_info.camera_location) for image in self.images])
-        # min_dist_idx = np.argmin(centroids)
-
-        # # image = self.images[min_dist_idx]
-        # image = [img for img in self.images if img.image_id == map_to][0]
-        # print(image.image_id)
-
-        # image_bbox = self.map_to_image(global_bbox, image)
-
-        # box_coordinates = self.shift_and_scale(image_bbox, image)
         
         return box_coordinates
