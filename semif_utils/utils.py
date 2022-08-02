@@ -348,6 +348,21 @@ def multiple_otsu(vi):
     regions = np.digitize(vi, bins=thresholds)
     return regions
 
+######################################################
+##################### CONTOURS #######################
+######################################################
+def contour_mask(img, mode="biggest"):
+    # For using find_contours
+    # get most significant contours
+    contours_mask, hierachy = cv2.findContours(img, cv2.RETR_EXTERNAL,
+                                            cv2.CHAIN_APPROX_NONE)
+    mask = np.zeros(img.shape, np.uint8)
+    # find the biggest countour (c) by the area
+    if mode == "biggest":
+        c = max(contours_mask, key = cv2.contourArea)
+        cv2.drawContours(mask, [c], -1, (255),1)
+    return mask
+
 
 ######################################################
 ##################### MASKING ########################
