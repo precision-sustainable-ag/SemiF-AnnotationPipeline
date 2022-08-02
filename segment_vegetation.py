@@ -5,15 +5,18 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import pandas as pd
 from omegaconf import DictConfig
 
 from semif_utils.datasets import BatchMetadata, Cutout
+from semif_utils.segment_algos import process_general
 from semif_utils.segment_utils import (GenCutoutProps, SegmentMask,
                                        VegetationIndex, prep_bbox)
 from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
                                dilate_erode, get_image_meta,
                                get_upload_datetime, get_watershed, make_exg,
-                               reduce_holes, seperate_components, thresh_vi)
+                               manual_bbox, reduce_holes, seperate_components,
+                               thresh_vi)
 
 log = logging.getLogger(__name__)
 
@@ -36,10 +39,10 @@ class SegmentVegetation:
         self.dom_th_up = cfg.segment.domain.th_up
         self.dom_th_sig = cfg.segment.domain.th_sig
         self.dom_algo = cfg.segment.domain.class_algo
-        self.dom_kern_size=cfg.segment.domain.kern_size
-        self.dom_dil_iter=cfg.segment.domain.dil_iter
-        self.dom_ero_iter=cfg.segment.domain.ero_iter
-        self.dom_hole_fill=cfg.segment.domain.hole_fill
+        self.dom_kern_size = cfg.segment.domain.kern_size
+        self.dom_dil_iter = cfg.segment.domain.dil_iter
+        self.dom_ero_iter = cfg.segment.domain.ero_iter
+        self.dom_hole_fill = cfg.segment.domain.hole_fill
 
         self.cut_vi = cfg.segment.cutout.vi
         self.cut_vi_th = cfg.segment.cutout.vi_th
@@ -60,19 +63,9 @@ class SegmentVegetation:
     def process_domain(self, img):
         """First cutout processing step of the full image."""
         v_index = getattr(VegetationIndex(), self.dom_vi)
-        vi = v_index(img, thresh=self.dom_vi_th)
-        th_vi = thresh_vi(vi,
-                          low=self.dom_th_low,
-                          upper=self.dom_th_up,
-                          sigma=self.dom_th_sig)
         clalgo = getattr(SegmentMask(), self.dom_algo)
-        mask = clalgo(th_vi)
-        dil_ero_mask = dilate_erode(mask,
-                                    kernel_size=self.dom_kern_size,
-                                    dil_iters=self.dom_dil_iter,
-                                    eros_iters=self.dom_ero_iter,
-                                    hole_fill=self.dom_hole_fill)
-        return dil_ero_mask
+        mask = process_general(img, v_index, 0, clalgo)
+        return mask
 
     def process_cutout(self, cutout):
         """Second cutout processing step.
@@ -83,11 +76,9 @@ class SegmentVegetation:
                           low=self.cut_th_low,
                           upper=self.cut_th_up,
                           sigma=self.cut_th_sig)
-        
 
         clalgo = getattr(SegmentMask(), self.dom_algo)
         mask = clalgo(th_vi)
-
         mask = np.where(mask <= 0.3, 0., 1)
         dil_ero_mask = dilate_erode(mask,
                                     kernel_size=self.cut_kern_size,
@@ -109,12 +100,10 @@ class SegmentVegetation:
 
         # Get bboxes
         bboxes = imgdata.bboxes
-
         ## Process on images by individual bbox detection
         cutout_num = 0
         cutout_ids = []
 
-        # for box in bboxes:
         for box in bboxes:
             # Scale the box that will be used for the cutout
             scale = [imgdata.fullres_width, imgdata.fullres_height]
@@ -142,7 +131,6 @@ class SegmentVegetation:
                 new_cropped_cutout = crop_cutouts(new_cutout)
 
                 # Get regionprops
-                cv2.imwrite("test.png", mask2 * 255)
                 if np.sum(mask2 == 0) == mask2.shape[0] * mask2.shape[1]:
                     continue
                 cutprops = GenCutoutProps(mask2).to_dataclass()
@@ -170,10 +158,12 @@ class SegmentVegetation:
         imgdata.cutout_ids = cutout_ids
         imgdata.save_config(self.metadata)
 
+
 def return_dataclass_list(label, return_lbls):
     dc = get_image_meta(label)
     return_lbls.append(dc)
     return return_lbls
+
 
 def create_dataclasses(metadir):
     log.info("Creating dataclasses")
