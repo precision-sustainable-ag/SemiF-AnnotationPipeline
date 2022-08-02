@@ -3,17 +3,20 @@ from dataclasses import asdict
 from multiprocessing import Manager, Pool, Process, cpu_count
 from pathlib import Path
 
+import cv2
 import numpy as np
+import pandas as pd
 from omegaconf import DictConfig
 
 from semif_utils.datasets import BatchMetadata, Cutout
-from semif_utils.segment_utils import (ClassifyMask, GenCutoutProps,
-                                       VegetationIndex, get_image_meta,
-                                       get_watershed, prep_bbox,
-                                       seperate_components, thresh_vi)
+from semif_utils.segment_algos import process_general
+from semif_utils.segment_utils import (GenCutoutProps, SegmentMask,
+                                       VegetationIndex, prep_bbox)
 from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
-                               dilate_erode, get_upload_datetime, make_exg,
-                               reduce_holes)
+                               dilate_erode, get_image_meta,
+                               get_upload_datetime, get_watershed, make_exg,
+                               manual_bbox, reduce_holes, seperate_components,
+                               thresh_vi)
 
 log = logging.getLogger(__name__)
 
@@ -29,44 +32,60 @@ class SegmentVegetation:
         self.metadata = self.batchdir / "metadata"
         self.cutout_batch_dir = self.cutout_dir / self.batch_id
         self.clear_border = cfg.segment.clear_border
-        self.vi = cfg.segment.vi
-        self.class_algorithm = cfg.segment.class_algorithm
+
+        self.dom_vi = cfg.segment.domain.vi
+        self.dom_vi_th = cfg.segment.domain.vi_th
+        self.dom_th_low = cfg.segment.domain.th_low
+        self.dom_th_up = cfg.segment.domain.th_up
+        self.dom_th_sig = cfg.segment.domain.th_sig
+        self.dom_algo = cfg.segment.domain.class_algo
+        self.dom_kern_size = cfg.segment.domain.kern_size
+        self.dom_dil_iter = cfg.segment.domain.dil_iter
+        self.dom_ero_iter = cfg.segment.domain.ero_iter
+        self.dom_hole_fill = cfg.segment.domain.hole_fill
+
+        self.cut_vi = cfg.segment.cutout.vi
+        self.cut_vi_th = cfg.segment.cutout.vi_th
+        self.cut_th_low = cfg.segment.cutout.th_low
+        self.cut_th_up = cfg.segment.cutout.th_up
+        self.cut_th_sig = cfg.segment.cutout.th_sig
+        self.cut_algo = cfg.segment.cutout.class_algo
+        self.cut_kern_size = cfg.segment.cutout.kern_size
+        self.cut_dil_iter = cfg.segment.cutout.dil_iter
+        self.cut_ero_iter = cfg.segment.cutout.ero_iter
+        self.cut_hole_fill = cfg.segment.cutout.hole_fill
+
         self.multi_process = cfg.segment.multiprocess
 
         if not self.cutout_batch_dir.exists():
             self.cutout_batch_dir.mkdir(parents=True, exist_ok=True)
 
-        # self.cutout_pipeline()
-
     def process_domain(self, img):
         """First cutout processing step of the full image."""
-        v_index = getattr(VegetationIndex(), self.vi)
-        vi = v_index(img)
-        th_vi = thresh_vi(vi)
-        # Get classified mask
-        clalgo = getattr(ClassifyMask(), self.class_algorithm)
-        mask = clalgo(th_vi)
+        v_index = getattr(VegetationIndex(), self.dom_vi)
+        clalgo = getattr(SegmentMask(), self.dom_algo)
+        mask = process_general(img, v_index, 0, clalgo)
         return mask
 
     def process_cutout(self, cutout):
         """Second cutout processing step.
         """
-        vi = make_exg(cutout, thresh=True)
-        thresh_vi_arr = thresh_vi(vi, low=10, upper=100, sigma=5)
+        v_index = getattr(VegetationIndex(), self.cut_vi)
+        vi = v_index(cutout, thresh=self.cut_vi_th)
+        th_vi = thresh_vi(vi,
+                          low=self.cut_th_low,
+                          upper=self.cut_th_up,
+                          sigma=self.cut_th_sig)
 
-        # process the watershed
-        wtrshed_lbls = get_watershed(thresh_vi_arr)
-
-        mask = np.where(wtrshed_lbls <= 0.3, 0., 1)
-
-        dil_ero_mask = dilate_erode(mask[:, :, 0],
-                                    kernel_size=3,
-                                    dil_iters=5,
-                                    eros_iters=6,
-                                    hole_fill=True)
-
+        clalgo = getattr(SegmentMask(), self.dom_algo)
+        mask = clalgo(th_vi)
+        mask = np.where(mask <= 0.3, 0., 1)
+        dil_ero_mask = dilate_erode(mask,
+                                    kernel_size=self.cut_kern_size,
+                                    dil_iters=self.cut_dil_iter,
+                                    eros_iters=self.cut_ero_iter,
+                                    hole_fill=self.cut_hole_fill)
         reduced_mask = reduce_holes(dil_ero_mask * 255) * 255
-
         return reduced_mask
 
     def cutout_pipeline(self, payload):
@@ -81,24 +100,24 @@ class SegmentVegetation:
 
         # Get bboxes
         bboxes = imgdata.bboxes
-
         ## Process on images by individual bbox detection
         cutout_num = 0
         cutout_ids = []
 
-        # for box in bboxes:
         for box in bboxes:
-
             # Scale the box that will be used for the cutout
             scale = [imgdata.fullres_width, imgdata.fullres_height]
             box, x1, y1, x2, y2 = prep_bbox(box, scale)
-
             # Crop image to bbox
             rgb_crop = rgb_array[y1:y2, x1:x2]
+            if rgb_crop.sum() == 0:
+                continue
             mask = self.process_domain(rgb_crop)
             # Clear borders
             if self.clear_border:
                 mask = clear_border(mask) * 255
+            if mask.max() == 0:
+                continue
             # Separate components
             list_cutouts_masks = seperate_components(mask)
             # Create RGB cutout for second round of processing
@@ -112,6 +131,8 @@ class SegmentVegetation:
                 new_cropped_cutout = crop_cutouts(new_cutout)
 
                 # Get regionprops
+                if np.sum(mask2 == 0) == mask2.shape[0] * mask2.shape[1]:
+                    continue
                 cutprops = GenCutoutProps(mask2).to_dataclass()
                 # Removes false positives that are typically very small cutouts
                 if type(cutprops.area) is not list and cutprops.area < 500:
@@ -146,7 +167,7 @@ def return_dataclass_list(label, return_lbls):
 
 def create_dataclasses(metadir):
     log.info("Creating dataclasses")
-    labels = [str(x) for x in (metadir).glob("*.json")]
+    labels = sorted([str(x) for x in (metadir).glob("*.json")])
     jobs = []
     manager = Manager()
     return_list = manager.list()
@@ -193,7 +214,7 @@ def main(cfg: DictConfig) -> None:
     else:
         # Single process
         log.info("Processing image data.")
-        labels = [str(x) for x in (metadir).glob("*.json")]
+        labels = sorted([str(x) for x in (metadir).glob("*.json")])
         for label in labels:
             svg.cutout_pipeline(label)
         log.info("Finished segmenting vegetation")
