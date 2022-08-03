@@ -9,14 +9,12 @@ import pandas as pd
 from omegaconf import DictConfig
 
 from semif_utils.datasets import BatchMetadata, Cutout
-from semif_utils.segment_algos import process_general
+from semif_utils.segment_algos import process_general,thresh_vi, reduce_holes
 from semif_utils.segment_utils import (GenCutoutProps, SegmentMask,
                                        VegetationIndex, prep_bbox)
 from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
                                dilate_erode, get_image_meta,
-                               get_upload_datetime, get_watershed, make_exg,
-                               manual_bbox, reduce_holes, seperate_components,
-                               thresh_vi)
+                               get_upload_datetime, get_watershed, make_exg)
 
 log = logging.getLogger(__name__)
 
@@ -119,40 +117,40 @@ class SegmentVegetation:
             if mask.max() == 0:
                 continue
             # Separate components
-            list_cutouts_masks = seperate_components(mask)
+            # list_cutouts_masks = seperate_components(mask)
             # Create RGB cutout for second round of processing
             cutout_0 = apply_mask(rgb_crop, mask, "black")
             # Second round of processing
-            for cut_mask in list_cutouts_masks:
-                preproc_cutout = apply_mask(cutout_0, cut_mask, "black")
-                mask2 = self.process_cutout(preproc_cutout)
+            # for cut_mask in list_cutouts_masks:
+            #     preproc_cutout = apply_mask(cutout_0, cut_mask, "black")
+                # mask2 = self.process_cutout(preproc_cutout)
 
-                new_cutout = apply_mask(preproc_cutout, mask2, "black")
-                new_cropped_cutout = crop_cutouts(new_cutout)
+            # new_cutout = apply_mask(preproc_cutout, mask2, "black")
+            new_cropped_cutout = crop_cutouts(cutout_0)
 
-                # Get regionprops
-                if np.sum(mask2 == 0) == mask2.shape[0] * mask2.shape[1]:
-                    continue
-                cutprops = GenCutoutProps(mask2).to_dataclass()
-                # Removes false positives that are typically very small cutouts
-                if type(cutprops.area) is not list and cutprops.area < 500:
-                    continue
+            # Get regionprops
+            if np.sum(mask == 0) == mask.shape[0] * mask.shape[1]:
+                continue
+            cutprops = GenCutoutProps(mask).to_dataclass()
+            # Removes false positives that are typically very small cutouts
+            if type(cutprops.area) is not list and cutprops.area < 500:
+                continue
 
-                # Create dataclass
-                cutout = Cutout(blob_home=self.data_dir.name,
-                                data_root=self.cutout_dir.name,
-                                batch_id=self.batch_id,
-                                image_id=imgdata.image_id,
-                                cutout_num=cutout_num,
-                                datetime=imgdata.exif_meta.DateTime,
-                                cutout_props=asdict(cutprops),
-                                is_primary=box.is_primary,
-                                cls=box.cls)
-                cutout.save_cutout(new_cropped_cutout)
-                cutout.save_config(self.cutout_dir)
+            # Create dataclass
+            cutout = Cutout(blob_home=self.data_dir.name,
+                            data_root=self.cutout_dir.name,
+                            batch_id=self.batch_id,
+                            image_id=imgdata.image_id,
+                            cutout_num=cutout_num,
+                            datetime=imgdata.exif_meta.DateTime,
+                            cutout_props=asdict(cutprops),
+                            is_primary=box.is_primary,
+                            cls=box.cls)
+            cutout.save_cutout(new_cropped_cutout)
+            cutout.save_config(self.cutout_dir)
 
-                cutout_ids.append(cutout.cutout_id)
-                cutout_num += 1
+            cutout_ids.append(cutout.cutout_id)
+            cutout_num += 1
 
         # To json
         imgdata.cutout_ids = cutout_ids
