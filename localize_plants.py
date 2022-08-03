@@ -1,6 +1,5 @@
 import logging
 from pathlib import Path
-
 import cv2
 import pandas as pd
 import torch
@@ -63,6 +62,20 @@ def main(cfg: DictConfig) -> None:
         device = int(device.split(":")[1])
     else:
         raise ValueError("Device should be one of \"cpu\" of \"cuda:x\"")
+
+    if cfg.detect.concat_detections:
+        detection_dir = Path(cfg.data.batchdir, "plant-detections")
+        detections = [x for x in detection_dir.glob("*.csv")]
+        dfs = []
+        for det in detections:
+            df = pd.read_csv(det)
+            df["imgname"] = det.stem + ".jpg"
+            df = df.rename(columns={"classname": "name"})
+            dfs.append(df)
+        df = pd.concat(dfs, ignore_index=True)
+        df.to_csv(csv_savepath)
+        log.info(f"Combined detections and saved to: \n{csv_savepath}")
+        exit()
 
     if save_detection:
         # Crop savepath

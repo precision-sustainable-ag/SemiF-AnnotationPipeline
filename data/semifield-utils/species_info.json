@@ -65,7 +65,7 @@
         },
         "CYRO": {
             "scientific_name": "Cyperus rotundus",
-            "common_name": "Purple",
+            "common_name": "Purple nutsedge",
             "USDA_symbol": "CYRO",
             "EPPO": "CYPRO",
             "authority": "Linnaeus",
@@ -144,6 +144,15 @@
             "collection_location": "NC",
             "polygon_id": ""
         },
+        "GLMA4": {
+            "scientific_name": "Glycine max",
+            "common_name": "Soybean",
+            "USDA_symbol": "GLMA4",
+            "EPPO": " GLXMA",
+            "authority": "(Linnaeus) Merrill",
+            "collection_location": "NC",
+            "polygon_id": ""
+        },
         "AMHY": {
             "scientific_name": "Amaranthus hybridus",
             "common_name": "Smooth pigweed",
@@ -212,6 +221,15 @@
             "common_name": "Horseweed",
             "USDA_symbol": "ERCA20",
             "EPPO": "ERICA",
+            "authority": "Linnaeus",
+            "collection_location": "MD",
+            "polygon_id": ""
+        },
+        "ZEA": {
+            "scientific_name": "Zea mays",
+            "common_name": "Maize",
+            "USDA_symbol": "ZEA",
+            "EPPO": "  ZEAMX",
             "authority": "Linnaeus",
             "collection_location": "MD",
             "polygon_id": ""

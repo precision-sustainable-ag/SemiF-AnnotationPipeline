@@ -5,7 +5,9 @@ from pathlib import Path
 
 import yaml
 from omegaconf import DictConfig, OmegaConf
+import logging
 
+log = logging.getLogger(__name__)
 
 def main(cfg: DictConfig) -> None:
 
@@ -21,13 +23,23 @@ def main(cfg: DictConfig) -> None:
     autosfm_storage = Path(cfg.autosfm.autosfm_storage, cfg.general.batch_id)
     images_dst = Path(autosfm_storage, "developed")
     shutil.copytree(images_src, images_dst)
-
-    gcp_src = Path(cfg.data.uploaddir, cfg.general.batch_id,
-                   "GroundControlPoints.csv")
-    shutil.copy(gcp_src, autosfm_storage)
+    # Get GCP file based on batch ID
+    state_id = cfg.general.batch_id.split("_")[0]
+    gcp_src = [x for x in Path(cfg.data.utilsdir, state_id).glob("*.csv")][0]
+    # Rename csv file to AutoSfM format
+    autosfm_storage_csv = autosfm_storage / "GroundControlPoints.csv"
+    shutil.copy(gcp_src, autosfm_storage_csv)
 
     # Compose the command
-    exe_command = f"docker run \
+    try:
+        subprocess.check_output('nvidia-smi')
+        log.info('Nvidia GPU detected. \nUsing "docker run --gpus all".')
+        command_suffix = "docker run --gpus all "
+    except Exception: # this command not being found can raise quite a few different errors depending on the configuration
+        log.info('No Nvidia GPU in system. Using "docker run"')
+        command_suffix = "docker run "
+        
+    exe_command = f"{command_suffix}\
     -v {cfg.autosfm.autosfm_volume}:/home/psi_docker/autoSfM/volumes \
     -v {cfg.autosfm.autosfm_storage}:/home/psi_docker/autoSfM/storage \
     -v {cfg.autosfm.autosfm_exports}:/home/psi_docker/autoSfM/exports \
