@@ -5,19 +5,16 @@
 
 # TODOs
 
-1. Test full pipeline in VM
-2. Improve docs
-3. Develop evaluation method
-5. ~~Create cron job for processing batches dynamically (updating a list of processed batches)~~
-6. ~~Automate image development process~~
-7. ~~Automate autoSfM results and pipeline triggering~~
-8. ~~Update synth data generation code~~
-9. ~~merge autoSfM with synth data generation~~
-10. ~~Move inferencing to CPU if no GPU in `localize_plants`~~
-11.  ~~Get unique bbox for cutouts in `segment_vegetation`~~
-12.  ~~rescale local bbox to original image size and not downscaled_photos~~
-13. ~~Filter cutouts to eliminate very small results in `segment_vegetation`~~
+## Environment Setup in Azure VM without GPU:
 
+```Bash
+conda update -n base conda
+conda env create -f environment_nogpu.yml
+conda activate semif_nogpu
+conda install pytorch torchvision cpuonly -c pytorch
+pip install /home/azureuser/autoSfM/autoSfM/package/dependencies/Metashape-1.8.0-cp35.cp36.cp37.cp38-abi3-linux_x86_64.whl
+export agisoft_LICENSE="/home/azureuser/SemiF-AnnotationPipeline/autosfm/volumes/metashape/metashape-pro/metashape.lic"
+```
 <br>
 
 # Environment Setup
