@@ -1,6 +1,7 @@
 defaults:
   - autosfm: autosfm
   - maintenance: maintenance
+  - planting: planting
   - _self_
 
 hydra:

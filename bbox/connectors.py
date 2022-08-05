@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 from semif_utils.datasets import BBox, BoxCoordinates, CameraInfo, RemapImage
 from tqdm import tqdm
-
+from semif_utils.utils import growth_stage
 
 class SfMComponents:
 
@@ -54,16 +54,19 @@ class BBoxComponents:
     """Reads bounding box coordinate files and converts to BBox class
     """
 
-    def __init__(self, data_dir, developed_dir, batch_dir, image_dir,
+    def __init__(self, data_dir, developed_dir, batch_dir, image_dir,plant_dates,
                  camera_reference: pd.DataFrame, reader: Callable, multiprocessing: bool, 
                  *args, **kwargs):
         self.data_dir = Path(data_dir)
         self.developed_dir = Path(developed_dir)
         self.batch_dir = Path(batch_dir)
         self.image_dir = Path(image_dir)
+        self.plant_dates = plant_dates
         self.batch_id = self.batch_dir.name
+        self.batch_date = self.batch_id.split("_")[1]
+        self.growth_stage, self.plant_date = growth_stage(self.batch_date, self.plant_dates)
         self.multiprocessing = multiprocessing
-
+        
         self.camera_reference = camera_reference
         self.reader = reader
         self.image_list, self.bounding_boxes = self.reader(*args, **kwargs)
@@ -185,6 +188,8 @@ class BBoxComponents:
                             image_id=image_id,
                             bboxes=self.bboxes[image_id],
                             camera_info=cam_info,
+                            plant_date=self.plant_date,
+                            growth_stage=self.growth_stage,
                             fullres_path=fullres_path)
         # Set the full resolution height and width
         if path != fullres_path:

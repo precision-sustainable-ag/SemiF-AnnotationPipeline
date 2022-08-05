@@ -438,6 +438,8 @@ class Image:
     batch_id: str
     image_path: str
     image_id: str
+    plant_date: str
+    growth_stage: str
 
     def __post_init__(self):
         image_array = self.array
@@ -462,6 +464,8 @@ class Image:
             "batch_id": self.batch_id,
             "image_id": self.image_id,
             "image_path": self.image_path,
+            "plant_date": self.plant_date,
+            "growth_stage": self.growth_stage,
             "width": self.width,
             "height": self.height,
             "exif_meta": asdict(self.exif_meta),
@@ -527,6 +531,7 @@ class RemapImage(Image):
         _config = super(RemapImage, self).config
         _config["fullres_width"] = self.fullres_width
         _config["fullres_height"] = self.fullres_height
+        
 
         return _config
 
@@ -557,6 +562,8 @@ class ImageData(Image):
             "batch_id": self.batch_id,
             "image_id": self.image_id,
             "image_path": self.image_path,
+            "plant_date": self.plant_date,
+            "growth_stage": self.growth_stage,
             "width": self.width,
             "height": self.height,
             "exif_meta": asdict(self.exif_meta),
@@ -654,6 +661,7 @@ class Cutout:
     cutout_path: str = field(init=False)
     cls: str = None
     is_primary: bool = False
+    cutout_version: str = "1.0"
     schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self):
