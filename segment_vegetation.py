@@ -2,7 +2,7 @@ import logging
 from dataclasses import asdict
 from multiprocessing import Manager, Pool, Process, cpu_count
 from pathlib import Path
-
+from segment_species import Segment
 import cv2
 import numpy as np
 import pandas as pd
@@ -30,67 +30,15 @@ class SegmentVegetation:
         self.metadata = self.batchdir / "metadata"
         self.cutout_batch_dir = self.cutout_dir / self.batch_id
         self.clear_border = cfg.segment.clear_border
-
-        self.dom_vi = cfg.segment.domain.vi
-        self.dom_vi_th = cfg.segment.domain.vi_th
-        self.dom_th_low = cfg.segment.domain.th_low
-        self.dom_th_up = cfg.segment.domain.th_up
-        self.dom_th_sig = cfg.segment.domain.th_sig
-        self.dom_algo = cfg.segment.domain.class_algo
-        self.dom_kern_size = cfg.segment.domain.kern_size
-        self.dom_dil_iter = cfg.segment.domain.dil_iter
-        self.dom_ero_iter = cfg.segment.domain.ero_iter
-        self.dom_hole_fill = cfg.segment.domain.hole_fill
-
-        self.cut_vi = cfg.segment.cutout.vi
-        self.cut_vi_th = cfg.segment.cutout.vi_th
-        self.cut_th_low = cfg.segment.cutout.th_low
-        self.cut_th_up = cfg.segment.cutout.th_up
-        self.cut_th_sig = cfg.segment.cutout.th_sig
-        self.cut_algo = cfg.segment.cutout.class_algo
-        self.cut_kern_size = cfg.segment.cutout.kern_size
-        self.cut_dil_iter = cfg.segment.cutout.dil_iter
-        self.cut_ero_iter = cfg.segment.cutout.ero_iter
-        self.cut_hole_fill = cfg.segment.cutout.hole_fill
-
         self.multi_process = cfg.segment.multiprocess
 
         if not self.cutout_batch_dir.exists():
             self.cutout_batch_dir.mkdir(parents=True, exist_ok=True)
 
-    def process_domain(self, img):
-        """First cutout processing step of the full image."""
-        v_index = getattr(VegetationIndex(), self.dom_vi)
-        clalgo = getattr(SegmentMask(), self.dom_algo)
-        mask = process_general(img, v_index, 0, clalgo)
-        return mask
-
-    def process_cutout(self, cutout):
-        """Second cutout processing step.
-        """
-        v_index = getattr(VegetationIndex(), self.cut_vi)
-        vi = v_index(cutout, thresh=self.cut_vi_th)
-        th_vi = thresh_vi(vi,
-                          low=self.cut_th_low,
-                          upper=self.cut_th_up,
-                          sigma=self.cut_th_sig)
-
-        clalgo = getattr(SegmentMask(), self.dom_algo)
-        mask = clalgo(th_vi)
-        mask = np.where(mask <= 0.3, 0., 1)
-        dil_ero_mask = dilate_erode(mask,
-                                    kernel_size=self.cut_kern_size,
-                                    dil_iters=self.cut_dil_iter,
-                                    eros_iters=self.cut_ero_iter,
-                                    hole_fill=self.cut_hole_fill)
-        reduced_mask = reduce_holes(dil_ero_mask * 255) * 255
-        return reduced_mask
-
     def cutout_pipeline(self, payload):
         """ Main Processing pipeline. Reads images from list of labels in
             labeldir,             
         """
-
         imgdata = payload["imgdata"] if self.multi_process else get_image_meta(
             payload)
         # Call image array
@@ -101,19 +49,31 @@ class SegmentVegetation:
         ## Process on images by individual bbox detection
         cutout_num = 0
         cutout_ids = []
-
+        
         for box in bboxes:
             # Scale the box that will be used for the cutout
             scale = [imgdata.fullres_width, imgdata.fullres_height]
             box, x1, y1, x2, y2 = prep_bbox(box, scale)
+            
             # Crop image to bbox
             rgb_crop = rgb_array[y1:y2, x1:x2]
+            seg = Segment(rgb_crop)
             if rgb_crop.sum() == 0:
                 continue
-            mask = self.process_domain(rgb_crop)
+            species = box.cls
+            g_stage = imgdata.growth_stage
+            if species["USDA_symbol"] == "CHAL7":
+                mask = seg.lambsquarters(cotlydon=False)
+            mask = seg.lambsquarters(cotlydon=False)
+            # kernel = np.ones((3,3),np.uint8)
+            # closing = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_CLOSE, kernel)
+            # mask = cv2.cvtColor(closing*255, cv2.COLOR_GRAY2RGB)
+            
+            # cutout_0 = cv2.bitwise_and(rgb_crop, mask)
+            # mask = self.process_domain(rgb_crop)
             # Clear borders
             if self.clear_border:
-                mask = clear_border(mask) * 255
+                mask = clear_border(mask)
             if mask.max() == 0:
                 continue
             # Separate components
@@ -126,16 +86,20 @@ class SegmentVegetation:
                 # mask2 = self.process_cutout(preproc_cutout)
 
             # new_cutout = apply_mask(preproc_cutout, mask2, "black")
-            new_cropped_cutout = crop_cutouts(cutout_0)
-
+            # new_cropped_cutout = crop_cutouts(cutout_0)
+            mask2 = Segment(cutout_0).general_seg(mode="cluster")
+            # Check results
             # Get regionprops
-            if np.sum(mask == 0) == mask.shape[0] * mask.shape[1]:
+            if np.sum(mask2 == 0) == mask2.shape[0] * mask2.shape[1]:
                 continue
-            cutprops = GenCutoutProps(mask).to_dataclass()
+            cutprops = GenCutoutProps(mask2).to_dataclass()
             # Removes false positives that are typically very small cutouts
-            if type(cutprops.area) is not list and cutprops.area < 500:
-                continue
-
+            if type(cutprops.area) is not list:
+                if  g_stage != "cotyledon" and cutprops.area < 1000:
+                    continue
+            
+            cutout_2 = apply_mask(rgb_crop, mask2, "black")
+            cropped_cutout2 = crop_cutouts(cutout_2)
             # Create dataclass
             cutout = Cutout(blob_home=self.data_dir.name,
                             data_root=self.cutout_dir.name,
@@ -146,7 +110,7 @@ class SegmentVegetation:
                             cutout_props=asdict(cutprops),
                             is_primary=box.is_primary,
                             cls=box.cls)
-            cutout.save_cutout(new_cropped_cutout)
+            cutout.save_cutout(cropped_cutout2)
             cutout.save_config(self.cutout_dir)
 
             cutout_ids.append(cutout.cutout_id)

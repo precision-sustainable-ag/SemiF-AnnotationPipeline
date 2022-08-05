@@ -1,29 +1,6 @@
 multiprocess: True
 clear_border: True
-
-domain:
-  vi: exg # exg, exr, exg_minus_exr, ndi
-  vi_th: 0 # 0 is recommended for ExG
-  th_low: 10 # 10 rec for ExG
-  th_up: 100
-  th_sig: 2
-  class_algo: multi_otsu # otsu, kmeans, watershed, multi_otsu
-  kern_size: 5
-  dil_iter: 11
-  ero_iter: 3
-  hole_fill: True
-
-cutout:  
-  vi: exg # exg, exr, exg_minus_exr, ndi
-  vi_th: 0 # 0 is recommended for ExG
-  th_low: 10 # 10 rec for ExG
-  th_up: 100
-  th_sig: 5
-  class_algo: kmeans # otsu, kmeans, watershed, multi_otsu
-  kern_size: 3
-  dil_iter: 2
-  ero_iter: 4
-  hole_fill: False
+species_specific: True
 
 testing:
   samples: 1

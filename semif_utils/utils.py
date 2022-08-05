@@ -4,11 +4,12 @@ import platform
 import random
 from datetime import datetime
 from pathlib import Path
-
+from datetime import datetime
 import cv2
 import numpy as np
 import pandas as pd
 import skimage
+import operator
 import torch
 from dacite import Config, from_dict
 from PIL import Image
@@ -108,6 +109,37 @@ def get_image_meta(path):
                             config=Config(check_types=False))
     return imgdata
 
+def growth_stage(batch_date, plant_date_list):
+    """ Gets rough approximation of growth stage by comparing the batch upload date
+        with a list of "planting dates" in config.planting. Uses a threshold value,
+        "coty_thresh" to differentiate between cotyledon and vegetative. 
+        Returns growth stage and planting date."""
+
+    batch_date = datetime.strptime(batch_date, "%Y-%m-%d")
+    plant_date_list = [datetime.strptime(x, "%Y-%m-%d") for x in plant_date_list]
+    # Remove plant dates that are newer than batch date
+    plant_date_list = [x for x in plant_date_list if x <= batch_date]
+    # Difference and get indices
+    deltas = [abs(ti - batch_date) for ti in plant_date_list]
+    min_index, min_delta = min(enumerate(deltas), key=operator.itemgetter(1))
+    
+
+    pl_dt = plant_date_list[min_index].strftime('%Y-%m-%d')
+    if min_delta.days < 2:
+        g_stage = "seed"
+    elif min_delta.days < 10:
+        g_stage = "cotyledon"
+    elif min_delta.days < 20:
+        g_stage = "seedling"
+    else:
+        g_stage = "vegetative"
+
+    print("plant_date_list", plant_date_list)
+    print("plant_date", pl_dt)
+    print("min_delta", min_delta.days)
+    print("g_stage", g_stage)
+
+    return g_stage, pl_dt
 
 ######################################################
 ############### VEGETATION INDICES ###################
@@ -232,6 +264,9 @@ def rescale_bbox(box, imgshape):
 ################# MORPHOLOGICAL ######################
 ######################################################
 
+def region_props(img, label):
+    props = [x.area for x in measure.regionprops(label, img)]
+    return props
 
 def clean_mask(mask, kernel_size=3, iterations=1, dilation=True):
     if int(kernel_size):
@@ -320,7 +355,7 @@ def make_kmeans(exg_mask):
     exg = exg_mask.reshape(rows * cols, 1)
     kmeans = KMeans(n_clusters=n_classes, random_state=3).fit(exg)
     mask = kmeans.labels_.reshape(rows, cols)
-    mask = check_kmeans(mask)
+    # mask = check_kmeans(mask)
     return mask.astype("uint64")
 
 
