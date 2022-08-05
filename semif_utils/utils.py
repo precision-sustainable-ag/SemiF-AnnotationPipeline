@@ -4,7 +4,7 @@ import platform
 from datetime import datetime
 from difflib import get_close_matches
 from pathlib import Path
-
+import operator
 import cv2
 import numpy as np
 import pandas as pd
@@ -86,6 +86,32 @@ def parse_dict(props_tabl):
             ndict[key] = float(val)
     return ndict
 
+def growth_stage(batch_date, plant_date_list):
+    """ Gets rough approximation of growth stage by comparing the batch upload date
+        with a list of "planting dates" in config.planting. Uses a threshold value,
+        "coty_thresh" to differentiate between cotyledon and vegetative. 
+        Returns growth stage and planting date."""
+
+    batch_date = datetime.strptime(batch_date, "%Y-%m-%d")
+    plant_date_list = [datetime.strptime(x, "%Y-%m-%d") for x in plant_date_list]
+    # Remove plant dates that are newer than batch date
+    plant_date_list = [x for x in plant_date_list if x <= batch_date]
+    # Difference and get indices
+    deltas = [abs(ti - batch_date) for ti in plant_date_list]
+    min_index, min_delta = min(enumerate(deltas), key=operator.itemgetter(1))
+    
+
+    pl_dt = plant_date_list[min_index].strftime('%Y-%m-%d')
+    if min_delta.days < 2:
+        g_stage = "seed"
+    elif min_delta.days < 10:
+        g_stage = "cotyledon"
+    elif min_delta.days < 20:
+        g_stage = "seedling"
+    else:
+        g_stage = "vegetative"
+
+    return g_stage, pl_dt
 
 ######################################################
 ############### VEGETATION INDICES ###################
