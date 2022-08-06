@@ -102,7 +102,6 @@ class ParseYOLOCsv:
         assert len(fullres_images) == len(images)
 
         image_ids = [x.stem for x in images]
-        image_ids = image_ids#[:2]
 
         self.image_list = [{
             "id": image_id,
