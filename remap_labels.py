@@ -9,7 +9,7 @@ import shapefile
 from bbox.bbox_transformations import BBoxFilter, BBoxMapper
 from bbox.connectors import BBoxComponents, SfMComponents
 from bbox.io_utils import ParseXML, ParseYOLOCsv
-from semif_utils.utils import rescale_bbox
+from semif_utils.utils import growth_stage
 
 log = logging.getLogger(__name__)
 
@@ -20,12 +20,16 @@ class RemapLabels:
         self.data_dir = Path(cfg.data.datadir)
         self.developed_dir = Path(cfg.data.developeddir)  # data_root
         self.batch_dir = Path(cfg.data.batchdir)
+        self.batch_id = self.batch_dir.name
         self.autosfmdir = Path(cfg.autosfm.autosfmdir)
         self.metadata = self.batch_dir / "metadata"
         self.reference = self.autosfmdir / "reference"
         self.raw_label = self.autosfmdir / "detections.csv"
         self.downscaled = cfg.autosfm.autosfm_config.downscale.enabled
-
+        self.state_id = self.batch_id.split("_")[0]
+        self.batch_date = self.batch_id.split("_")[1]
+        self.plant_dates = getattr(cfg.planting, self.state_id).plant_dates
+        
         if self.downscaled:
             self.image_dir = self.autosfmdir / "downscaled_photos"
         else:
@@ -52,6 +56,7 @@ class RemapLabels:
             self.developed_dir,
             self.batch_dir,
             self.image_dir,
+            self.plant_dates,
             self.camera_reference,
             reader,
             True,
@@ -67,7 +72,6 @@ class RemapLabels:
         for img in imgs:
             for box in img.bboxes:
                 try:
-                    # box = rescale_bbox(box, 0)
                     assert len(box._overlapping_bboxes) == 0
                 except AssertionError as e:
                     log.debug("Mapping failed> Reason: {}".format(str(e)))
