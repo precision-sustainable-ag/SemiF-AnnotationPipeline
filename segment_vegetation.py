@@ -5,19 +5,14 @@ from pathlib import Path
 from segment_species import Segment
 import cv2
 import numpy as np
-import pandas as pd
 from omegaconf import DictConfig
 
 from semif_utils.datasets import BatchMetadata, Cutout
-from semif_utils.segment_algos import process_general,thresh_vi, reduce_holes
-from semif_utils.segment_utils import (GenCutoutProps, SegmentMask,
-                                       VegetationIndex, prep_bbox)
+from semif_utils.segment_utils import GenCutoutProps, prep_bbox
 from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
-                               dilate_erode, get_image_meta,
-                               get_upload_datetime, get_watershed, make_exg)
+                               get_image_meta, get_upload_datetime)
 
 log = logging.getLogger(__name__)
-
 
 class SegmentVegetation:
 
@@ -59,11 +54,13 @@ class SegmentVegetation:
             rgb_crop = rgb_array[y1:y2, x1:x2]
             seg = Segment(rgb_crop)
             if rgb_crop.sum() == 0:
+                log.info(f"Image crop sum of values = 0; {imgdata.image_path} ignored")
                 continue
             species = box.cls
             g_stage = imgdata.growth_stage
             if species["USDA_symbol"] == "CHAL7":
                 mask = seg.lambsquarters(cotlydon=False)
+                # log.info("---Getting Region properties---")
             mask = seg.lambsquarters(cotlydon=False)
             # kernel = np.ones((3,3),np.uint8)
             # closing = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_CLOSE, kernel)
@@ -71,9 +68,7 @@ class SegmentVegetation:
             
             # cutout_0 = cv2.bitwise_and(rgb_crop, mask)
             # mask = self.process_domain(rgb_crop)
-            # Clear borders
-            if self.clear_border:
-                mask = clear_border(mask)
+            extends_border = False if np.array_equal(mask, clear_border(mask)) else True
             if mask.max() == 0:
                 continue
             # Separate components
@@ -90,12 +85,14 @@ class SegmentVegetation:
             mask2 = Segment(cutout_0).general_seg(mode="cluster")
             # Check results
             # Get regionprops
-            if np.sum(mask2 == 0) == mask2.shape[0] * mask2.shape[1]:
+            # if np.sum(mask2 == 0) == mask2.shape[0] * mask2.shape[1]:
+            if mask2.max() == 0:
                 continue
-            cutprops = GenCutoutProps(mask2).to_dataclass()
+            props = GenCutoutProps(rgb_crop, mask2) 
+            cutprops = props.to_dataclass()
             # Removes false positives that are typically very small cutouts
             if type(cutprops.area) is not list:
-                if  g_stage != "cotyledon" and cutprops.area < 1000:
+                if  g_stage != "cotyledon" and cutprops.area < 300:
                     continue
             
             cutout_2 = apply_mask(rgb_crop, mask2, "black")
@@ -109,7 +106,8 @@ class SegmentVegetation:
                             datetime=imgdata.exif_meta.DateTime,
                             cutout_props=asdict(cutprops),
                             is_primary=box.is_primary,
-                            cls=box.cls)
+                            cls=box.cls,
+                            extends_border=extends_border)
             cutout.save_cutout(cropped_cutout2)
             cutout.save_config(self.cutout_dir)
 

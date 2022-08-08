@@ -1,5 +1,5 @@
 multiprocess: True
-clear_border: True
+clear_border: False
 species_specific: True
 
 testing:
