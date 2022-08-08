@@ -25,7 +25,7 @@ from skimage.morphology import disk
 from skimage.segmentation import random_walker, watershed
 from sklearn.cluster import KMeans
 
-from semif_utils.datasets import CUTOUT_PROPS, CutoutProps, ImageData
+from semif_utils.datasets import CUTOUT_PROPS, CutoutProps, ImageData, Cutout
 
 ######################################################
 ################### GENERAL ##########################
@@ -87,15 +87,19 @@ def get_upload_datetime(imagedir):
 
 
 def parse_dict(props_tabl):
-    """Used to parse regionprops table dictionary"""
+    """ 
+    Used to parse regionprops table dictionary.
+    Sums region props if multiple exists in one
+    mask.
+    """
     ndict = {}
     for key, val in props_tabl.items():
         key = key.replace("-", "") if "-" in key else key
-        new_val_entry = []
+        sum_val_entry = []
         if isinstance(val, np.ndarray) and val.shape[0] > 1:
             for i, v in enumerate(val):
-                new_val_entry.append({f"{key}_{i+1}": float(v)})
-            ndict[key] = new_val_entry
+                sum_val_entry.append(float(v))
+            ndict[key] = np.sum(np.array(sum_val_entry))
         else:
             ndict[key] = float(val)
     return ndict
@@ -108,6 +112,15 @@ def get_image_meta(path):
                             data=j,
                             config=Config(check_types=False))
     return imgdata
+
+def get_cutout_meta(path):
+    with open(path) as f:
+        j = json.load(f)
+        cutout = from_dict(data_class=Cutout,
+                            data=j,
+                            config=Config(check_types=False))
+    return cutout
+
 
 def growth_stage(batch_date, plant_date_list):
     """ Gets rough approximation of growth stage by comparing the batch upload date
@@ -133,12 +146,6 @@ def growth_stage(batch_date, plant_date_list):
         g_stage = "seedling"
     else:
         g_stage = "vegetative"
-
-    print("plant_date_list", plant_date_list)
-    print("plant_date", pl_dt)
-    print("min_delta", min_delta.days)
-    print("g_stage", g_stage)
-
     return g_stage, pl_dt
 
 ######################################################
