@@ -646,6 +646,8 @@ class CutoutProps:
     eccentricity: Union[float, list]
     solidity: Union[float, list]
     perimeter: Union[float, list]
+    is_green: bool
+    green_sum: int
 
 
 @dataclass
@@ -662,6 +664,7 @@ class Cutout:
     cutout_path: str = field(init=False)
     cls: str = None
     is_primary: bool = False
+    extends_border: bool = False
     cutout_version: str = "1.0"
     schema_version: str = SCHEMA_VERSION
 
@@ -691,6 +694,8 @@ class Cutout:
             "is_primary": self.is_primary,
             "datetime": self.datetime,
             "cutout_props": self.cutout_props,
+            "extends_border": self.extends_border,
+            "cutout_version": self.cutout_version,
             "schema_version": self.schema_version
         }
 

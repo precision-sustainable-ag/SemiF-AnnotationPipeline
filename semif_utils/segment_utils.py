@@ -10,7 +10,7 @@ from skimage import measure
 from semif_utils.datasets import CUTOUT_PROPS, CutoutProps, ImageData
 from semif_utils.utils import (get_watershed, make_exg, make_exg_minus_exr,
                                make_exr, make_kmeans, make_ndi, multiple_otsu,
-                               otsu_thresh, parse_dict, read_json,
+                               otsu_thresh, parse_dict, read_json, apply_mask,
                                reduce_holes, rescale_bbox)
 
 ################################################################
@@ -57,9 +57,23 @@ def get_species_info(path, cls, default_species="grass"):
 
 class GenCutoutProps:
 
-    def __init__(self, mask):
+    def __init__(self, img, mask):
         """Generate cutout properties and returns them as a dataclass."""
+        self.img = img
         self.mask = mask
+        self.green_thresh = 1000 # TODO change to normalized based on size of image
+        self.green_sum = int(np.sum(self.green_mask()))
+        self.is_green = True if self.green_sum > self.green_thresh else False
+        
+    def green_mask(self):
+        """Returns binary mask if values are within certain "green" HSV range."""
+        cutout = apply_mask(self.img, self.mask, "black")
+        hsv = cv2.cvtColor(cutout, cv2.COLOR_RGB2HSV)
+        lower = np.array([40, 70, 120])
+        upper = np.array([90, 255, 255])
+        hsv_mask = cv2.inRange(hsv, lower, upper)
+        hsv_mask = np.where(hsv_mask == 255, 1, 0)
+        return hsv_mask
 
     def from_regprops_table(self, connectivity=2):
         """Generates list of region properties for each cutout mask"""
@@ -67,13 +81,14 @@ class GenCutoutProps:
         props = [measure.regionprops_table(labels, properties=CUTOUT_PROPS)]
         # Parse regionprops_table
         nprops = [parse_dict(d) for d in props][0]
+        nprops["is_green"] = self.is_green
+        nprops["green_sum"] = self.green_sum
         return nprops
 
     def to_dataclass(self):
         table = self.from_regprops_table()
         cutout_props = from_dict(data_class=CutoutProps, data=table)
         return cutout_props
-
 
 class SegmentMask:
 

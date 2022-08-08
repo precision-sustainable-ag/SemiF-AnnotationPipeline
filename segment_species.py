@@ -1,9 +1,5 @@
 
-from semif_utils.utils import (make_exg, make_exg_minus_exr, make_exr,thresh_vi,
-                               make_kmeans, make_ndi, otsu_thresh, parse_dict, apply_mask,
-                               reduce_holes, rescale_bbox)
 from skimage.measure import label
-from semif_utils.segment_utils import (GenCutoutProps, VegetationIndex, get_watershed, prep_bbox)
 from scipy import ndimage as ndi
 from skimage.measure import label, regionprops
 from skimage import filters
@@ -12,24 +8,27 @@ from skimage.feature import peak_local_max
 import numpy as np
 import cv2
 
+from semif_utils.utils import (make_exg, thresh_vi, make_kmeans, otsu_thresh, reduce_holes, apply_mask)
+
 class Segment:
     def __init__(self, img) -> None:
         self.img = img
     
-    def check_kmeans(self, mask, thresh=20000):
+    def check_color(self, mask, thresh=20000):
+        """Returns True if "green" False if not"""
         cutout = apply_mask(self.img, mask, "black")
         hsv = cv2.cvtColor(cutout, cv2.COLOR_RGB2HSV)
         lower = np.array([40, 70, 120])
         upper = np.array([90, 255, 255])
-        mask = cv2.inRange(hsv, lower, upper)
-        return True if np.sum(mask)> thresh else False 
+        hsv_mask = cv2.inRange(hsv, lower, upper)
+        return True if np.sum(hsv_mask)> thresh else False 
 
     def general_seg(self, mode="cluster"):
         exg_vi = make_exg(self.img, thresh=True)
         th_vi = thresh_vi(exg_vi)
         if mode == "cluster":
             mask = make_kmeans(th_vi)
-            if not self.check_kmeans(mask):
+            if not self.check_color(mask):
                 mask = np.where(mask == 1, 0, 1)
             mask = reduce_holes(mask * 255) * 255
         elif mode == "threshold":
