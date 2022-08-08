@@ -3,3 +3,5 @@
 
 # Except this
 !.gitignore
+
+!.species_info.json

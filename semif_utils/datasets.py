@@ -33,11 +33,22 @@ class BoxCoordinates:
 
     @property
     def config(self):
+        if isinstance(self.top_left, np.ndarray):
+            _top_left = self.top_left.tolist()
+            _top_right = self.top_right.tolist()
+            _bottom_left = self.bottom_left.tolist()
+            _bottom_right = self.bottom_right.tolist()
+        else:
+            _top_left = self.top_left
+            _top_right = self.top_right
+            _bottom_left = self.bottom_left
+            _bottom_right = self.bottom_right
+
         _config = {
-            "top_left": self.top_left.tolist(),
-            "top_right": self.top_right.tolist(),
-            "bottom_left": self.bottom_left.tolist(),
-            "bottom_right": self.bottom_right.tolist()
+            "top_left": _top_left,
+            "top_right": _top_right,
+            "bottom_left": _bottom_left,
+            "bottom_right": _bottom_right
         }
 
         return _config
@@ -61,6 +72,13 @@ class BoxCoordinates:
                               bottom_left=self.bottom_left.copy(),
                               bottom_right=self.bottom_right.copy(),
                               is_scaleable=self.is_scaleable)
+
+    def __getitem__(self, key):
+
+        if not hasattr(self, key):
+            raise AttributeError(f"{self.__class__.__name__} has not attribute {key}")
+
+        return getattr(self, key)
 
 
 def init_empty():
@@ -398,11 +416,12 @@ class Box:
     bbox_id: str
     image_id: str
     local_centroid: list
-    local_coordinates: dict
+    local_coordinates: BoxCoordinates
     global_centroid: list
-    global_coordinates: dict
+    global_coordinates: BoxCoordinates
     cls: str
     is_primary: bool
+    overlapping_bbox_ids: List[BBox] = field(init=False, default_factory=lambda : [])
 
     def assign_species(self, species):
         self.cls = species
@@ -552,9 +571,10 @@ class ImageData(Image):
     schema_version: str = "1.0"
 
     def __post_init__(self):
-        self.width = self.fullres_width
-        self.height = self.fullres_height
-
+        # Overload the post init of the super class
+        # which reads the array for the width and height.
+        # The width and height will be available in the metadata
+        pass
     @property
     def config(self):
         _config = {

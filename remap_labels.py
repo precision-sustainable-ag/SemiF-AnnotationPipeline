@@ -17,6 +17,8 @@ log = logging.getLogger(__name__)
 class RemapLabels:
 
     def __init__(self, cfg: DictConfig) -> None:
+
+        self.batch_id = cfg.general.batch_id
         self.data_dir = Path(cfg.data.datadir)
         self.developed_dir = Path(cfg.data.developeddir)  # data_root
         self.batch_dir = Path(cfg.data.batchdir)
@@ -66,13 +68,13 @@ class RemapLabels:
         imgs = box_connector.images
         # Map the bounding boxes from local coordinates to global coordinate system
         log.info("Staring mapping.")
-        mapper = BBoxMapper(imgs)
+        metashape_project_path = Path(self.batch_dir, "autosfm", "project", f"{self.batch_id}.psx")
+        mapper = BBoxMapper(metashape_project_path, imgs)
         mapper.map()
         # Sanity check
         for img in imgs:
             for box in img.bboxes:
                 try:
-                    # box = rescale_bbox(box, 0)
                     assert len(box._overlapping_bboxes) == 0
                 except AssertionError as e:
                     log.debug("Mapping failed> Reason: {}".format(str(e)))
