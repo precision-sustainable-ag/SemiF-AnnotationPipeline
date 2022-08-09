@@ -62,30 +62,13 @@ class SegmentVegetation:
                 mask = seg.lambsquarters(cotlydon=False)
                 # log.info("---Getting Region properties---")
             mask = seg.lambsquarters(cotlydon=False)
-            # kernel = np.ones((3,3),np.uint8)
-            # closing = cv2.morphologyEx(mask.astype(np.uint8), cv2.MORPH_CLOSE, kernel)
-            # mask = cv2.cvtColor(closing*255, cv2.COLOR_GRAY2RGB)
-            
-            # cutout_0 = cv2.bitwise_and(rgb_crop, mask)
-            # mask = self.process_domain(rgb_crop)
             extends_border = False if np.array_equal(mask, clear_border(mask)) else True
             if mask.max() == 0:
                 continue
-            # Separate components
-            # list_cutouts_masks = seperate_components(mask)
-            # Create RGB cutout for second round of processing
-            cutout_0 = apply_mask(rgb_crop, mask, "black")
-            # Second round of processing
-            # for cut_mask in list_cutouts_masks:
-            #     preproc_cutout = apply_mask(cutout_0, cut_mask, "black")
-                # mask2 = self.process_cutout(preproc_cutout)
 
-            # new_cutout = apply_mask(preproc_cutout, mask2, "black")
-            # new_cropped_cutout = crop_cutouts(cutout_0)
+            cutout_0 = apply_mask(rgb_crop, mask, "black")
+
             mask2 = Segment(cutout_0).general_seg(mode="cluster")
-            # Check results
-            # Get regionprops
-            # if np.sum(mask2 == 0) == mask2.shape[0] * mask2.shape[1]:
             if mask2.max() == 0:
                 continue
             props = GenCutoutProps(rgb_crop, mask2) 
@@ -94,7 +77,8 @@ class SegmentVegetation:
             if type(cutprops.area) is not list:
                 if  g_stage != "cotyledon" and cutprops.area < 300:
                     continue
-            
+            if props.green_sum < 5000:
+                continue
             cutout_2 = apply_mask(rgb_crop, mask2, "black")
             cropped_cutout2 = crop_cutouts(cutout_2)
             # Create dataclass

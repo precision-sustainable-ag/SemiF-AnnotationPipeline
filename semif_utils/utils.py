@@ -287,6 +287,9 @@ def rescale_bbox(box, imgshape):
         box (dataclass): box metadata with scaled/updated bbox
     """
     scale = imgshape
+    print(scale)
+    print(type(box.local_coordinates["top_left"]))
+    print(box.local_coordinates["top_left"])
     box.local_coordinates["top_left"] = [
         c * s for c, s in zip(box.local_coordinates["top_left"], scale)
     ]
