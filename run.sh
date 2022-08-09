@@ -29,13 +29,29 @@
 # python SEMIF.py autosfm.metashape_key=asd general.task=copy_from_blob general.batch_id=NC_2022-07-14
 # python SEMIF.py autosfm.metashape_key=asd general.task=auto_sfm general.batch_id=NC_2022-07-14
 # python SEMIF.py autosfm.metashape_key=asd general.task=localize_plants general.batch_id=NC_2022-07-14                                                             
-python SEMIF.py autosfm.metashape_key=asd general.task=remap_labels general.batch_id=MD_2022-07-01                                                      
-# python SEMIF.py autosfm.metashape_key=asd general.task=assign_species general.batch_id=NC_2022-07-14
-# python SEMIF.py autosfm.metashape_key=asd general.task=segment_vegetation general.batch_id=NC_2022-07-14
+
+
+python SEMIF.py autosfm.metashape_key=asd general.task=remap_labels general.batch_id=MD_2022-06-28
+python SEMIF.py autosfm.metashape_key=asd general.task=assign_species general.batch_id=MD_2022-06-28
+python SEMIF.py autosfm.metashape_key=asd general.task=segment_vegetation general.batch_id=MD_2022-06-28
+
+
+python SEMIF.py autosfm.metashape_key=asd general.task=remap_labels general.batch_id=MD_2022-07-01
+python SEMIF.py autosfm.metashape_key=asd general.task=assign_species general.batch_id=MD_2022-07-01
+python SEMIF.py autosfm.metashape_key=asd general.task=segment_vegetation general.batch_id=MD_2022-07-01
 
 # NC_2022-07-21                                                                                                                                              
 # python SEMIF.py autosfm.metashape_key=asd general.task=auto_sfm general.batch_id=NC_2022-07-25
 # python SEMIF.py autosfm.metashape_key=asd general.task=localize_plants general.batch_id=NC_2022-07-21                                                             
-# python SEMIF.py autosfm.metashape_key=asd general.task=remap_labels general.batch_id=NC_2022-07-21                                                      
-# python SEMIF.py autosfm.metashape_key=asd general.task=assign_species general.batch_id=NC_2022-07-21
-# python SEMIF.py autosfm.metashape_key=asd general.task=segment_vegetation general.batch_id=NC_2022-07-21
+
+python SEMIF.py autosfm.metashape_key=asd general.task=remap_labels general.batch_id=MD_2022-07-15                                                 
+python SEMIF.py autosfm.metashape_key=asd general.task=assign_species general.batch_id=MD_2022-07-15
+python SEMIF.py autosfm.metashape_key=asd general.task=segment_vegetation general.batch_id=MD_2022-07-15
+
+python SEMIF.py autosfm.metashape_key=asd general.task=remap_labels general.batch_id=NC_2022-07-14                                                 
+python SEMIF.py autosfm.metashape_key=asd general.task=assign_species general.batch_id=NC_2022-07-14
+python SEMIF.py autosfm.metashape_key=asd general.task=segment_vegetation general.batch_id=NC_2022-07-14
+
+# python SEMIF.py autosfm.metashape_key=asd general.task=remap_labels general.batch_id=NC_2022-07-25                                                   
+# python SEMIF.py autosfm.metashape_key=asd general.task=assign_species general.batch_id=NC_2022-07-25
+# python SEMIF.py autosfm.metashape_key=asd general.task=segment_vegetation general.batch_id=NC_2022-07-25

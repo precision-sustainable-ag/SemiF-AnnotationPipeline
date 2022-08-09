@@ -11,6 +11,7 @@ import pandas as pd
 import skimage
 import operator
 import torch
+from dataclasses import replace
 from dacite import Config, from_dict
 from PIL import Image
 from scipy import ndimage
@@ -287,21 +288,21 @@ def rescale_bbox(box, imgshape):
         box (dataclass): box metadata with scaled/updated bbox
     """
     scale = imgshape
-    print(scale)
-    print(type(box.local_coordinates["top_left"]))
-    print(box.local_coordinates["top_left"])
-    box.local_coordinates["top_left"] = [
+
+    box.local_coordinates = replace(box.local_coordinates, top_left=[
         c * s for c, s in zip(box.local_coordinates["top_left"], scale)
-    ]
-    box.local_coordinates["top_right"] = [
+    ])
+    box.local_coordinates = replace(box.local_coordinates, top_right=[
         c * s for c, s in zip(box.local_coordinates["top_right"], scale)
-    ]
-    box.local_coordinates["bottom_left"] = [
+    ])
+    box.local_coordinates = replace(box.local_coordinates, bottom_left=[
         c * s for c, s in zip(box.local_coordinates["bottom_left"], scale)
-    ]
-    box.local_coordinates["bottom_right"] = [
+    ])
+    box.local_coordinates = replace(box.local_coordinates, bottom_right=[
         c * s for c, s in zip(box.local_coordinates["bottom_right"], scale)
-    ]
+    ])
+    
+    
     return box
 
 
