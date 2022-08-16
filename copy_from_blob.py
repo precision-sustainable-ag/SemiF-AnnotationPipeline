@@ -27,6 +27,12 @@ def main(cfg: DictConfig) -> None:
     dst = Path(developed_home, "images")
     shutil.copytree(src, dst)
 
+    if cfg.autosfm.autosfm_config.use_masking:
+        # Copy the masks
+        src = Path(cfg.blob_storage.developeddir, batch_id, "masks")
+        dst = Path(developed_home, "masks")
+        shutil.copytree(src, dst)
+
     if cfg.data.rename:
         files = os.listdir(dst)
         rowmap = dict()
