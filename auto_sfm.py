@@ -23,6 +23,10 @@ def main(cfg: DictConfig) -> None:
     autosfm_storage = Path(cfg.autosfm.autosfm_storage, cfg.general.batch_id)
     images_dst = Path(autosfm_storage, "developed")
     shutil.copytree(images_src, images_dst)
+    
+    if os.path.exists(masks_src := Path(cfg.data.batchdir, "masks")):
+        masks_dst = Path(autosfm_storage, "masks")
+        shutil.copytree(masks_src, masks_dst)
     # Get GCP file based on batch ID
     state_id = cfg.general.batch_id.split("_")[0]
     gcp_src = [x for x in Path(cfg.data.utilsdir, state_id).glob("*.csv")][0]
