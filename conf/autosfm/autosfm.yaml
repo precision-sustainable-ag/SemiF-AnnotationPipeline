@@ -38,8 +38,6 @@ autosfm_config:
     autosave: True
     export: 
       enabled: True
-      max_height: 20000
-      max_width: 50000
 
   orthomosaic:
     enabled: True
