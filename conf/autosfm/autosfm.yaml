@@ -36,6 +36,8 @@ autosfm_config:
   dem: 
     enabled: True
     autosave: True
+    export: 
+      enabled: True
 
   orthomosaic:
     enabled: True
