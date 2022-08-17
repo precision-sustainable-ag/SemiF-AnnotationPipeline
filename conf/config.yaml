@@ -45,7 +45,7 @@ data:
   utilsdir: ${data.datadir}/${blob_names.utils}
   logdir: ${general.workdir}/logs
   species: ${data.utilsdir}/species_info.json # All species information
-  rename: True
+  rename: False
 
 im_development:
   color_profiles_dir: ${blob_storage.utilsdir}/image_development/color_profiles

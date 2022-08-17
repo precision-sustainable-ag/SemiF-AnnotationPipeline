@@ -27,6 +27,12 @@ def main(cfg: DictConfig) -> None:
     dst = Path(developed_home, "images")
     shutil.copytree(src, dst)
 
+    if cfg.autosfm.autosfm_config.use_masking:
+        # Copy the masks
+        src = Path(cfg.blob_storage.developeddir, batch_id, "masks")
+        dst = Path(developed_home, "masks")
+        shutil.copytree(src, dst)
+
     if cfg.data.rename:
         files = os.listdir(dst)
         rowmap = dict()
@@ -51,11 +57,12 @@ def main(cfg: DictConfig) -> None:
                 shutil.move(_src, _dst)
 
     # Copy the Ground Control Points
-    src = Path(cfg.blob_storage.uploaddir, batch_id, "GroundControlPoints.csv")
-    dst = Path(cfg.data.uploaddir, batch_id)
-    dst.mkdir(exist_ok=False)
-    dst = Path(dst, "GroundControlPoints.csv")
-    shutil.copy(src, dst)
+    # Are copied during autosfm. TODO: Remove the copy code
+    # src = Path(cfg.blob_storage.uploaddir, batch_id, "GroundControlPoints.csv")
+    # dst = Path(cfg.data.uploaddir, batch_id)
+    # dst.mkdir(exist_ok=False)
+    # dst = Path(dst, "GroundControlPoints.csv")
+    # shutil.copy(src, dst)
 
     # Copy the detection model if not present
     local_model_path = Path(cfg.detect.model_path)
