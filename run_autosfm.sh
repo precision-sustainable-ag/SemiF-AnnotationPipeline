@@ -17,8 +17,7 @@ do
         general.batch_id=$IMAGEDIR \
         autosfm.metashape_key=asd \
         general.task=auto_sfm
-        # general.multitask=True \
-        # general.multitasks="[remap_labels, segment_vegetation]"
+        
     else
         echo "AutoSfM already run for $IMAGEDIR, skipping..."
     fi
