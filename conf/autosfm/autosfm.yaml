@@ -15,7 +15,7 @@ autosfm_config:
   export_path: "/home/psi_docker/autoSfM/exports" # Path in the Docker container
   storage_path: "/home/psi_docker/autoSfM/storage" # Path in the Docker container
   batch_id: ${general.batch_id}
-  use_masking: False
+  use_masking: True
   # Electives
   downscale:
     enabled: True
