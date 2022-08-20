@@ -12,7 +12,7 @@ import pandas as pd
 import skimage
 import operator
 import torch
-from dataclasses import replace
+from dataclasses import replace, asdict
 from dacite import Config, from_dict
 from PIL import Image
 from scipy import ndimage
@@ -158,6 +158,35 @@ def get_cutout_meta(path):
                             config=Config(check_types=False))
     return cutout
 
+def cutoutmeta2csv(cutoutdir, batch_id, save_df=False):
+    # Get all json files
+    metas = [x for x in Path(f"{cutoutdir}{batch_id}/").glob("*.json")]
+    cutouts = []
+    for meta in metas:
+        # Get dictionaries
+        cutout = asdict(get_cutout_meta(meta))
+        row = cutout["cutout_props"]
+        cls = cutout["cls"]
+        # Extend nested dicts to single column header
+        for ro in row:
+            rec = {ro: row[ro]}
+            cutout.update(rec)
+            for cl in cls:
+                spec = {cl: cls[cl]}
+                cutout.update(spec)
+        # Remove duplicate nested dicts
+        cutout.pop("cutout_props")
+        cutout.pop("cls")
+        # Create and append df
+        cutdf = pd.DataFrame(cutout, index=[0])
+        cutouts.append(cutdf)
+    # Concat and reset index of main df
+    cutouts_df = pd.concat(cutouts)
+    cutouts_df = cutouts_df.reset_index()
+    # Save dataframe
+    if save_df:
+        cutouts_df.to_csv(f"{cutoutdir}/{batch_id}.csv", index=False)
+    return cutouts_df
 
 def growth_stage(batch_date, plant_date_list):
     """ Gets rough approximation of growth stage by comparing the batch upload date
