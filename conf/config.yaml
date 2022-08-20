@@ -52,7 +52,7 @@ im_development:
   dev_profiles_dir: ${blob_storage.utilsdir}/image_development/dev_profiles
 
 detect:
-  concat_detections: True
+  concat_detections: False
   model_filename: best.pt
   model_path: ${data.modeldir}/plant_detector/${detect.model_filename}
   detections_csv: ${data.batchdir}/autosfm

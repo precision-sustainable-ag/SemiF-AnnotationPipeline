@@ -84,9 +84,10 @@ class ParseXML:
 
 class ParseYOLOCsv:
 
-    def __init__(self, image_path, label_path, fullres_image_path=None):
+    def __init__(self, image_path, label_path, fullres_image_path=None, fov_cams=None):
         self.image_path = image_path
         self.label_path = label_path
+        self.fov_cams = fov_cams
         if fullres_image_path is not None:
             self.fullres_image_path = fullres_image_path
         else:
@@ -97,8 +98,12 @@ class ParseYOLOCsv:
 
         images = Path(self.image_path).glob("*.jpg")
         images = [x for x in images]
+        cams = [Path(self.image_path, x + ".jpg") for x in pd.read_csv(self.fov_cams)["label"]]
+        images = list(set(cams) & set(images))
         fullres_images = Path(self.fullres_image_path).glob("*.jpg")
         fullres_images = [x for x in fullres_images]
+        full_cams = [Path(self.fullres_image_path, x + ".jpg") for x in pd.read_csv(self.fov_cams)["label"]]
+        fullres_images = list(set(full_cams) & set(fullres_images))
         assert len(fullres_images) == len(images)
 
         image_ids = [x.stem for x in images]
