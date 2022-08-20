@@ -26,6 +26,7 @@ class RemapLabels:
         self.autosfmdir = Path(cfg.autosfm.autosfmdir)
         self.metadata = self.batch_dir / "metadata"
         self.reference = self.autosfmdir / "reference"
+        self.fov_cams = Path(self.autosfmdir, "reference", "fov.csv")
         self.raw_label = self.autosfmdir / "detections.csv"
         self.downscaled = cfg.autosfm.autosfm_config.downscale.enabled
         self.state_id = self.batch_id.split("_")[0]
@@ -50,7 +51,8 @@ class RemapLabels:
         # boxes to the desired format
         reader = ParseYOLOCsv(image_path=self.image_dir,
                               label_path=self.raw_label,
-                              fullres_image_path=self.fullres_image_path)
+                              fullres_image_path=self.fullres_image_path,
+                              fov_cams = self.fov_cams)
 
         # Initialize the connector and get a list of all the images
         box_connector = BBoxComponents(

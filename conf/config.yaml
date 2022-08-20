@@ -46,14 +46,14 @@ data:
   utilsdir: ${data.datadir}/${blob_names.utils}
   logdir: ${general.workdir}/logs
   species: ${data.utilsdir}/species_info.json # All species information
-  rename: True
+  rename: False
 
 im_development:
   color_profiles_dir: ${blob_storage.utilsdir}/image_development/color_profiles
   dev_profiles_dir: ${blob_storage.utilsdir}/image_development/dev_profiles
 
 detect:
-  concat_detections: True
+  concat_detections: False
   model_filename: best.pt
   model_path: ${data.modeldir}/plant_detector/${detect.model_filename}
   detections_csv: ${data.batchdir}/autosfm

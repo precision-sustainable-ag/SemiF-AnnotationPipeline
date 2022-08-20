@@ -15,6 +15,7 @@ autosfm_config:
   export_path: "/home/psi_docker/autoSfM/exports" # Path in the Docker container
   storage_path: "/home/psi_docker/autoSfM/storage" # Path in the Docker container
   batch_id: ${general.batch_id}
+  use_masking: True
   # Electives
   downscale:
     enabled: True
@@ -43,8 +44,6 @@ autosfm_config:
     enabled: True
     export: 
       enabled: True
-      max_height: 20000
-      max_width: 10000
     autosave: True
 
   camera_fov:
