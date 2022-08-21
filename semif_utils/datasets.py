@@ -1,16 +1,16 @@
 import datetime
 import json
 import os
-import uuid
-from dataclasses import dataclass, field
+import typing
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import List, Union
+from typing import List, Optional, Union
 
 import cv2
 import exifread
 import numpy as np
-from omegaconf import DictConfig
-from PIL import Image
+
+SCHEMA_VERSION = "1.0"
 
 
 @dataclass
@@ -19,8 +19,7 @@ class BoxCoordinates:
     top_right: np.ndarray
     bottom_left: np.ndarray
     bottom_right: np.ndarray
-
-    # scale: np.ndarray = field(init=False, default=np.array([]))
+    is_scaleable: bool = field(init=True, default=True)
 
     def __bool__(self):
         # The bool function is to check if the coordinates are populated or not
@@ -33,22 +32,52 @@ class BoxCoordinates:
 
     @property
     def config(self):
+        if isinstance(self.top_left, np.ndarray):
+            _top_left = self.top_left.tolist()
+            _top_right = self.top_right.tolist()
+            _bottom_left = self.bottom_left.tolist()
+            _bottom_right = self.bottom_right.tolist()
+        else:
+            _top_left = self.top_left
+            _top_right = self.top_right
+            _bottom_left = self.bottom_left
+            _bottom_right = self.bottom_right
+
         _config = {
-            "top_left": self.top_left.tolist(),
-            "top_right": self.top_right.tolist(),
-            "bottom_left": self.bottom_left.tolist(),
-            "bottom_right": self.bottom_right.tolist(),
-            # "scale": self.scale.tolist()
+            "top_left": _top_left,
+            "top_right": _top_right,
+            "bottom_left": _bottom_left,
+            "bottom_right": _bottom_right
         }
 
         return _config
 
-    # def set_scale(self, new_scale: np.ndarray):
-    #     self.scale = new_scale
-    #     self.top_left = self.top_left * self.scale
-    #     self.top_right = self.top_right * self.scale
-    #     self.bottom_left = self.bottom_left * self.scale
-    #     self.bottom_right = self.bottom_right * self.scale
+    def set_scale(self, new_scale: np.ndarray):
+
+        if not self.is_scaleable:
+            raise ValueError(
+                "is_scalable set to False, coordinates cannot be scaled.")
+        self.scale = new_scale
+
+        self.top_left = self.top_left * self.scale
+        self.top_right = self.top_right * self.scale
+        self.bottom_left = self.bottom_left * self.scale
+        self.bottom_right = self.bottom_right * self.scale
+
+    def copy(self):
+
+        return self.__class__(top_left=self.top_left.copy(),
+                              top_right=self.top_right.copy(),
+                              bottom_left=self.bottom_left.copy(),
+                              bottom_right=self.bottom_right.copy(),
+                              is_scaleable=self.is_scaleable)
+
+    def __getitem__(self, key):
+
+        if not hasattr(self, key):
+            raise AttributeError(f"{self.__class__.__name__} has not attribute {key}")
+
+        return getattr(self, key)
 
 
 def init_empty():
@@ -66,42 +95,44 @@ class BBox:
                                               default_factory=init_empty)
     global_coordinates: BoxCoordinates = field(init=True,
                                                default_factory=init_empty)
-    is_normalized: bool = field(init=True, default=False)
+    is_normalized: bool = field(init=True, default=True)
     local_centroid: np.ndarray = field(init=False,
                                        default_factory=lambda: np.array([]))
     global_centroid: np.ndarray = field(init=False,
                                         default_factory=lambda: np.array([]))
     is_primary: bool = field(init=False, default=False)
+    norm_local_coordinates: BoxCoordinates = field(init=False,
+                                                   default_factory=init_empty)
 
     @property
     def local_area(self):
-        if self._local_area is None:
-            if self.local_coordinates:
-                height = self.local_coordinates.bottom_left[
-                    1] - self.local_coordinates.top_left[1]
-                width = self.local_coordinates.bottom_right[
-                    0] - self.local_coordinates.bottom_left[0]
-                self._local_area = height * width
-            else:
-                raise AttributeError(
-                    "local coordinates have to be defined for local area to be calculated."
-                )
-        return self._local_area
+        if self.local_coordinates:
+            local_area = self.get_area(self.local_coordinates)
+        else:
+            raise AttributeError(
+                "Local coordinates have to be defined for local area to be calculated."
+            )
+        return local_area
+
+    @property
+    def norm_local_area(self):
+        if self.norm_local_coordinates:
+            norm_local_area = self.get_area(self.norm_local_coordinates)
+        else:
+            raise AttributeError(
+                "Normalized local coordinates have to be defined for local area to be calculated."
+            )
+        return norm_local_area
 
     @property
     def global_area(self):
-        if self._global_area is None:
-            if self.global_coordinates:
-                height = self.global_coordinates.bottom_left[
-                    1] - self.global_coordinates.top_left[1]
-                width = self.global_coordinates.bottom_right[
-                    0] - self.global_coordinates.bottom_left[0]
-                self._global_area = height * width
-            else:
-                raise AttributeError(
-                    "Global coordinates have to be defined for the global area to be calculated."
-                )
-        return self._global_area
+        if self.global_coordinates:
+            global_area = self.get_area(self.global_coordinates)
+        else:
+            raise AttributeError(
+                "Global coordinates have to be defined for the global area to be calculated."
+            )
+        return global_area
 
     @property
     def config(self):
@@ -110,8 +141,14 @@ class BBox:
             self.bbox_id,
             "image_id":
             self.image_id,
+            "local_centroid":
+            list(
+                self.norm_local_centroid),  # Always use normalized coordinates
             "local_coordinates":
-            self.local_coordinates.config,
+            self.norm_local_coordinates.
+            config,  # Always use normalized coordinates
+            "global_centroid":
+            list(self.global_centroid),
             "global_coordinates":
             self.global_coordinates.config,
             "is_primary":
@@ -127,11 +164,12 @@ class BBox:
 
     def __post_init__(self):
 
-        self._local_area = None
-        self._global_area = None
-
         if self.local_coordinates:
             self.set_local_centroid()
+            if self.is_normalized:
+                self.norm_local_coordinates = self.local_coordinates.copy()
+                self.norm_local_coordinates.is_scaleable = False
+                self.set_norm_local_centroid()
 
         if self.global_coordinates:
             self.set_global_centroid()
@@ -162,11 +200,24 @@ class BBox:
 
         return centroid
 
+    def get_area(self, coordinates: BoxCoordinates) -> float:
+        height = coordinates.bottom_left[1] - coordinates.top_left[1]
+        width = coordinates.bottom_right[0] - coordinates.bottom_left[0]
+        return float(height * width)
+
     def set_local_centroid(self):
         self.local_centroid = self.get_centroid(self.local_coordinates)
 
+    def set_norm_local_centroid(self):
+        self.norm_local_centroid = self.get_centroid(
+            self.norm_local_coordinates)
+
     def set_global_centroid(self):
         self.global_centroid = self.get_centroid(self.global_coordinates)
+
+    def set_local_scale(self, new_scale):
+        self.local_coordinates.set_scale(new_scale)
+        self.set_local_centroid()
 
     def update_global_coordinates(self, global_coordinates: BoxCoordinates):
         """Update the global coordinates of the bounding box
@@ -214,7 +265,7 @@ class BBox:
         xB = min(boxA[2], boxB[2])
         yB = min(boxA[3], boxB[3])
 
-        # compute the area of intersection rectangle
+        # compute the area of intersection rectanglee
         interArea = abs(max((xB - xA, 0)) * max((yB - yA), 0))
         if interArea == 0:
             return 0
@@ -232,85 +283,58 @@ class BBox:
         return iou
 
 
-@dataclass
-class EnvironmentalMetadata:
-    site_id: str
-    hardiness_zone: str = field(init=False)
-    humidity: float = field(default=None)
-    precipitation: float = field(default=None)
-
-    def __post_init__(self):
-        sid = self.site_id.upper()
-        hd_zone = {"TX": "8b", "NC": "7b", "MD": "7a"}
-        self.hardiness_zone = hd_zone[sid]
-
-
-# Batch Config from YAML ---------------------------------------------------------------------------
-
-
-class BatchConfigImages:
-
-    def __init__(self, batchdata, cfg: DictConfig) -> None:
-        # From yaml config file
-        self.num_class = cfg.segment.num_classes
-        self.task = cfg.general.task
-        self.clear_border = cfg.segment.clear_border
-        self.workdir = cfg.general.workdir
-
-        self.batchdir = cfg.general.batchdir
-        self.datadir = cfg.general.datadir
-        self.imagedir = cfg.general.imagedir
-        self.autosfmdir = Path(cfg.autosfm.autosfmdir)
-        self.model_path = cfg.detect.model_path
-
-        self.detections_csv = cfg.detect.detections_csv
-        self.reference_path = self.autosfmdir / "reference"
-        self.raw_label_dir = self.autosfmdir / "annotations"
-        self.asfm_metadata = self.autosfmdir / "metadata"
-        self.vi = cfg.segment.vi
-        self.class_algorithm = cfg.segment.class_algorithm
-        self.num_classes = cfg.segment.num_classes
-
-        # Batch Metadata
-        self.batch_id = batchdata.batch_id
-        self.upload_dir = batchdata.upload_dir
-        self.site_id = batchdata.site_id
-        self.upload_datetime = batchdata.upload_datetime
-        self.batch_id = batchdata.batch_id
-        self.image_list = batchdata.image_list
-        self.schema_version = batchdata.schema_version
-
-
 # Batch Metadata ---------------------------------------------------------------------------
 
 
 @dataclass
 class BatchMetadata:
     """ Batch metadata class for yaml loader"""
-    upload_dir: str
-    site_id: str
+    blob_home: str
+    data_root: str
+    batch_id: str
     upload_datetime: str
-    batch_id: uuid = field(init=False)
     image_list: List = field(init=False)
-    schema_version: str = "v1"
+    schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self):
-        self.batch_id = uuid.uuid4()
         self.image_list = self.get_batch_images()
 
     def get_batch_images(self):
+        imgdir = Path(self.blob_home, self.data_root, self.batch_id, "images")
         extensions = ["*.jpg", "*.JPG", "*.jpeg", "*.JPEG"]
         images = []
         for ext in extensions:
-            images.extend(Path(self.upload_dir, "developed").glob(ext))
+            images.extend(Path(imgdir).glob(ext))
         image_ids = [image.stem for image in images]
+        image_list = []
 
-        self.image_list = [{
-            "id": image_id,
-            "path": str(path)
-        } for image_id, path in zip(image_ids, images)]
-        # image_list = images
-        return images
+        for ids, imgp in zip(image_ids, images):
+            image_list.append(str("/".join(imgp.parts[-2:])))
+
+        return image_list
+
+    @property
+    def config(self):
+        _config = {
+            "blob_home": self.blob_home,
+            "data_root": self.data_root,
+            "batch_id": self.batch_id,
+            "upload_datetime": self.upload_datetime,
+            "image_list": self.image_list,
+            "schema_version": self.schema_version
+        }
+
+        return _config
+
+    def save_config(self):
+        try:
+            save_batch_path = Path(self.blob_home, self.data_root,
+                                   self.batch_id, self.batch_id + ".json")
+            with open(save_batch_path, "w") as f:
+                json.dump(self.config, f, indent=4, default=str)
+        except Exception as e:
+            raise e
+        return True
 
 
 # Image dataclasses ----------------------------------------------------------
@@ -327,17 +351,16 @@ class ImageMetadata:
     Model: str
     Orientation: int
     SamplesPerPixel: int
-    XResolution: int
-    YResolution: int
+    XResolution: str
+    YResolution: str
     PlanarConfiguration: int
     ResolutionUnit: int
     Software: str
     DateTime: str
-    Tag: int
     Rating: int
     ExifOffset: int
     ExposureTime: str
-    FNumber: int
+    FNumber: str
     ExposureProgram: int
     ISOSpeedRatings: int
     RecommendedExposureIndex: int
@@ -345,18 +368,18 @@ class ImageMetadata:
     DateTimeOriginal: str
     DateTimeDigitized: str
     BrightnessValue: str
-    ExposureBiasValue: int
+    ExposureBiasValue: str
     MaxApertureValue: str
     MeteringMode: int
     LightSource: int
     Flash: int
-    FocalLength: int
+    FocalLength: str
     FileSource: int
     SceneType: int
     CustomRendered: int
     ExposureMode: int
     WhiteBalance: int
-    DigitalZoomRatio: int
+    DigitalZoomRatio: str
     FocalLengthIn35mmFilm: int
     SceneCaptureType: int
     Contrast: int
@@ -364,10 +387,13 @@ class ImageMetadata:
     Sharpness: int
     LensSpecification: list
     LensModel: str
-    ImageDescription: list = None
-    MakerNote: list = None
-    UserComment: list = None
-    ApplicationNotes: list = None
+    BodySerialNumber: Optional[str] = None
+    MakerNote: Optional[str] = None
+    ImageDescription: Optional[str] = None
+    UserComment: Optional[str] = None
+    ApplicationNotes: Optional[str] = None
+    Tag: Optional[int] = None
+    SubIFDs: Optional[int] = None
 
 
 @dataclass
@@ -381,15 +407,23 @@ class CameraInfo:
     pitch: float
     roll: float
     focal_length: float
-    fov: BoxCoordinates = None
+    fov: BoxCoordinates.config = None
 
 
 @dataclass
 class Box:
     bbox_id: str
     image_id: str
-    local_coordinates: dict
-    global_coordinates: dict
+    local_centroid: list
+    local_coordinates: BoxCoordinates
+    global_centroid: list
+    global_coordinates: BoxCoordinates
+    cls: str
+    is_primary: bool
+    overlapping_bbox_ids: List[BBox] = field(init=False, default_factory=lambda : [])
+
+    def assign_species(self, species):
+        self.cls = species
 
 
 @dataclass
@@ -402,18 +436,15 @@ class BBoxFOV:
 
 @dataclass
 class BBoxMetadata:
-    id: str
+    data_root: str
+    batch_id: str
+    image_path: str
+    image_id: str
     width: int
     height: int
-    field_of_view: BBoxFOV
-    pixel_width: float
-    pixel_height: float
-    yaw: float
-    pitch: float
-    roll: float
-    focal_length: float
-    camera_location: list
-    bboxes: List[Box]
+    camera_info: CameraInfo
+    exif_meta: ImageMetadata
+    bboxes: list[Box]
 
 
 @dataclass
@@ -421,20 +452,25 @@ class Image:
     """Parent class for RemapImage and ImageData.
 
     """
-    image_id: str
+    blob_home: str
+    data_root: str
+    batch_id: str
     image_path: str
-    exif_meta: ImageMetadata = field(init=False)
+    image_id: str
+    plant_date: str
+    growth_stage: str
 
     def __post_init__(self):
         image_array = self.array
         self.width = image_array.shape[1]
         self.height = image_array.shape[0]
-        self.exif_meta = self.get_exif()
 
     @property
     def array(self):
         # Read the image from the file and return the numpy array
-        img_array = cv2.imread(str(self.image_path))
+        img_path = Path(self.blob_home, self.data_root, self.batch_id,
+                        self.image_path)
+        img_array = cv2.imread(str(img_path))
         img_array = np.ascontiguousarray(
             cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB))
         return img_array
@@ -442,18 +478,19 @@ class Image:
     @property
     def config(self):
         _config = {
-            "id": self.image_id,
+            "blob_home": self.blob_home,
+            "data_root": self.data_root,
+            "batch_id": self.batch_id,
+            "image_id": self.image_id,
+            "image_path": self.image_path,
+            "plant_date": self.plant_date,
+            "growth_stage": self.growth_stage,
             "width": self.width,
             "height": self.height,
-            "field_of_view": self.camera_info.fov.config,
-            "pixel_width": self.camera_info.pixel_width,
-            "pixel_height": self.camera_info.pixel_height,
-            "yaw": self.camera_info.yaw,
-            "pitch": self.camera_info.pitch,
-            "roll": self.camera_info.roll,
-            "focal_length": self.camera_info.focal_length,
-            "camera_location": self.camera_info.camera_location.tolist(),
-            "bboxes": [box.config for box in self.bboxes]
+            "exif_meta": asdict(self.exif_meta),
+            "camera_info": asdict(self.camera_info),
+            "bboxes": [box.config for box in self.bboxes],
+            "schema_version": self.schema_version
         }
 
         return _config
@@ -462,51 +499,112 @@ class Image:
         try:
             save_file = os.path.join(save_path, f"{self.image_id}.json")
             with open(save_file, "w") as f:
-                json.dump(self.config, f, indent=2)
+                json.dump(self.config, f, indent=4, default=str)
         except Exception as e:
             raise e
         return True
-
-    def get_exif(self):
-        """ Parses exif data from image
-        Args:
-            path (str) : image path
-        Returns:
-            meta (dict): exif metadata   
-            """
-        # Open image file for reading (must be in binary mode)
-        f = open(self.image_path, 'rb')
-        # Return Exif tags
-        tags = exifread.process_file(f)
-        f.close()
-        meta = {}
-        for x, y in tags.items():
-            newval = y.values[0] if type(y.values) == list and len(
-                y.values) == 1 else y.values
-            meta[x.rsplit(" ")[1]] = newval
-        meta.pop("MakerNote"), meta.pop("UserComment"), meta.pop(
-            "ImageDescription"), meta.pop("ApplicationNotes")
-        imgmeta = ImageMetadata(**meta)
-
-        return imgmeta
 
 
 @dataclass
 class RemapImage(Image):
     """ For remapping labels (remap_labels) """
-    bboxes: BBox
+    bboxes: list[BBox]
     camera_info: CameraInfo
+    fullres_path: str
     width: int = field(init=False, default=-1)
     height: int = field(init=False, default=-1)
+    exif_meta: Optional[ImageMetadata] = field(init=False, default=None)
+    fullres_height: Optional[int] = field(init=False, default=-1)
+    fullres_width: Optional[int] = field(init=False, default=-1)
+    schema_version: str = SCHEMA_VERSION
+
+    def __post_init__(self):
+        self.height, self.width = self.array.shape[:2]
+        self.set_fullres_dims(self.width, self.height)
+        self.exif_meta = self.get_exif()
+
+    def set_fullres_dims(self, fullres_width, fullres_height):
+        self.fullres_width = fullres_width
+        self.fullres_height = fullres_height
+
+    def get_exif(self):
+        """Creates a dataclass by reading exif metadata, creating a dictionary, and creating dataclass form that dictionary
+        """
+        # Open image file for reading (must be in binary mode)
+        f = open(self.image_path, 'rb')
+        # Return Exif tags
+        tags = exifread.process_file(f, details=False)
+        f.close()
+        meta = {}
+        for x, y in tags.items():
+            newval = y.values[0] if type(y.values) == list and len(
+                y.values) == 1 else y.values
+            if type(newval) == exifread.utils.Ratio:
+                newval = str(newval)
+            meta[x.rsplit(" ")[1]] = newval
+        imgmeta = ImageMetadata(**meta)
+        return imgmeta
+
+    @property
+    def config(self):
+        _config = super(RemapImage, self).config
+        _config["fullres_width"] = self.fullres_width
+        _config["fullres_height"] = self.fullres_height
+        
+
+        return _config
 
 
 @dataclass
 class ImageData(Image):
-    """ Dataclass for segmentation and synthetic data generation"""
-    batch_id: uuid
+    """ Dataclass for segmentation data generation"""
+
+    width: int
+    height: int
+    exif_meta: ImageMetadata
     cutout_ids: List[str] = None
     camera_info: CameraInfo = None
-    bbox_meta: BBoxMetadata = None
+    bboxes: list[Box] = None
+    fullres_height: int = -1
+    fullres_width: int = -1
+    schema_version: str = "1.0"
+
+    def __post_init__(self):
+        # Overload the post init of the super class
+        # which reads the array for the width and height.
+        # The width and height will be available in the metadata
+        pass
+    @property
+    def config(self):
+        _config = {
+            "blob_home": self.blob_home,
+            "data_root": self.data_root,
+            "batch_id": self.batch_id,
+            "image_id": self.image_id,
+            "image_path": self.image_path,
+            "plant_date": self.plant_date,
+            "growth_stage": self.growth_stage,
+            "width": self.width,
+            "height": self.height,
+            "exif_meta": asdict(self.exif_meta),
+            "camera_info": asdict(self.camera_info),
+            "cutout_ids": self.cutout_ids,
+            "bboxes": [asdict(x) for x in self.bboxes],
+            "fullres_height": self.fullres_height,
+            "fullres_width": self.fullres_width,
+            "schema_version": self.schema_version
+        }
+
+        return _config
+
+    def save_config(self, save_path):
+        try:
+            save_image_path = Path(save_path, self.image_id + ".json")
+            with open(save_image_path, "w") as f:
+                json.dump(self.config, f, indent=4, default=str)
+        except Exception as e:
+            raise e
+        return True
 
 
 @dataclass
@@ -572,18 +670,23 @@ class CutoutProps:
 @dataclass
 class Cutout:
     """Per cutout. Goes to PlantCutouts"""
-    cutout_path: str
-    cutout_num: int
+    blob_home: str
+    data_root: str
+    batch_id: str
     image_id: str
-    site_id: str
-    datetime: datetime.datetime
+    cutout_num: int
+    datetime: datetime.datetime  # Datetime of original image creation
     cutout_props: CutoutProps
-    cutout_id: uuid = field(init=False, default=None)
-    species: str = None
+    cutout_id: str = field(init=False)
+    cutout_path: str = field(init=False)
+    cls: str = None
+    is_primary: bool = False
+    cutout_version: str = "1.0"
+    schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self):
-        ct_hash = self.cutout_path + self.datetime.strftime("%m%d%Y%H%M%S")
-        self.cutout_id = uuid.uuid3(uuid.NAMESPACE_DNS, ct_hash)
+        self.cutout_id = self.image_id + "_" + str(self.cutout_num)
+        self.cutout_path = str(Path(self.batch_id, self.cutout_id + ".png"))
 
     @property
     def array(self):
@@ -593,50 +696,43 @@ class Cutout:
             cv2.cvtColor(cut_array, cv2.COLOR_BGR2RGB))
         return cut_array
 
-
-# Synthetic Data Generation -------------------------------------------------------------------------
-
-
-@dataclass
-class Pot:
-    pot_path: str
-    pot_id: uuid = None
-
-    def __post_init__(self):
-        self.pot_id = uuid.uuid4()
-
     @property
-    def array(self):
-        # Read the image from the file and return the numpy array
-        pot_array = cv2.imread(self.pot_path)
-        pot_array = np.ascontiguousarray(
-            cv2.cvtColor(pot_array, cv2.COLOR_BGR2RGB))
-        return pot_array
+    def config(self):
+        _config = {
+            "blob_home": self.blob_home,
+            "data_root": self.data_root,
+            "batch_id": self.batch_id,
+            "image_id": self.image_id,
+            "cutout_id": self.cutout_id,
+            "cutout_path": self.cutout_path,
+            "cls": self.cls,
+            "cutout_num": self.cutout_num,
+            "is_primary": self.is_primary,
+            "datetime": self.datetime,
+            "cutout_props": self.cutout_props,
+            "schema_version": self.schema_version
+        }
 
+        return _config
 
-@dataclass
-class Background:
-    background_path: str
-    background_id: uuid = None
+    def save_config(self, save_path):
+        try:
+            save_cutout_path = Path(self.blob_home, self.data_root,
+                                    self.batch_id, self.cutout_id + ".json")
+            with open(save_cutout_path, "w") as f:
+                json.dump(self.config, f, indent=4, default=str)
+        except Exception as e:
+            raise e
+        return True
 
-    def __post_init__(self):
-        self.back_id = uuid.uuid4()
+    def save_cutout(self, cutout_array):
 
-    @property
-    def array(self):
-        # Read the image from the file and return the numpy array
-        back_array = cv2.imread(self.background_path)
-        back_array = np.ascontiguousarray(
-            cv2.cvtColor(back_array, cv2.COLOR_BGR2RGB))
-        return back_array
-
-
-@dataclass
-class PlantCutouts:
-    """ Per benchbot image. Standalone class for processing"""
-    batch_id: str
-    image_id: str
-    cutouts: List[Cutout]
+        fname = f"{self.image_id}_{self.cutout_num}.png"
+        cutout_path = Path(self.blob_home, self.data_root, self.batch_id,
+                           fname)
+        cv2.imwrite(str(cutout_path),
+                    cv2.cvtColor(cutout_array, cv2.COLOR_RGB2BGRA))
+        return True
 
 
 # GLOBALS -------------------------------------------------------------------------
@@ -653,35 +749,4 @@ CUTOUT_PROPS = [
     "solidity",  # float Ratio of pixels in the region to pixels of the convex hull image.
     # "label",  # int The label in the labeled input image.
     "perimeter",  # float Perimeter of object which approximates the contour as a line through the centers of border pixels using a 4-connectivity.
-
-    # "equivalent_diameter_area",  # float The diameter of a circle with the same area as the region.
-    # "feret_diameter_max",  # float Maximum Feret’s diameter computed as the longest distance between points around a region’s convex hull contour as determined by find_contours. [5]
-    # "perimeter_crofton",  # float Perimeter of object approximated by the Crofton formula in 4 directions.
-    # "num_pixels",  # int Number of foreground pixels.
-    # "area_filled",  # float Area of the region with all the holes filled in.
-    # "bbox",  # tuple Bounding box (min_row, min_col, max_row, max_col). Pixels belonging to the bounding box are in the half-open interval [min_row; max_row) and [min_col; max_col).
-    # "centroid_local",  # array Centroid coordinate tuple (row, col), relative to region bounding box.
-    # "centroid_weighted",  # array Centroid coordinate tuple (row, col) weighted with intensity image.
-    # "centroid_weighted_local",  #array Centroid coordinate tuple (row, col), relative to region bounding box, weighted with intensity image.
-    # "coords_scaled",  # (N, 2) ndarray Coordinate list (row, col)``of the region scaled by ``spacing.
-    # "coords",  # (N, 2) ndarray Coordinate list (row, col) of the region.
-    # "euler_number",  # int Euler characteristic of the set of non-zero pixels. Computed as number of connected components subtracted by number of holes (input.ndim connectivity). In 3D, number of connected components plus number of holes subtracted by number of tunnels.
-    # "image",  # (H, J) ndarray Sliced binary region image which has the same size as bounding box.
-    # "image_convex",  # (H, J) ndarray Binary convex hull image which has the same size as bounding box.
-    # "image_filled",  # (H, J) ndarray Binary region image with filled holes which has the same size as bounding box.
-    # "image_intensity",  # ndarray Image inside region bounding box.
-    # "inertia_tensor",  # ndarray Inertia tensor of the region for the rotation around its mass.
-    # "inertia_tensor_eigvals",  # tuple The eigenvalues of the inertia tensor in decreasing order.
-    # "intensity_mean",  # float Value with the mean intensity in the region.
-    # "intensity_min",  # float Value with the least intensity in the region.
-    # "moments",  # (3, 3) ndarray Spatial moments up to 3rd order
-    # "moments_central",  # (3, 3) ndarray
-    # "moments_hu",  # tuple Hu moments (translation, scale and rotation invariant).
-    # "moments_normalized",  # (3, 3) ndarray where m_00 is the zeroth spatial moment.
-    # "moments_weighted",  # (3, 3) ndarray Spatial moments of intensity image up to 3rd order:
-    # "moments_weighted_central",  # (3, 3) ndarray
-    # "moments_weighted_hu",  # tuple Hu moments (translation, scale and rotation invariant) of intensity image.
-    # "moments_weighted_normalized",  # (3, 3) ndarray where wm_00 is the zeroth spatial moment (intensity-weighted area).
-    # "orientation",  # float Angle between the 0th axis (rows) and the major axis of the ellipse that has the same second moments as the region, ranging from -pi/2 to pi/2 counter-clockwise.
-    # "slice",  # tuple of slices A slice to extract the object from the source image.
 ]

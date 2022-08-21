@@ -1,14 +1,18 @@
 import os
 import sys
 from typing import Callable
+from multiprocessing import Pool, cpu_count
 
 sys.path.append("..")
 
+from pathlib import Path
+
+import cv2
 import numpy as np
 import pandas as pd
 from semif_utils.datasets import BBox, BoxCoordinates, CameraInfo, RemapImage
 from tqdm import tqdm
-
+from semif_utils.utils import growth_stage
 
 class SfMComponents:
 
@@ -50,14 +54,22 @@ class BBoxComponents:
     """Reads bounding box coordinate files and converts to BBox class
     """
 
-    def __init__(self, camera_reference: pd.DataFrame, reader: Callable,
-                 image_dir, *args, **kwargs):
-
+    def __init__(self, data_dir, developed_dir, batch_dir, image_dir,plant_dates,
+                 camera_reference: pd.DataFrame, reader: Callable, multiprocessing: bool, 
+                 *args, **kwargs):
+        self.data_dir = Path(data_dir)
+        self.developed_dir = Path(developed_dir)
+        self.batch_dir = Path(batch_dir)
+        self.image_dir = Path(image_dir)
+        self.plant_dates = plant_dates
+        self.batch_id = self.batch_dir.name
+        self.batch_date = self.batch_id.split("_")[1]
+        self.growth_stage, self.plant_date = growth_stage(self.batch_date, self.plant_dates)
+        self.multiprocessing = multiprocessing
+        
         self.camera_reference = camera_reference
         self.reader = reader
         self.image_list, self.bounding_boxes = self.reader(*args, **kwargs)
-        self.image_dir = image_dir
-        self.batch_id = 420  #batch.batch_id
         self._bboxes = dict()
 
         self._images = []
@@ -88,10 +100,8 @@ class BBoxComponents:
             self._bboxes[image_id] = boxes
 
     def get_fov(self, image_id):
-
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
-
         top_left_x = float(row.loc[0, "top_left_x"])
         top_left_y = float(row.loc[0, "top_left_y"])
 
@@ -104,27 +114,25 @@ class BBoxComponents:
         bottom_right_x = float(row.loc[0, "bottom_right_x"])
         bottom_right_y = float(row.loc[0, "bottom_right_y"])
 
-        top_left = np.array([top_left_x, top_left_y])
-        bottom_left = np.array([bottom_left_x, bottom_left_y])
-        top_right = np.array([top_right_x, top_right_y])
-        bottom_right = np.array([bottom_right_x, bottom_right_y])
+        top_left = [top_left_x, top_left_y]
+        bottom_left = [bottom_left_x, bottom_left_y]
+        top_right = [top_right_x, top_right_y]
+        bottom_right = [bottom_right_x, bottom_right_y]
 
         fov = BoxCoordinates(top_left, top_right, bottom_left, bottom_right)
 
         return fov
 
     def get_camera_location(self, image_id):
-
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
         camera_x = float(row.loc[0, "Estimated_X"])
         camera_y = float(row.loc[0, "Estimated_Y"])
         camera_z = float(row.loc[0, "Estimated_Z"])
 
-        return np.array([camera_x, camera_y, camera_z])
+        return [camera_x, camera_y, camera_z]
 
     def get_pixel_dims(self, image_id):
-
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
         pixel_width = float(row.loc[0, "pixel_width"])
@@ -133,7 +141,6 @@ class BBoxComponents:
         return pixel_width, pixel_height
 
     def get_orientation_angles(self, image_id):
-
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
         yaw = float(row.loc[0, "Estimated_Yaw"])
@@ -143,7 +150,6 @@ class BBoxComponents:
         return yaw, pitch, roll
 
     def get_focal_length(self, image_id):
-
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
         focal_length = float(row.loc[0, "f"])
@@ -156,39 +162,61 @@ class BBoxComponents:
             self.convert_bboxes()
         return self._bboxes
 
+    def _fetch_image_metadata(self, image):
+
+        image_id = image["id"]
+        path = image["path"]
+        fullres_path = image["fullres_path"]
+        fov = self.get_fov(image_id)
+        camera_location = self.get_camera_location(image_id)
+        pixel_width, pixel_height = self.get_pixel_dims(image_id)
+        yaw, pitch, roll = self.get_orientation_angles(image_id)
+        focal_length = self.get_focal_length(image_id)
+        cam_info = CameraInfo(camera_location=camera_location,
+                                pixel_width=pixel_width,
+                                pixel_height=pixel_height,
+                                yaw=yaw,
+                                pitch=pitch,
+                                roll=roll,
+                                focal_length=focal_length,
+                                fov=fov)
+
+        remap_image = RemapImage(blob_home=self.data_dir.name,
+                            data_root=self.developed_dir.name,
+                            batch_id=self.batch_id,
+                            image_path=path,
+                            image_id=image_id,
+                            bboxes=self.bboxes[image_id],
+                            camera_info=cam_info,
+                            plant_date=self.plant_date,
+                            growth_stage=self.growth_stage,
+                            fullres_path=fullres_path)
+        # Set the full resolution height and width
+        if path != fullres_path:
+            _image = cv2.imread(str(fullres_path))
+            fullres_height, fullres_width = _image.shape[:2]
+            remap_image.set_fullres_dims(fullres_width, fullres_height)
+        # Scale the boounding box coordinates to pixel space
+        scale = np.array([remap_image.width, remap_image.height])
+        for bbox in remap_image.bboxes:
+            bbox.set_local_scale(scale)
+
+        return remap_image
+
     @property
     def images(self):
         if not self._images:
-            bboxes = self.bboxes
-            for image in tqdm(self.image_list,
-                              desc="Remapping bbox coordinates",
-                              colour="blue"):
-                image_id = image["id"]
-                path = image["path"]
-                fov = self.get_fov(image_id)
-                camera_location = self.get_camera_location(image_id)
-                pixel_width, pixel_height = self.get_pixel_dims(image_id)
-                yaw, pitch, roll = self.get_orientation_angles(image_id)
-                focal_length = self.get_focal_length(image_id)
-                cam_info = CameraInfo(camera_location=camera_location,
-                                      pixel_width=pixel_width,
-                                      pixel_height=pixel_height,
-                                      yaw=yaw,
-                                      pitch=pitch,
-                                      roll=roll,
-                                      focal_length=focal_length,
-                                      fov=fov)
 
-                image = RemapImage(image_path=path,
-                                   image_id=image_id,
-                                   bboxes=bboxes[image_id],
-                                   camera_info=cam_info)
-                # Scale the boounding box coordinates to pixel space
-                # scale = np.array([image.width, image.height
-                #   ])  # Not needed. bbox are in original scale
-                for bbox in image.bboxes:
-                    # bbox.local_coordinates.set_scale(scale)
-                    bbox.set_local_centroid()
-
-                self._images.append(image)
+            if self.multiprocessing:
+                n_processes = cpu_count()
+                with Pool(processes=n_processes) as p:
+                    _images = list(tqdm(p.imap(self._fetch_image_metadata, self.image_list), 
+                                               desc="Fetching Image metadata and creating RemapImage", 
+                                               total=len(self.image_list)))
+                self._images = _images
+            else:
+                for image in tqdm(self.image_list,
+                                desc="Fetching Image metadata and creating RemapImage"):
+                    remap_image = self._fetch_image_metadata(image)
+                    self._images.append(remap_image)
         return self._images

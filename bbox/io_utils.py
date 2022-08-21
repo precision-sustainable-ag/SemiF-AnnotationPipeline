@@ -1,6 +1,7 @@
 import os
 import xml.etree.ElementTree as ET
 from glob import glob
+from pathlib import Path
 
 import pandas as pd
 
@@ -83,22 +84,30 @@ class ParseXML:
 
 class ParseYOLOCsv:
 
-    def __init__(self, image_path, label_path):
+    def __init__(self, image_path, label_path, fullres_image_path=None):
         self.image_path = image_path
         self.label_path = label_path
+        if fullres_image_path is not None:
+            self.fullres_image_path = fullres_image_path
+        else:
+             self.fullres_image_path = self.image_path
         self.create_image_list()
 
     def create_image_list(self):
 
-        images = glob(os.path.join(self.image_path, "*.jpg"))
-        image_ids = [
-            image.split(os.path.sep)[-1].split(".")[0] for image in images
-        ]
+        images = Path(self.image_path).glob("*.jpg")
+        images = [x for x in images]
+        fullres_images = Path(self.fullres_image_path).glob("*.jpg")
+        fullres_images = [x for x in fullres_images]
+        assert len(fullres_images) == len(images)
+
+        image_ids = [x.stem for x in images]
 
         self.image_list = [{
             "id": image_id,
-            "path": path
-        } for image_id, path in zip(image_ids, images)]
+            "path": str(path),
+            "fullres_path": fullres_path
+        } for image_id, path, fullres_path in zip(image_ids, images, fullres_images)]
 
     def parse(self, df):
 
@@ -118,7 +127,7 @@ class ParseYOLOCsv:
                 "bottom_left": bottom_left,
                 "bottom_right": bottom_right,
                 "cls": cls,
-                "is_normalized": False
+                "is_normalized": True
             }
 
             boxes.append(bbox)
