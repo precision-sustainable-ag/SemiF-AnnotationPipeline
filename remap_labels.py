@@ -1,15 +1,10 @@
 import logging
 from pathlib import Path
-
-import hydra
 from omegaconf import DictConfig
-from tqdm import tqdm
-import shapefile
-
 from bbox.bbox_transformations import BBoxFilter, BBoxMapper
 from bbox.connectors import BBoxComponents, SfMComponents
 from bbox.io_utils import ParseXML, ParseYOLOCsv
-from semif_utils.utils import rescale_bbox, growth_stage
+from semif_utils.utils import growth_stage, rescale_bbox
 
 log = logging.getLogger(__name__)
 

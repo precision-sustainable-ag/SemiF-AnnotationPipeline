@@ -4,6 +4,7 @@ import cv2
 import pandas as pd
 import torch
 from omegaconf import DictConfig
+from tqdm import tqdm
 
 log = logging.getLogger(__name__)
 
@@ -89,8 +90,8 @@ def main(cfg: DictConfig) -> None:
     # Get images
     dfimgs = []
 
-    for idx, imgp in enumerate(images):
-        log.info(f"Running inference on {images[idx]}")
+    log.info(f"Running inference on {len(images)} images")
+    for idx, imgp in tqdm(enumerate(images)):
         if not save_detection:
             df, imgpath = inference(imgp, model, save_detection=save_detection)
 

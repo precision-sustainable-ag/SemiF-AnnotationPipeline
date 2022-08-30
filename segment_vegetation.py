@@ -7,6 +7,8 @@ import cv2
 import numpy as np
 from omegaconf import DictConfig
 
+from segment_species import Segment
+from semif_utils.cutout_contours import CutoutMapper, mask_to_polygons
 from semif_utils.datasets import BatchMetadata, Cutout
 from semif_utils.segment_utils import GenCutoutProps, prep_bbox
 from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
@@ -23,6 +25,8 @@ class SegmentVegetation:
         self.batchdir = Path(cfg.data.batchdir)
         self.batch_id = self.batchdir.name
         self.metadata = self.batchdir / "metadata"
+        self.mtshp_project_path = Path(self.batchdir, "autosfm", "project", f"{self.batch_id}.psx")
+        
         self.cutout_batch_dir = self.cutout_dir / self.batch_id
         self.clear_border = cfg.segment.clear_border
         self.multi_process = cfg.segment.multiprocess
@@ -34,6 +38,7 @@ class SegmentVegetation:
         """ Main Processing pipeline. Reads images from list of labels in
             labeldir,             
         """
+        self.cutout_mapper = CutoutMapper(self.mtshp_project_path)
         imgdata = payload["imgdata"] if self.multi_process else get_image_meta(
             payload)
         # Call image array
@@ -58,8 +63,8 @@ class SegmentVegetation:
                 continue
             species = box.cls
             g_stage = imgdata.growth_stage
-            if species["USDA_symbol"] == "CHAL7":
-                mask = seg.lambsquarters(cotlydon=False)
+            # if species["USDA_symbol"] == "CHAL7":
+                # mask = seg.lambsquarters(cotlydon=False)
                 # log.info("---Getting Region properties---")
             mask = seg.lambsquarters(cotlydon=False)
             extends_border = False if np.array_equal(mask, clear_border(mask)) else True
@@ -80,6 +85,9 @@ class SegmentVegetation:
             if props.green_sum < 5000:
                 continue
             cutout_2 = apply_mask(rgb_crop, mask2, "black")
+            cropped_mask2 = crop_cutouts(mask2)
+            cutout_contours = mask_to_polygons(cropped_mask2, epsilon=10., min_area=10, to_list=True)
+            global_contours = self.cutout_mapper.map(cutout_contours, imgdata.image_id)
             cropped_cutout2 = crop_cutouts(cutout_2)
             # Create dataclass
             cutout = Cutout(blob_home=self.data_dir.name,
@@ -89,6 +97,8 @@ class SegmentVegetation:
                             cutout_num=cutout_num,
                             datetime=imgdata.exif_meta.DateTime,
                             cutout_props=asdict(cutprops),
+                            local_contours=cutout_contours,
+                            global_contours=global_contours,
                             is_primary=box.is_primary,
                             cls=box.cls,
                             extends_border=extends_border)

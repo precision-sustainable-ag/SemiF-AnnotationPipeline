@@ -680,6 +680,8 @@ class Cutout:
     cutout_num: int
     datetime: datetime.datetime  # Datetime of original image creation
     cutout_props: CutoutProps
+    local_contours: list = None
+    global_contours: list = None
     cutout_id: str = field(init=False)
     cutout_path: str = field(init=False)
     cls: str = None
@@ -716,7 +718,9 @@ class Cutout:
             "cutout_props": self.cutout_props,
             "extends_border": self.extends_border,
             "cutout_version": self.cutout_version,
-            "schema_version": self.schema_version
+            "schema_version": self.schema_version,
+            "local_contours": self.local_contours,
+            "global_contours": self.global_contours
         }
 
         return _config

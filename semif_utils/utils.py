@@ -506,7 +506,10 @@ def apply_mask(img, mask, mask_color):
 
 
 def crop_cutouts(img, add_padding=False):
-    foreground = Image.fromarray(img)
+    if len(img.shape) == 2:
+        foreground = Image.fromarray(img.astype(np.uint8))
+    else:
+        foreground = Image.fromarray(img)
     pil_crop_frground = foreground.crop(foreground.getbbox())
     array = np.array(pil_crop_frground)
     if add_padding:
