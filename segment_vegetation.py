@@ -2,14 +2,14 @@ import logging
 from dataclasses import asdict
 from multiprocessing import Manager, Pool, Process, cpu_count
 from pathlib import Path
-from segment_species import Segment
+from semif_utils.segment_species import Segment
 import cv2
 import numpy as np
 from shapely.geometry import Polygon, MultiPolygon
 from omegaconf import DictConfig
 import rasterio
 from rasterio import mask
-from segment_species import Segment
+from semif_utils.segment_species import Segment
 from semif_utils.cutout_contours import CutoutMapper, mask_to_polygons
 from semif_utils.datasets import BatchMetadata, Cutout
 from semif_utils.segment_utils import GenCutoutProps, prep_bbox
