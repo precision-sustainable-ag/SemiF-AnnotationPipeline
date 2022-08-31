@@ -5,8 +5,10 @@ from pathlib import Path
 from segment_species import Segment
 import cv2
 import numpy as np
+from shapely.geometry import Polygon, MultiPolygon
 from omegaconf import DictConfig
-
+import rasterio
+from rasterio import mask
 from segment_species import Segment
 from semif_utils.cutout_contours import CutoutMapper, mask_to_polygons
 from semif_utils.datasets import BatchMetadata, Cutout
@@ -17,7 +19,6 @@ from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
 log = logging.getLogger(__name__)
 
 class SegmentVegetation:
-
     def __init__(self, cfg: DictConfig) -> None:
 
         self.data_dir = Path(cfg.data.datadir)
@@ -26,6 +27,8 @@ class SegmentVegetation:
         self.batch_id = self.batchdir.name
         self.metadata = self.batchdir / "metadata"
         self.mtshp_project_path = Path(self.batchdir, "autosfm", "project", f"{self.batch_id}.psx")
+        self.dem_path = Path(self.batchdir, "autosfm", "dem", "dem.tif")
+        self.dem = rasterio.open(self.dem_path)
         
         self.cutout_batch_dir = self.cutout_dir / self.batch_id
         self.clear_border = cfg.segment.clear_border
@@ -33,6 +36,15 @@ class SegmentVegetation:
 
         if not self.cutout_batch_dir.exists():
             self.cutout_batch_dir.mkdir(parents=True, exist_ok=True)
+
+    def mask_raster(self, contour):
+        polys = []
+        for cont in contour:
+            poly = Polygon(cont)
+            polys.append(poly)
+        multipoly = MultiPolygon(polys)
+        out_image, out_transform=rasterio.mask.mask(self.dem,multipoly, filled=True, crop=True)
+        return out_image
 
     def cutout_pipeline(self, payload):
         """ Main Processing pipeline. Reads images from list of labels in
@@ -88,6 +100,10 @@ class SegmentVegetation:
             cropped_mask2 = crop_cutouts(mask2)
             cutout_contours = mask_to_polygons(cropped_mask2, epsilon=10., min_area=10, to_list=True)
             global_contours = self.cutout_mapper.map(cutout_contours, imgdata.image_id)
+            masked_raster = self.mask_raster(global_contours)
+            with rasterio.open('ndvi.tif', 'w') as dst:
+                dst.write_band(1, masked_raster.astype(rasterio.float32))
+            print(masked_raster)
             cropped_cutout2 = crop_cutouts(cutout_2)
             # Create dataclass
             cutout = Cutout(blob_home=self.data_dir.name,

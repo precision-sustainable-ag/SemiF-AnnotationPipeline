@@ -89,7 +89,7 @@ def mask_to_polygons(mask, epsilon=10., min_area=10., to_list=True):
     # all_polygons = MultiPolygon(all_polygons)
     if to_list:
         all_polygons = shapely_poly_to_list(all_polygons)
-    return all_polygons
+    return all_polygons    
 
 def polygons_to_mask(polygons, im_size):
     """Convert a polygon or multipolygon list back to
