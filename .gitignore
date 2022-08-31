@@ -21,7 +21,7 @@ Assets/ORTHO*
 models/*
 run.sh
 
-scripts/download_blob_parallel.py
+scripts/my_download_blob_parallel.py
 # (I'm not sure what this directory is for)
 exports/*
 
