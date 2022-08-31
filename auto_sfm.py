@@ -37,12 +37,12 @@ def main(cfg: DictConfig) -> None:
     autosfm_storage_csv = autosfm_storage / "GroundControlPoints.csv"
     shutil.copy(gcp_src, autosfm_storage_csv)
 
-    # Compose the command
-    try:
+    # Check for GPU and compose Docker the command
+    if "cuda" in cfg.detect.device:
         subprocess.check_output('nvidia-smi')
         log.info('Nvidia GPU detected. \nUsing "docker run --gpus all".')
         command_suffix = "docker run --gpus all "
-    except Exception: # this command not being found can raise quite a few different errors depending on the configuration
+    else:
         log.info('No Nvidia GPU in system. Using "docker run"')
         command_suffix = "docker run "
         

@@ -19,7 +19,7 @@ Assets/ORTHO*
 *.qgz
 # Ignore everything in models dir except readme
 models/*
-
+run.sh
 # (I'm not sure what this directory is for)
 exports/*
 

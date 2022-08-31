@@ -1,17 +1,33 @@
 import json
 import os
 import platform
+import random
 from datetime import datetime
-from dataclasses import replace
+from difflib import get_close_matches
 from pathlib import Path
-import operator
+from datetime import datetime
 import cv2
 import numpy as np
 import pandas as pd
+import skimage
+import operator
+import torch
+from dataclasses import replace, asdict
+from dacite import Config, from_dict
 from PIL import Image
 from scipy import ndimage
-from skimage import morphology, segmentation
+from scipy import ndimage as ndi
+from skimage import (color, feature, filters, measure, morphology,
+                     segmentation, util)
+from skimage.color import label2rgb
+from skimage.exposure import rescale_intensity
+from skimage.filters import rank
+from skimage.measure import label
+from skimage.morphology import disk
+from skimage.segmentation import random_walker, watershed
 from sklearn.cluster import KMeans
+
+from semif_utils.datasets import CUTOUT_PROPS, CutoutProps, ImageData, Cutout
 
 ######################################################
 ################### GENERAL ##########################
@@ -33,9 +49,8 @@ def read_json(path):
 def get_bbox_info(csv_path):
 
     df = pd.read_csv(csv_path).drop(columns=["Unnamed: 0"])
-    bbox_dict = df.groupby(by="imgname", sort=True).apply(
-        lambda x: x.to_dict(orient="records")
-    )
+    bbox_dict = df.groupby(
+        by="imgname", sort=True).apply(lambda x: x.to_dict(orient="records"))
     img_list = list(bbox_dict.keys())
     return bbox_dict, img_list
 
@@ -68,20 +83,25 @@ def creation_date(path_to_file):
 def get_upload_datetime(imagedir):
 
     creation_dt = creation_date(imagedir)
-    creation_dt = datetime.fromtimestamp(creation_dt).strftime("%Y-%m-%d_%H:%M:%S")
+    creation_dt = datetime.fromtimestamp(creation_dt).strftime(
+        "%Y-%m-%d_%H:%M:%S")
     return creation_dt
 
 
 def parse_dict(props_tabl):
-    """Used to parse regionprops table dictionary"""
+    """ 
+    Used to parse regionprops table dictionary.
+    Sums region props if multiple exists in one
+    mask.
+    """
     ndict = {}
     for key, val in props_tabl.items():
         key = key.replace("-", "") if "-" in key else key
-        new_val_entry = []
+        sum_val_entry = []
         if isinstance(val, np.ndarray) and val.shape[0] > 1:
             for i, v in enumerate(val):
-                new_val_entry.append({f"{key}_{i+1}": float(v)})
-            ndict[key] = new_val_entry
+                sum_val_entry.append(float(v))
+            ndict[key] = np.sum(np.array(sum_val_entry))
         else:
             ndict[key] = float(val)
     return ndict
@@ -122,6 +142,78 @@ def growth_stage(batch_date, plant_date_list):
 
     return g_stage, pl_dt
 
+def get_image_meta(path):
+    with open(path) as f:
+        j = json.load(f)
+        imgdata = from_dict(data_class=ImageData,
+                            data=j,
+                            config=Config(check_types=False))
+    return imgdata
+
+def get_cutout_meta(path):
+    with open(path) as f:
+        j = json.load(f)
+        cutout = from_dict(data_class=Cutout,
+                            data=j,
+                            config=Config(check_types=False))
+    return cutout
+
+def cutoutmeta2csv(cutoutdir, batch_id, save_df=False):
+    # Get all json files
+    metas = [x for x in Path(f"{cutoutdir}{batch_id}/").glob("*.json")]
+    cutouts = []
+    for meta in metas:
+        # Get dictionaries
+        cutout = asdict(get_cutout_meta(meta))
+        row = cutout["cutout_props"]
+        cls = cutout["cls"]
+        # Extend nested dicts to single column header
+        for ro in row:
+            rec = {ro: row[ro]}
+            cutout.update(rec)
+            for cl in cls:
+                spec = {cl: cls[cl]}
+                cutout.update(spec)
+        # Remove duplicate nested dicts
+        cutout.pop("cutout_props")
+        cutout.pop("cls")
+        # Create and append df
+        cutdf = pd.DataFrame(cutout, index=[0])
+        cutouts.append(cutdf)
+    # Concat and reset index of main df
+    cutouts_df = pd.concat(cutouts)
+    cutouts_df = cutouts_df.reset_index()
+    # Save dataframe
+    if save_df:
+        cutouts_df.to_csv(f"{cutoutdir}/{batch_id}.csv", index=False)
+    return cutouts_df
+
+def growth_stage(batch_date, plant_date_list):
+    """ Gets rough approximation of growth stage by comparing the batch upload date
+        with a list of "planting dates" in config.planting. Uses a threshold value,
+        "coty_thresh" to differentiate between cotyledon and vegetative. 
+        Returns growth stage and planting date."""
+
+    batch_date = datetime.strptime(batch_date, "%Y-%m-%d")
+    plant_date_list = [datetime.strptime(x, "%Y-%m-%d") for x in plant_date_list]
+    # Remove plant dates that are newer than batch date
+    plant_date_list = [x for x in plant_date_list if x <= batch_date]
+    # Difference and get indices
+    deltas = [abs(ti - batch_date) for ti in plant_date_list]
+    min_index, min_delta = min(enumerate(deltas), key=operator.itemgetter(1))
+    
+
+    pl_dt = plant_date_list[min_index].strftime('%Y-%m-%d')
+    if min_delta.days < 2:
+        g_stage = "seed"
+    elif min_delta.days < 10:
+        g_stage = "cotyledon"
+    elif min_delta.days < 20:
+        g_stage = "seedling"
+    else:
+        g_stage = "vegetative"
+    return g_stage, pl_dt
+
 ######################################################
 ############### VEGETATION INDICES ###################
 ######################################################
@@ -143,7 +235,7 @@ def make_exg(img, normalize=False, thresh=0):
         return exg.astype("uint8")
 
 
-def make_exr(rgb_img):
+def make_exr(rgb_img, thresh=0):
     # rgb_img: np array in [RGB] channel order
     # exr: single band vegetation index as np array
     # EXR = 1.4 * R - G
@@ -154,20 +246,24 @@ def make_exr(rgb_img):
     red = img[:, :, 0]
 
     exr = 1.4 * red - green
-    exr = np.where(exr < 0, 0, exr)  # Thresholding removes low negative values
+    if thresh is not None:
+        exr = np.where(exr < thresh, 0,
+                       exr)  # Thresholding removes low negative values
     return exr.astype("uint8")
 
 
-def make_exg_minus_exr(img):
+def make_exg_minus_exr(img, thresh=0):
     img = img.astype(float)  # Rgb image
     exg = make_exg(img)
     exr = make_exr(img)
     exgr = exg - exr
-    exgr = np.where(exgr < 25, 0, exgr)
+    if thresh is not None:
+        exgr = np.where(exgr < thresh, 0, exgr)
+    exgr = cv2.bitwise_not(exgr)
     return exgr.astype("uint8")
 
 
-def make_ndi(rgb_img):
+def make_ndi(rgb_img, thresh=0):
     # rgb_img: np array in [RGB] channel order
     # exr: single band vegetation index as np array
     # NDI = 128 * (((G - R) / (G + R)) + 1)
@@ -178,12 +274,30 @@ def make_ndi(rgb_img):
     red = img[:, :, 0]
     gminr = green - red
     gplusr = green + red
-    gdivr = np.true_divide(gminr, gplusr, out=np.zeros_like(gminr), where=gplusr != 0)
+    gdivr = np.true_divide(gminr,
+                           gplusr,
+                           out=np.zeros_like(gminr),
+                           where=gplusr != 0)
     ndi = 128 * (gdivr + 1)
     # print("Max ndi: ", ndi.max())
     # print("Min ndi: ", ndi.min())
 
     return ndi
+
+
+def thresh_vi(vi, low=20, upper=100, sigma=2):
+    """
+    Args:
+        vi (np.ndarray): vegetation index single channel
+        low (int, optional): lower end of vi threshold. Defaults to 20.
+        upper (int, optional): upper end of vi threshold. Defaults to 100.
+        sigma (int, optional): multiplication factor applied to range within
+                                "low" and "upper". Defaults to 2.
+    """
+    thresh_vi = np.where(vi <= 0, 0, vi)
+    thresh_vi = np.where((thresh_vi > low) & (thresh_vi < upper),
+                         thresh_vi * sigma, thresh_vi)
+    return thresh_vi
 
 
 ######################################################
@@ -221,6 +335,9 @@ def rescale_bbox(box, scale):
 ################# MORPHOLOGICAL ######################
 ######################################################
 
+def region_props(img, label):
+    props = [x.area for x in measure.regionprops(label, img)]
+    return props
 
 def clean_mask(mask, kernel_size=3, iterations=1, dilation=True):
     if int(kernel_size):
@@ -236,7 +353,11 @@ def clean_mask(mask, kernel_size=3, iterations=1, dilation=True):
     return mask
 
 
-def dilate_erode(mask, kernel_size=3, dil_iters=5, eros_iters=3, hole_fill=True):
+def dilate_erode(mask,
+                 kernel_size=3,
+                 dil_iters=5,
+                 eros_iters=3,
+                 hole_fill=True):
     mask = mask.astype(np.float32)
 
     if int(kernel_size):
@@ -263,10 +384,27 @@ def reduce_holes(mask, min_object_size=1000, min_hole_size=1000):
     mask = mask.astype(np.bool8)
     # mask = measure.label(mask, connectivity=2)
     mask = morphology.remove_small_holes(
-        morphology.remove_small_objects(mask, min_hole_size), min_object_size
-    )
+        morphology.remove_small_objects(mask, min_hole_size), min_object_size)
     # mask = morphology.opening(mask, morphology.disk(3))
     return mask
+
+
+def seperate_components(mask):
+    """Seperates multiple unconnected components in a mask
+    for seperate processing.
+    """
+    # Store individual plant components in a list
+    mask = mask.astype(np.uint8)
+    nb_components, output, _, _ = cv2.connectedComponentsWithStats(
+        mask, connectivity=8)
+    # Remove background component
+    nb_components = nb_components - 1
+    list_filtered_masks = []
+    for i in range(0, nb_components):
+        filtered_mask = np.zeros((output.shape))
+        filtered_mask[output == i + 1] = 255
+        list_filtered_masks.append(filtered_mask)
+    return list_filtered_masks
 
 
 ######################################################
@@ -288,16 +426,48 @@ def make_kmeans(exg_mask):
     exg = exg_mask.reshape(rows * cols, 1)
     kmeans = KMeans(n_clusters=n_classes, random_state=3).fit(exg)
     mask = kmeans.labels_.reshape(rows, cols)
-    mask = check_kmeans(mask)
+    # mask = check_kmeans(mask)
     return mask.astype("uint64")
 
 
 def otsu_thresh(mask, kernel_size=(3, 3)):
     mask_blur = cv2.GaussianBlur(mask, kernel_size, 0).astype("uint16")
-    ret3, mask_th3 = cv2.threshold(
-        mask_blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
-    )
+    ret3, mask_th3 = cv2.threshold(mask_blur, 0, 255,
+                                   cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     return mask_th3
+
+
+def get_watershed(vi, disk1=1, grad1_thresh=12, disk2=10, lbl_fact=2.5):
+    # process the watershed
+    markers = rank.gradient(vi, disk(disk1)) < grad1_thresh
+    markers = ndi.label(markers)[0]
+    gradient = rank.gradient(vi, disk(disk2))
+    labels = watershed(gradient, markers)
+    seg1 = label(labels <= 0)
+    lbls = label2rgb(seg1, image=vi, bg_label=0) * lbl_fact
+    wtrshed_lbls = rescale_intensity(lbls, in_range=(0, 1), out_range=(0, 1))
+    return wtrshed_lbls
+
+
+def multiple_otsu(vi):
+    thresholds = filters.threshold_multiotsu(vi, classes=3)
+    regions = np.digitize(vi, bins=thresholds)
+    return regions
+
+######################################################
+##################### CONTOURS #######################
+######################################################
+def contour_mask(img, mode="biggest"):
+    # For using find_contours
+    # get most significant contours
+    contours_mask, hierachy = cv2.findContours(img, cv2.RETR_EXTERNAL,
+                                            cv2.CHAIN_APPROX_NONE)
+    mask = np.zeros(img.shape, np.uint8)
+    # find the biggest countour (c) by the area
+    if mode == "biggest":
+        c = max(contours_mask, key = cv2.contourArea)
+        cv2.drawContours(mask, [c], -1, (255),1)
+    return mask
 
 
 ######################################################
@@ -336,18 +506,19 @@ def apply_mask(img, mask, mask_color):
 
 
 def crop_cutouts(img, add_padding=False):
-    foreground = Image.fromarray(img)
+    if len(img.shape) == 2:
+        foreground = Image.fromarray(img.astype(np.uint8))
+    else:
+        foreground = Image.fromarray(img)
     pil_crop_frground = foreground.crop(foreground.getbbox())
     array = np.array(pil_crop_frground)
     if add_padding:
-        pil_crop_frground = foreground.crop(
-            (
-                foreground.getbbox()[0] - 2,
-                foreground.getbbox()[1] - 2,
-                foreground.getbbox()[2] + 2,
-                foreground.getbbox()[3] + 2,
-            )
-        )
+        pil_crop_frground = foreground.crop((
+            foreground.getbbox()[0] - 2,
+            foreground.getbbox()[1] - 2,
+            foreground.getbbox()[2] + 2,
+            foreground.getbbox()[3] + 2,
+        ))
     return array
 
 
@@ -378,9 +549,9 @@ def transform_position(points, imgshape, spread_factor):
     """Applies random jitter factor to points and transforms them to top left image coordinates."""
     y, x = points
 
-    x, y = x + random.randint(-spread_factor, spread_factor), y + random.randint(
-        -int(spread_factor / 3), int(spread_factor / 3)
-    )
+    x, y = x + random.randint(
+        -spread_factor, spread_factor), y + random.randint(
+            -int(spread_factor / 3), int(spread_factor / 3))
 
     x, y = center2topleft(x, y, imgshape)
 
@@ -404,12 +575,14 @@ def img2RGBA(img):
 
 
 class Point(object):
+
     def __init__(self, x, y):
         self.x = x
         self.y = y
 
 
 class Rect(object):
+
     def __init__(self, p1, p2):
         """Store the top, bottom, left and right values for points
         p1 and p2 are the (corners) in either order
@@ -422,9 +595,9 @@ class Rect(object):
 
 def overlap(r1, r2):
     """Overlapping rectangles overlap both horizontally & vertically"""
-    return range_overlap(r1.left, r1.right, r2.left, r2.right) and range_overlap(
-        r1.bottom, r1.top, r2.bottom, r2.top
-    )
+    return range_overlap(r1.left, r1.right,
+                         r2.left, r2.right) and range_overlap(
+                             r1.bottom, r1.top, r2.bottom, r2.top)
 
 
 def range_overlap(a_min, a_max, b_min, b_max):
@@ -446,14 +619,14 @@ def clean_data(data):
     stored in json and db.
     """
     data["background"]["background_path"] = "/".join(
-        Path(data["background"]["background_path"]).parts[-2:]
-    )
+        Path(data["background"]["background_path"]).parts[-2:])
     pots = data["pots"]
     for pot in pots:
         pot["pot_path"] = "/".join(Path(pot["pot_path"]).parts[-2:])
 
     for cutout in data["cutouts"]:
-        cutout["cutout_path"] = "/".join(Path(cutout["cutout_path"]).parts[-2:])
+        cutout["cutout_path"] = "/".join(
+            Path(cutout["cutout_path"]).parts[-2:])
 
     return data
 

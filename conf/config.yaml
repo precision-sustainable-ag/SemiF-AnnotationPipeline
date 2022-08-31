@@ -1,6 +1,7 @@
 defaults:
   - autosfm: autosfm
   - maintenance: maintenance
+  - segment: segment
   - planting: planting
   - _self_
 
@@ -52,18 +53,10 @@ im_development:
   dev_profiles_dir: ${blob_storage.utilsdir}/image_development/dev_profiles
 
 detect:
-  concat_detections: True
+  concat_detections: False
   model_filename: best.pt
   model_path: ${data.modeldir}/plant_detector/${detect.model_filename}
   detections_csv: ${data.batchdir}/autosfm
   save_detection: False
   detectioncropdir: ${general.imagedir} # Location to save detection crops
-  device: "cpu:0"
-
-segment:  # Segment Vegetation
-  multiprocess: True
-  clear_border: True
-  save_mask: False # Not implemented
-  vi: exg
-  class_algorithm: kmeans
-  num_classes: 1
+  device: "cuda:0"

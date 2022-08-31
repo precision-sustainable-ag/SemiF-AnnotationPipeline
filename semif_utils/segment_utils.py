@@ -1,21 +1,16 @@
 import json
+from difflib import get_close_matches
 from pathlib import Path
 
 import cv2
 import numpy as np
 from dacite import Config, from_dict
-from scipy import ndimage as ndi
 from skimage import measure
-from skimage.color import label2rgb
-from skimage.exposure import rescale_intensity
-from skimage.filters import rank
-from skimage.measure import label
-from skimage.morphology import disk
-from skimage.segmentation import watershed
 
 from semif_utils.datasets import CUTOUT_PROPS, CutoutProps, ImageData
-from semif_utils.utils import (make_exg, make_exg_minus_exr, make_exr,
-                               make_kmeans, make_ndi, otsu_thresh, parse_dict,
+from semif_utils.utils import (get_watershed, make_exg, make_exg_minus_exr,
+                               make_exr, make_kmeans, make_ndi, multiple_otsu,
+                               otsu_thresh, parse_dict, read_json, apply_mask,
                                reduce_holes, rescale_bbox)
 
 ################################################################
@@ -39,17 +34,10 @@ def get_siteinfo(imagedir):
     return sitedir, site_id
 
 
-def get_image_meta(path):
-    with open(path) as f:
-        j = json.load(f)
-        imgdata = from_dict(
-            data_class=ImageData, data=j, config=Config(check_types=False)
-        )
-    return imgdata
-
-
 def save_cutout_json(cutout, cutoutpath):
-    cutout_json_path = Path(Path(cutoutpath).parent, Path(cutoutpath).stem + ".json")
+    cutout_json_path = Path(
+        Path(cutoutpath).parent,
+        Path(cutoutpath).stem + ".json")
     with open(cutout_json_path, "w") as j:
         json.dump(cutout, j, indent=4, default=str)
 
@@ -57,11 +45,8 @@ def save_cutout_json(cutout, cutoutpath):
 def get_species_info(path, cls, default_species="grass"):
     with open(path) as f:
         spec_info = json.load(f)
-        spec_info = (
-            spec_info["species"][cls]
-            if cls in spec_info["species"].keys()
-            else default_species
-        )
+        spec_info = (spec_info["species"][cls] if cls
+                     in spec_info["species"].keys() else default_species)
     return spec_info
 
 
@@ -71,9 +56,24 @@ def get_species_info(path, cls, default_species="grass"):
 
 
 class GenCutoutProps:
-    def __init__(self, mask):
+
+    def __init__(self, img, mask):
         """Generate cutout properties and returns them as a dataclass."""
+        self.img = img
         self.mask = mask
+        self.green_thresh = 1000 # TODO change to normalized based on size of image
+        self.green_sum = int(np.sum(self.green_mask()))
+        self.is_green = True if self.green_sum > self.green_thresh else False
+        
+    def green_mask(self):
+        """Returns binary mask if values are within certain "green" HSV range."""
+        cutout = apply_mask(self.img, self.mask, "black")
+        hsv = cv2.cvtColor(cutout, cv2.COLOR_RGB2HSV)
+        lower = np.array([40, 70, 120])
+        upper = np.array([90, 255, 255])
+        hsv_mask = cv2.inRange(hsv, lower, upper)
+        hsv_mask = np.where(hsv_mask == 255, 1, 0)
+        return hsv_mask
 
     def from_regprops_table(self, connectivity=2):
         """Generates list of region properties for each cutout mask"""
@@ -81,6 +81,8 @@ class GenCutoutProps:
         props = [measure.regionprops_table(labels, properties=CUTOUT_PROPS)]
         # Parse regionprops_table
         nprops = [parse_dict(d) for d in props][0]
+        nprops["is_green"] = self.is_green
+        nprops["green_sum"] = self.green_sum
         return nprops
 
     def to_dataclass(self):
@@ -88,8 +90,8 @@ class GenCutoutProps:
         cutout_props = from_dict(data_class=CutoutProps, data=table)
         return cutout_props
 
+class SegmentMask:
 
-class ClassifyMask:
     def otsu(self, vi):
         # Otsu's thresh
         vi_mask = otsu_thresh(vi)
@@ -99,68 +101,36 @@ class ClassifyMask:
     def kmeans(self, vi):
         vi_mask = make_kmeans(vi)
         reduce_holes_mask = reduce_holes(vi_mask * 255) * 255
+        return reduce_holes_mask
 
+    def watershed(self, vi):
+        vi_mask = get_watershed(vi)
+        reduce_holes_mask = reduce_holes(vi_mask * 255) * 255
+        return reduce_holes_mask
+
+    def multi_otsu(self, vi):
+        vi_mask = multiple_otsu(vi)
+        reduce_holes_mask = reduce_holes(vi_mask * 255) * 255
         return reduce_holes_mask
 
 
 class VegetationIndex:
-    def exg(self, img):
-        exg_vi = make_exg(img, thresh=True)
+
+    def exg(self, img, thresh=0):
+        exg_vi = make_exg(img, thresh=0)
         return exg_vi
 
-    def exr(self, img):
-        exr_vi = make_exr(img)
+    def exr(self, img, thresh=0):
+        exr_vi = make_exr(img, thresh=0)
         return exr_vi
 
-    def exg_minus_exr(self, img):
-        gmr_vi = make_exg_minus_exr(img)
+    def exg_minus_exr(self, img, thresh=0):
+        gmr_vi = make_exg_minus_exr(img, thresh=0)
         return gmr_vi
 
-    def ndi(self, img):
-        ndi_vi = make_ndi(img)
+    def ndi(self, img, thresh=0):
+        ndi_vi = make_ndi(img, thresh=0)
         return ndi_vi
-
-
-def get_image_meta(path):
-    with open(path) as f:
-        j = json.load(f)
-        imgdata = from_dict(
-            data_class=ImageData, data=j, config=Config(check_types=False)
-        )
-    return imgdata
-
-
-def thresh_vi(vi, low=20, upper=100, sigma=2):
-    """
-    Args:
-        vi (np.ndarray): vegetation index single channel
-        low (int, optional): lower end of vi threshold. Defaults to 20.
-        upper (int, optional): upper end of vi threshold. Defaults to 100.
-        sigma (int, optional): multiplication factor applied to range within
-                                "low" and "upper". Defaults to 2.
-    """
-    thresh_vi = np.where(vi <= 0, 0, vi)
-    thresh_vi = np.where(
-        (thresh_vi > low) & (thresh_vi < upper), thresh_vi * sigma, thresh_vi
-    )
-    return thresh_vi
-
-
-def seperate_components(mask):
-    """Seperates multiple unconnected components in a mask
-    for seperate processing.
-    """
-    # Store individual plant components in a list
-    mask = mask.astype(np.uint8)
-    nb_components, output, _, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
-    # Remove background component
-    nb_components = nb_components - 1
-    list_filtered_masks = []
-    for i in range(0, nb_components):
-        filtered_mask = np.zeros((output.shape))
-        filtered_mask[output == i + 1] = 255
-        list_filtered_masks.append(filtered_mask)
-    return list_filtered_masks
 
 
 def prep_bbox(box, scale):
@@ -172,19 +142,7 @@ def prep_bbox(box, scale):
     return box, x1, y1, x2, y2
 
 
-def get_watershed(mask, disk1=1, grad1_thresh=12, disk2=10, lbl_fact=2.5):
-    # process the watershed
-    markers = rank.gradient(mask, disk(disk1)) < grad1_thresh
-    markers = ndi.label(markers)[0]
-    gradient = rank.gradient(mask, disk(disk2))
-    labels = watershed(gradient, markers)
-    seg1 = label(labels <= 0)
-    lbls = label2rgb(seg1, image=mask, bg_label=0) * lbl_fact
-    wtrshed_lbls = rescale_intensity(lbls, in_range=(0, 1), out_range=(0, 1))
-    return wtrshed_lbls
-
-
-def species_info(speciesjson, default_species="grass"):
+def species_info(speciesjson, df, default_species="grass"):
     """Compares entries in user provided species map csv with those from a common
        species data model (json). Uses 'get_close_matches' to get the best match.
        Is meant to create flexibility in how users are defining "species" in their
@@ -210,7 +168,9 @@ def species_info(speciesjson, default_species="grass"):
     species_data = read_json(speciesjson)
     common_names = []
     spec_idx = species_data["species"].keys()
-    common_name_list = [species_data["species"][x]["common_name"] for x in spec_idx]
+    common_name_list = [
+        species_data["species"][x]["common_name"] for x in spec_idx
+    ]
     # Get copy species map to update
     update_specmap = spec_map.copy()
 

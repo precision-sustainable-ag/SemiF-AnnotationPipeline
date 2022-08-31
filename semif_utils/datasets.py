@@ -2,6 +2,7 @@ import datetime
 import json
 import os
 import typing
+import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List, Optional, Union
@@ -665,6 +666,8 @@ class CutoutProps:
     eccentricity: Union[float, list]
     solidity: Union[float, list]
     perimeter: Union[float, list]
+    is_green: bool
+    green_sum: int
 
 
 @dataclass
@@ -677,10 +680,13 @@ class Cutout:
     cutout_num: int
     datetime: datetime.datetime  # Datetime of original image creation
     cutout_props: CutoutProps
+    local_contours: list = None
+    global_contours: list = None
     cutout_id: str = field(init=False)
     cutout_path: str = field(init=False)
     cls: str = None
     is_primary: bool = False
+    extends_border: bool = False
     cutout_version: str = "1.0"
     schema_version: str = SCHEMA_VERSION
 
@@ -710,7 +716,11 @@ class Cutout:
             "is_primary": self.is_primary,
             "datetime": self.datetime,
             "cutout_props": self.cutout_props,
-            "schema_version": self.schema_version
+            "extends_border": self.extends_border,
+            "cutout_version": self.cutout_version,
+            "schema_version": self.schema_version,
+            "local_contours": self.local_contours,
+            "global_contours": self.global_contours
         }
 
         return _config
@@ -734,8 +744,200 @@ class Cutout:
                     cv2.cvtColor(cutout_array, cv2.COLOR_RGB2BGRA))
         return True
 
+# Synthetic Data Generation -------------------------------------------------------------------------
+@dataclass
+class Pot:
+    pot_path: str
+    pot_id: uuid = None
 
-# GLOBALS -------------------------------------------------------------------------
+    def __post_init__(self):
+        self.pot_id = uuid.uuid4()
+
+    @property
+    def array(self):
+        # Read the image from the file and return the numpy array
+        pot_array = cv2.imread(self.pot_path, cv2.IMREAD_UNCHANGED)
+        pot_array = np.ascontiguousarray(
+            cv2.cvtColor(pot_array, cv2.COLOR_BGR2RGBA))
+        return pot_array
+    
+    @property
+    def config(self):
+        _config = {
+            "pot_path": self.pot_path,
+            "pot_id": self.pot_id,
+        }
+        return _config
+
+    def save_config(self, save_path):
+        try:
+            save_image_path = Path(save_path, self.image_id + ".json")
+            with open(save_image_path, "w") as f:
+                json.dump(self.config, f, indent=4, default=str)
+        except Exception as e:
+            raise e
+        return True
+
+
+@dataclass
+class Background:
+    background_path: str
+    background_id: uuid = None
+
+    def __post_init__(self):
+        self.background_id = uuid.uuid4()
+
+    @property
+    def array(self):
+        # Read the image from the file and return the numpy array
+        background_array = cv2.imread(self.background_path)
+        background_array = np.ascontiguousarray(
+            cv2.cvtColor(background_array, cv2.COLOR_BGR2RGB))
+        return background_array
+    
+    @property
+    def config(self):
+        _config = {
+            "background_path": self.background_path,
+            "background_id": self.background_id,
+        }
+        return _config
+
+    def save_config(self, save_path):
+        try:
+            save_image_path = Path(save_path, self.image_id + ".json")
+            with open(save_image_path, "w") as f:
+                json.dump(self.config, f, indent=4, default=str)
+        except Exception as e:
+            raise e
+        return True
+
+
+@dataclass
+class SynthImage:
+    data_root: str
+    synth_path: str
+    synth_maskpath: str
+    pots: list[Pot]
+    background: Background
+    cutouts: list[Cutout]
+    synth_id: str = field(init=False)
+
+    def __post_init__(self):
+        self.synth_id = uuid.uuid4()
+    
+    @property
+    def config(self):
+        _config = {
+            "data_root": self.data_root,
+            "background_id": self.background_id,
+            "data_root": self.data_root,
+            "synth_path": self.synth_path,
+            "synth_maskpath": self.synth_maskpath,
+            "pots": self.pots,
+            "background": self.background,
+            "cutouts": self.cutouts,
+            "synth_id": self.synth_id
+        }
+        return _config
+
+    def save_config(self, save_path):
+        try:
+            save_image_path = Path(save_path, self.image_id + ".json")
+            with open(save_image_path, "w") as f:
+                json.dump(self.config, f, indent=4, default=str)
+        except Exception as e:
+            raise e
+        return True
+
+
+@dataclass
+class SynthDataContainer:
+    """Combines documents in a database with items in a directory to form data container for generating synthetic bench images. Includes lists of dataclasses for cutouts, pots, and backgrounds.
+    """
+    synthdir: str
+    background_dir: str = None
+    pot_dir: str = None
+    cutout_dir: str = None
+    cutouts: list[Cutout] = field(init=False, default=None)
+    pots: list[Pot] = field(init=False, default=None)
+    backgrounds: list[Background] = field(init=False, default=None)
+
+    def __post_init__(self):
+        self.backgrounds = self.get_dcs("Backgrounds")
+        self.pots = self.get_dcs("Pots")
+        self.cutouts = self.get_dcs("Cutouts")
+    
+    def get_data_from_json(self, jsun):
+        """ Open json and create dictionary
+        """
+        # Opening JSON file
+        with open(jsun) as json_file:
+            data = json.load(json_file)
+        return data
+        
+    def get_jsons(self, collection):
+        """ Gets json files
+        """
+        datas = []
+        collection = collection.lower().rstrip(collection[-1])
+        collection_dir = collection + "_dir"
+        if collection == "cutout":
+            jsondir = Path(self.cutout_dir, getattr(self, collection_dir))
+            jsons = jsondir.glob("*.json")
+            jsons = [x for x in jsons]
+        else:
+            jsons = Path(self.synthdir, getattr(self,
+                                                collection_dir)).glob("*.json")
+        jsons = [x for x in jsons]
+        for jsun in jsons:
+            data = self.get_data_from_json(jsun)
+            datas.append(data)
+        return datas
+
+    def get_dcs(self, collection_str):
+        """Connnects documents in a database collection with items in a directory.
+        Places connected items in a list of dataclasses.
+        """
+        syn_datacls = {"cutout": Cutout, "pot": Pot, "background": Background}
+        
+        cursor = self.get_jsons(collection_str)
+
+        if collection_str == "Cutouts":
+            docdir = Path(self.cutout_dir).parent
+        else:
+            docdir = Path(self.synthdir)
+
+        path_str_ws = collection_str.lower().replace("s", "")
+        path_str = f"{path_str_ws}_path"
+
+        docs = []
+        for doc in cursor:
+            doc_path = docdir / doc[path_str]
+            doc[path_str] = str(doc_path)
+
+            assert Path(doc_path).exists(
+            ), f"Image with path {str(doc_path)} does not exist."
+
+            # Clean up doc and json by removoing _id from db
+            if "_id" in doc:
+                doc.pop("_id")
+            if "cutout_id" in doc:
+                cut_id = doc["cutout_id"]
+                doc.pop("cutout_id")
+
+            data_cls = syn_datacls[path_str_ws]
+            dc = data_cls(**doc)
+            if hasattr(dc, "cutout_id"):
+                dc.cutout_id = cut_id
+
+            docs.append(dc)
+
+        return docs
+
+    
+
+   
 
 CUTOUT_PROPS = [
     "area",  # float Area of the region i.e. number of pixels of the region scaled by pixel-area.

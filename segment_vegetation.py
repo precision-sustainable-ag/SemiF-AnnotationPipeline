@@ -2,24 +2,23 @@ import logging
 from dataclasses import asdict
 from multiprocessing import Manager, Pool, Process, cpu_count
 from pathlib import Path
-
+from segment_species import Segment
+import cv2
 import numpy as np
+from shapely.geometry import Polygon, MultiPolygon
 from omegaconf import DictConfig
-
+import rasterio
+from rasterio import mask
+from segment_species import Segment
+from semif_utils.cutout_contours import CutoutMapper, mask_to_polygons
 from semif_utils.datasets import BatchMetadata, Cutout
-from semif_utils.segment_utils import (ClassifyMask, GenCutoutProps,
-                                       VegetationIndex, get_image_meta,
-                                       get_watershed, prep_bbox,
-                                       seperate_components, thresh_vi)
+from semif_utils.segment_utils import GenCutoutProps, prep_bbox
 from semif_utils.utils import (apply_mask, clear_border, crop_cutouts,
-                               dilate_erode, get_upload_datetime, make_exg,
-                               reduce_holes)
+                               get_image_meta, get_upload_datetime)
 
 log = logging.getLogger(__name__)
 
-
 class SegmentVegetation:
-
     def __init__(self, cfg: DictConfig) -> None:
 
         self.data_dir = Path(cfg.data.datadir)
@@ -27,53 +26,31 @@ class SegmentVegetation:
         self.batchdir = Path(cfg.data.batchdir)
         self.batch_id = self.batchdir.name
         self.metadata = self.batchdir / "metadata"
+        self.mtshp_project_path = Path(self.batchdir, "autosfm", "project", f"{self.batch_id}.psx")
+        self.dem_path = Path(self.batchdir, "autosfm", "dem", "dem.tif")
+        self.dem = rasterio.open(self.dem_path)
+        
         self.cutout_batch_dir = self.cutout_dir / self.batch_id
         self.clear_border = cfg.segment.clear_border
-        self.vi = cfg.segment.vi
-        self.class_algorithm = cfg.segment.class_algorithm
         self.multi_process = cfg.segment.multiprocess
 
         if not self.cutout_batch_dir.exists():
             self.cutout_batch_dir.mkdir(parents=True, exist_ok=True)
 
-        # self.cutout_pipeline()
-
-    def process_domain(self, img):
-        """First cutout processing step of the full image."""
-        v_index = getattr(VegetationIndex(), self.vi)
-        vi = v_index(img)
-        th_vi = thresh_vi(vi)
-        # Get classified mask
-        clalgo = getattr(ClassifyMask(), self.class_algorithm)
-        mask = clalgo(th_vi)
-        return mask
-
-    def process_cutout(self, cutout):
-        """Second cutout processing step.
-        """
-        vi = make_exg(cutout, thresh=True)
-        thresh_vi_arr = thresh_vi(vi, low=10, upper=100, sigma=5)
-
-        # process the watershed
-        wtrshed_lbls = get_watershed(thresh_vi_arr)
-
-        mask = np.where(wtrshed_lbls <= 0.3, 0., 1)
-
-        dil_ero_mask = dilate_erode(mask[:, :, 0],
-                                    kernel_size=3,
-                                    dil_iters=5,
-                                    eros_iters=6,
-                                    hole_fill=True)
-
-        reduced_mask = reduce_holes(dil_ero_mask * 255) * 255
-
-        return reduced_mask
+    def mask_raster(self, contour):
+        polys = []
+        for cont in contour:
+            poly = Polygon(cont)
+            polys.append(poly)
+        multipoly = MultiPolygon(polys)
+        out_image, out_transform=rasterio.mask.mask(self.dem,multipoly, filled=True, crop=True)
+        return out_image
 
     def cutout_pipeline(self, payload):
         """ Main Processing pipeline. Reads images from list of labels in
             labeldir,             
         """
-
+        self.cutout_mapper = CutoutMapper(self.mtshp_project_path)
         imgdata = payload["imgdata"] if self.multi_process else get_image_meta(
             payload)
         # Call image array
@@ -81,57 +58,71 @@ class SegmentVegetation:
 
         # Get bboxes
         bboxes = imgdata.bboxes
-
         ## Process on images by individual bbox detection
         cutout_num = 0
         cutout_ids = []
-
-        # for box in bboxes:
+        
         for box in bboxes:
-
             # Scale the box that will be used for the cutout
             scale = [imgdata.fullres_width, imgdata.fullres_height]
             box, x1, y1, x2, y2 = prep_bbox(box, scale)
-
+            
             # Crop image to bbox
             rgb_crop = rgb_array[y1:y2, x1:x2]
-            mask = self.process_domain(rgb_crop)
-            # Clear borders
-            if self.clear_border:
-                mask = clear_border(mask) * 255
-            # Separate components
-            list_cutouts_masks = seperate_components(mask)
-            # Create RGB cutout for second round of processing
+            seg = Segment(rgb_crop)
+            if rgb_crop.sum() == 0:
+                log.info(f"Image crop sum of values = 0; {imgdata.image_path} ignored")
+                continue
+            species = box.cls
+            g_stage = imgdata.growth_stage
+            # if species["USDA_symbol"] == "CHAL7":
+                # mask = seg.lambsquarters(cotlydon=False)
+                # log.info("---Getting Region properties---")
+            mask = seg.lambsquarters(cotlydon=False)
+            extends_border = False if np.array_equal(mask, clear_border(mask)) else True
+            if mask.max() == 0:
+                continue
+
             cutout_0 = apply_mask(rgb_crop, mask, "black")
-            # Second round of processing
-            for cut_mask in list_cutouts_masks:
-                preproc_cutout = apply_mask(cutout_0, cut_mask, "black")
-                mask2 = self.process_cutout(preproc_cutout)
 
-                new_cutout = apply_mask(preproc_cutout, mask2, "black")
-                new_cropped_cutout = crop_cutouts(new_cutout)
-
-                # Get regionprops
-                cutprops = GenCutoutProps(mask2).to_dataclass()
-                # Removes false positives that are typically very small cutouts
-                if type(cutprops.area) is not list and cutprops.area < 500:
+            mask2 = Segment(cutout_0).general_seg(mode="cluster")
+            if mask2.max() == 0:
+                continue
+            props = GenCutoutProps(rgb_crop, mask2) 
+            cutprops = props.to_dataclass()
+            # Removes false positives that are typically very small cutouts
+            if type(cutprops.area) is not list:
+                if  g_stage != "cotyledon" and cutprops.area < 300:
                     continue
+            if props.green_sum < 5000:
+                continue
+            cutout_2 = apply_mask(rgb_crop, mask2, "black")
+            cropped_mask2 = crop_cutouts(mask2)
+            cutout_contours = mask_to_polygons(cropped_mask2, epsilon=10., min_area=10, to_list=True)
+            global_contours = self.cutout_mapper.map(cutout_contours, imgdata.image_id)
+            masked_raster = self.mask_raster(global_contours)
+            with rasterio.open('ndvi.tif', 'w') as dst:
+                dst.write_band(1, masked_raster.astype(rasterio.float32))
+            print(masked_raster)
+            cropped_cutout2 = crop_cutouts(cutout_2)
+            # Create dataclass
+            cutout = Cutout(blob_home=self.data_dir.name,
+                            data_root=self.cutout_dir.name,
+                            batch_id=self.batch_id,
+                            image_id=imgdata.image_id,
+                            cutout_num=cutout_num,
+                            datetime=imgdata.exif_meta.DateTime,
+                            cutout_props=asdict(cutprops),
+                            local_contours=cutout_contours,
+                            global_contours=global_contours,
+                            is_primary=box.is_primary,
+                            cls=box.cls,
+                            extends_border=extends_border)
+            cutout.save_cutout(cropped_cutout2)
+            cutout.save_config(self.cutout_dir)
 
-                # Create dataclass
-                cutout = Cutout(blob_home=self.data_dir.name,
-                                data_root=self.cutout_dir.name,
-                                batch_id=self.batch_id,
-                                image_id=imgdata.image_id,
-                                cutout_num=cutout_num,
-                                datetime=imgdata.exif_meta.DateTime,
-                                cutout_props=asdict(cutprops),
-                                is_primary=box.is_primary,
-                                cls=box.cls)
-                cutout.save_cutout(new_cropped_cutout)
-                cutout.save_config(self.cutout_dir)
-
-                cutout_ids.append(cutout.cutout_id)
-                cutout_num += 1
+            cutout_ids.append(cutout.cutout_id)
+            cutout_num += 1
 
         # To json
         imgdata.cutout_ids = cutout_ids
@@ -146,7 +137,7 @@ def return_dataclass_list(label, return_lbls):
 
 def create_dataclasses(metadir):
     log.info("Creating dataclasses")
-    labels = [str(x) for x in (metadir).glob("*.json")]
+    labels = sorted([str(x) for x in (metadir).glob("*.json")])
     jobs = []
     manager = Manager()
     return_list = manager.list()
@@ -193,7 +184,7 @@ def main(cfg: DictConfig) -> None:
     else:
         # Single process
         log.info("Processing image data.")
-        labels = [str(x) for x in (metadir).glob("*.json")]
+        labels = sorted([str(x) for x in (metadir).glob("*.json")])
         for label in labels:
             svg.cutout_pipeline(label)
         log.info("Finished segmenting vegetation")

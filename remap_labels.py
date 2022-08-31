@@ -1,15 +1,10 @@
 import logging
 from pathlib import Path
-
-import hydra
 from omegaconf import DictConfig
-from tqdm import tqdm
-import shapefile
-
 from bbox.bbox_transformations import BBoxFilter, BBoxMapper
 from bbox.connectors import BBoxComponents, SfMComponents
 from bbox.io_utils import ParseXML, ParseYOLOCsv
-from semif_utils.utils import growth_stage
+from semif_utils.utils import growth_stage, rescale_bbox
 
 log = logging.getLogger(__name__)
 
@@ -26,6 +21,7 @@ class RemapLabels:
         self.autosfmdir = Path(cfg.autosfm.autosfmdir)
         self.metadata = self.batch_dir / "metadata"
         self.reference = self.autosfmdir / "reference"
+        self.fov_cams = Path(self.autosfmdir, "reference", "fov.csv")
         self.raw_label = self.autosfmdir / "detections.csv"
         self.downscaled = cfg.autosfm.autosfm_config.downscale.enabled
         self.state_id = self.batch_id.split("_")[0]
@@ -50,7 +46,8 @@ class RemapLabels:
         # boxes to the desired format
         reader = ParseYOLOCsv(image_path=self.image_dir,
                               label_path=self.raw_label,
-                              fullres_image_path=self.fullres_image_path)
+                              fullres_image_path=self.fullres_image_path,
+                              fov_cams = self.fov_cams)
 
         # Initialize the connector and get a list of all the images
         box_connector = BBoxComponents(
