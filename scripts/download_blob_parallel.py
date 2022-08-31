@@ -9,7 +9,7 @@ from omegaconf import DictConfig
 
 # IMPORTANT: Replace connection string with your storage account connection string
 # Usually starts with DefaultEndpointsProtocol=https;...
-MY_CONNECTION_STRING = "DefaultEndpointsProtocol=https;AccountName=weedsimagerepo;AccountKey=ob1kY+RNLFILbh661w7NKECdFRtlDwlpwSwpZbcRlKOXR49Qp6JLRpUcken5TUzbUVqPr/pG5XEJ+ASt/2ap7Q==;EndpointSuffix=core.windows.net"
+MY_CONNECTION_STRING = ""
 
 # Replace with blob container name
 MY_BLOB_CONTAINER = "semifield-developed-images"
