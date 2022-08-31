@@ -20,6 +20,8 @@ Assets/ORTHO*
 # Ignore everything in models dir except readme
 models/*
 run.sh
+
+scripts/download_blob_parallel.py
 # (I'm not sure what this directory is for)
 exports/*
 
