@@ -28,7 +28,7 @@ class SegmentVegetation:
         self.metadata = self.batchdir / "metadata"
         self.mtshp_project_path = Path(self.batchdir, "autosfm", "project", f"{self.batch_id}.psx")
         self.dem_path = Path(self.batchdir, "autosfm", "dem", "dem.tif")
-        self.dem = rasterio.open(self.dem_path)
+        # self.dem = rasterio.open(self.dem_path)
         
         self.cutout_batch_dir = self.cutout_dir / self.batch_id
         self.clear_border = cfg.segment.clear_border
@@ -50,7 +50,7 @@ class SegmentVegetation:
         """ Main Processing pipeline. Reads images from list of labels in
             labeldir,             
         """
-        self.cutout_mapper = CutoutMapper(self.mtshp_project_path)
+        # self.cutout_mapper = CutoutMapper(self.mtshp_project_path)
         imgdata = payload["imgdata"] if self.multi_process else get_image_meta(
             payload)
         # Call image array
@@ -99,11 +99,10 @@ class SegmentVegetation:
             cutout_2 = apply_mask(rgb_crop, mask2, "black")
             cropped_mask2 = crop_cutouts(mask2)
             cutout_contours = mask_to_polygons(cropped_mask2, epsilon=10., min_area=10, to_list=True)
-            global_contours = self.cutout_mapper.map(cutout_contours, imgdata.image_id)
-            masked_raster = self.mask_raster(global_contours)
-            with rasterio.open('ndvi.tif', 'w') as dst:
-                dst.write_band(1, masked_raster.astype(rasterio.float32))
-            print(masked_raster)
+            # global_contours = self.cutout_mapper.map(cutout_contours, imgdata.image_id)
+            # masked_raster = self.mask_raster(global_contours)
+            # with rasterio.open('ndvi.tif', 'w') as dst:
+            #     dst.write_band(1, masked_raster.astype(rasterio.float32))
             cropped_cutout2 = crop_cutouts(cutout_2)
             # Create dataclass
             cutout = Cutout(blob_home=self.data_dir.name,
@@ -114,7 +113,7 @@ class SegmentVegetation:
                             datetime=imgdata.exif_meta.DateTime,
                             cutout_props=asdict(cutprops),
                             local_contours=cutout_contours,
-                            global_contours=global_contours,
+                            # global_contours=global_contours,
                             is_primary=box.is_primary,
                             cls=box.cls,
                             extends_border=extends_border)
