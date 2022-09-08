@@ -1,7 +1,3 @@
-multiprocess: False
+multiprocess: True
 clear_border: False
 species_specific: True
-
-testing:
-  samples: 1
-  random_seed: 42

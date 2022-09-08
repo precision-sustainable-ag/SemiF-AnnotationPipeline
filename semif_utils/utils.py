@@ -160,7 +160,7 @@ def get_cutout_meta(path):
 
 def cutoutmeta2csv(cutoutdir, batch_id, save_df=False):
     # Get all json files
-    metas = [x for x in Path(f"{cutoutdir}{batch_id}/").glob("*.json")]
+    metas = [x for x in Path(cutoutdir, batch_id).glob("*.json")]
     cutouts = []
     for meta in metas:
         # Get dictionaries
@@ -178,7 +178,7 @@ def cutoutmeta2csv(cutoutdir, batch_id, save_df=False):
         cutout.pop("cutout_props")
         cutout.pop("cls")
         # Create and append df
-        cutdf = pd.DataFrame(cutout, index=[0])
+        cutdf = pd.DataFrame(cutout)
         cutouts.append(cutdf)
     # Concat and reset index of main df
     cutouts_df = pd.concat(cutouts)

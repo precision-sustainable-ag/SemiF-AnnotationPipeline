@@ -233,6 +233,15 @@
             "authority": "Linnaeus",
             "collection_location": "MD",
             "polygon_id": ""
+        },
+        "plant": {
+            "scientific_name": "unknown",
+            "common_name": "unknown",
+            "USDA_symbol": "unknown",
+            "EPPO": "  unknown",
+            "authority": "unknown",
+            "collection_location": "unknown",
+            "polygon_id": ""
         }
     },
     "Notes": {
