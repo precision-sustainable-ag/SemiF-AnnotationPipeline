@@ -1,3 +1,4 @@
-multiprocess: True
+multiprocess: False
 clear_border: False
 species_specific: True
+bbox_size_th: 20000
