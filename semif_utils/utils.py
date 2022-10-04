@@ -9,6 +9,7 @@ from datetime import datetime
 import cv2
 import numpy as np
 import pandas as pd
+import logging
 import skimage
 import operator
 import torch
@@ -28,6 +29,8 @@ from skimage.segmentation import random_walker, watershed
 from sklearn.cluster import KMeans
 
 from semif_utils.datasets import CUTOUT_PROPS, CutoutProps, ImageData, Cutout
+
+log = logging.getLogger(__name__)
 
 ######################################################
 ################### GENERAL ##########################
@@ -98,12 +101,18 @@ def parse_dict(props_tabl):
     for key, val in props_tabl.items():
         key = key.replace("-", "") if "-" in key else key
         sum_val_entry = []
-        if isinstance(val, np.ndarray) and val.shape[0] > 1:
+        if isinstance(val, np.ndarray) or val.shape[0] > 1:
             for i, v in enumerate(val):
                 sum_val_entry.append(float(v))
             ndict[key] = np.sum(np.array(sum_val_entry))
-        else:
-            ndict[key] = float(val)
+        elif val.shape[0] == 0:
+            ndict[key] = None
+        # else:
+        #     print("That")
+        #     print("That val.shape for else")
+        #     print(val.shape[0])
+        #     print(val)
+        #     ndict[key] = float(val)
     return ndict
 
 def growth_stage(batch_date, plant_date_list):
@@ -214,6 +223,33 @@ def growth_stage(batch_date, plant_date_list):
         g_stage = "vegetative"
     return g_stage, pl_dt
 
+
+def is_green(green_sum, image_shape, percent_thresh=.2):
+    """ Returns true if number of green pixels is 
+        above certain threshold percentage based on
+        total number of pixels.
+    """
+    # check threshold value
+    assert percent_thresh <= 1, "green sum percent threshold is greater than 1. Must be less than or equal to 1."
+    total_pixels = image_shape[0] * image_shape[1]
+    green_percent = green_sum / total_pixels
+    is_green = True if green_percent > percent_thresh else False
+    return is_green, green_percent
+
+
+def is_mask_empty(mask):
+    """ Returns true if mask is empty along
+        with a logging message
+    """
+    if mask.max() == 0:
+        result = True
+        log.info(f"Mask is empty")
+    else:
+        result = False
+
+    return result
+
+
 ######################################################
 ############### VEGETATION INDICES ###################
 ######################################################
@@ -316,18 +352,26 @@ def rescale_bbox(box, scale):
     Returns:
         box (dataclass): box metadata with scaled/updated bbox
     """
-    box.local_coordinates = replace(box.local_coordinates, top_left=[
-        c * s for c, s in zip(box.local_coordinates["top_left"], scale)
-    ])
-    box.local_coordinates = replace(box.local_coordinates, top_right=[
-        c * s for c, s in zip(box.local_coordinates["top_right"], scale)
-    ])
-    box.local_coordinates = replace(box.local_coordinates, bottom_left=[
-        c * s for c, s in zip(box.local_coordinates["bottom_left"], scale)
-    ])
-    box.local_coordinates = replace(box.local_coordinates, bottom_right=[
-        c * s for c, s in zip(box.local_coordinates["bottom_right"], scale)
-    ])
+    box.local_coordinates = replace(
+        box.local_coordinates,
+        top_left=[
+            c * s for c, s in zip(box.local_coordinates["top_left"], scale)
+        ])
+    box.local_coordinates = replace(
+        box.local_coordinates,
+        top_right=[
+            c * s for c, s in zip(box.local_coordinates["top_right"], scale)
+        ])
+    box.local_coordinates = replace(
+        box.local_coordinates,
+        bottom_left=[
+            c * s for c, s in zip(box.local_coordinates["bottom_left"], scale)
+        ])
+    box.local_coordinates = replace(
+        box.local_coordinates,
+        bottom_right=[
+            c * s for c, s in zip(box.local_coordinates["bottom_right"], scale)
+        ])
     return box
 
 
@@ -575,14 +619,12 @@ def img2RGBA(img):
 
 
 class Point(object):
-
     def __init__(self, x, y):
         self.x = x
         self.y = y
 
 
 class Rect(object):
-
     def __init__(self, p1, p2):
         """Store the top, bottom, left and right values for points
         p1 and p2 are the (corners) in either order
