@@ -606,7 +606,30 @@ class ImageData(Image):
         except Exception as e:
             raise e
         return True
+    
+    def save_binary_mask(self, binary_mask):
 
+        fname = f"{self.image_id}.png"
+        mask_path = Path(self.blob_home, self.data_root, self.batch_id,"binary_masks",
+                           fname)
+        cv2.imwrite(str(mask_path), binary_mask.astype(np.uint8))
+        return True
+    
+    def save_semantic_mask(self, semantic_mask):
+
+        fname = f"{self.image_id}.png"
+        mask_path = Path(self.blob_home, self.data_root, self.batch_id,"semantic_masks",
+                           fname)
+        cv2.imwrite(str(mask_path), semantic_mask.astype(np.unint8))
+        return True
+    
+    def save_instance_mask(self, instance_mask):
+
+        fname = f"{self.image_id}.png"
+        mask_path = Path(self.blob_home, self.data_root, self.batch_id,"instance_masks",
+                           fname)
+        cv2.imwrite(str(mask_path), instance_mask.astype(np.unint8))
+        return True
 
 @dataclass
 class Mask:
@@ -664,12 +687,35 @@ class CutoutProps:
     centroid0: Union[float, list]
     centroid1: Union[float, list]
     eccentricity: Union[float, list]
+    extent: float
     solidity: Union[float, list]
     perimeter: Union[float, list]
     is_green: bool
     green_sum: int
 
 
+# For Segmentation -------------------------------------------------------------------------------------
+
+@dataclass
+class Color:
+
+    species: str
+    hex: str = field(init=False)
+    rgb: List[int] = field(init=False)
+    
+    def __post_init__(self):
+        self.rgb = ""
+
+
+@dataclass
+class SegmentData:
+    growth_stage: str
+    species: str
+    bbox: tuple
+    bbox_size_th: int
+
+
+# Cutout -------------------------------------------------------------------------------------
 @dataclass
 class Cutout:
     """Per cutout. Goes to PlantCutouts"""
@@ -680,8 +726,7 @@ class Cutout:
     cutout_num: int
     datetime: datetime.datetime  # Datetime of original image creation
     cutout_props: CutoutProps
-    local_contours: list = None
-    global_contours: list = None
+    local_contours: List[float] = None
     cutout_id: str = field(init=False)
     cutout_path: str = field(init=False)
     cls: str = None
@@ -719,8 +764,7 @@ class Cutout:
             "extends_border": self.extends_border,
             "cutout_version": self.cutout_version,
             "schema_version": self.schema_version,
-            "local_contours": self.local_contours,
-            "global_contours": self.global_contours
+            "local_contours": self.local_contours
         }
 
         return _config

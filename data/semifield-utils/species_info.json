@@ -7,7 +7,13 @@
             "EPPO": "AMAPA",
             "authority": "Watson",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#c6ea70",
+            "rgb": [
+                198,
+                234,
+                112
+            ]
         },
         "AMAR2": {
             "scientific_name": "Ambrosia artemisiifolia",
@@ -16,7 +22,13 @@
             "EPPO": "AMBEL",
             "authority": "Linnaeus",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#9238db",
+            "rgb": [
+                146,
+                56,
+                219
+            ]
         },
         "SEOB4": {
             "scientific_name": "Senna obtusifolia",
@@ -25,7 +37,13 @@
             "EPPO": "CASOB",
             "authority": "(Linnaeus) Irwin and Barneby",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#62e73a",
+            "rgb": [
+                98,
+                231,
+                58
+            ]
         },
         "XAST": {
             "scientific_name": "Xanthium strumarium",
@@ -34,7 +52,13 @@
             "EPPO": "XANST",
             "authority": "Linnaeus",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#4f32c3",
+            "rgb": [
+                79,
+                50,
+                195
+            ]
         },
         "DISA": {
             "scientific_name": "Digitaria sanguinalis",
@@ -43,16 +67,28 @@
             "EPPO": "DIGSA",
             "authority": "(Linnaeus) Scopoli",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#a4e534",
+            "rgb": [
+                164,
+                229,
+                52
+            ]
         },
         "ELIN3": {
             "scientific_name": "Eleusine indica",
             "common_name": "Goosegrass",
             "USDA_symbol": "ELIN3",
             "EPPO": "ELEIN",
-            "authority": "(Linnaeus) Gärtner",
+            "authority": "(Linnaeus) G\u00e4rtner",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#be49dd",
+            "rgb": [
+                190,
+                73,
+                221
+            ]
         },
         "URPL2": {
             "scientific_name": "Urochloa platyphylla",
@@ -61,7 +97,13 @@
             "EPPO": "BRAPP",
             "authority": "(Munro ex C. Wright) R.D. Webster",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#79e961",
+            "rgb": [
+                121,
+                233,
+                97
+            ]
         },
         "CYRO": {
             "scientific_name": "Cyperus rotundus",
@@ -70,7 +112,13 @@
             "EPPO": "CYPRO",
             "authority": "Linnaeus",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#e542ce",
+            "rgb": [
+                229,
+                66,
+                206
+            ]
         },
         "AMTU": {
             "scientific_name": "Amaranthus tuberculatus",
@@ -79,7 +127,13 @@
             "EPPO": "AMATU",
             "authority": "(Moquin-Tandon) Sauer",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#49b83e",
+            "rgb": [
+                73,
+                184,
+                62
+            ]
         },
         "ECCR": {
             "scientific_name": "Echinochloa crus-galli",
@@ -88,7 +142,13 @@
             "EPPO": "ECHCG",
             "authority": "(Linnaeus) Palisot de Beauvois ",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#6c60df",
+            "rgb": [
+                108,
+                96,
+                223
+            ]
         },
         "ECCO2": {
             "scientific_name": "Echinochloa colona",
@@ -97,7 +157,13 @@
             "EPPO": "ECHCO",
             "authority": "(Linnaeus) Link",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#dceb3d",
+            "rgb": [
+                220,
+                235,
+                61
+            ]
         },
         "URTE2": {
             "scientific_name": "Urochloa texana",
@@ -106,7 +172,13 @@
             "EPPO": "PANTE",
             "authority": "(Buckley) Webster",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#55218b",
+            "rgb": [
+                85,
+                33,
+                139
+            ]
         },
         "BASC5": {
             "scientific_name": "Bassia scoparia",
@@ -115,7 +187,13 @@
             "EPPO": "KCHSC",
             "authority": "(Linnaeus) Scott",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#edd747",
+            "rgb": [
+                237,
+                215,
+                71
+            ]
         },
         "HEAN3": {
             "scientific_name": "Helianthus annuus",
@@ -124,7 +202,13 @@
             "EPPO": "HELAN",
             "authority": "Linnaeus",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#2d2c7c",
+            "rgb": [
+                45,
+                44,
+                124
+            ]
         },
         "PAHY": {
             "scientific_name": "Parthenium hysterophorus",
@@ -133,7 +217,13 @@
             "EPPO": "PTNHY",
             "authority": "Linnaeus",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#e8b925",
+            "rgb": [
+                232,
+                185,
+                37
+            ]
         },
         "SOHA": {
             "scientific_name": "Sorghum halepense",
@@ -142,7 +232,13 @@
             "EPPO": "SORHA",
             "authority": "(Linnaeus) Persoon",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#4372d6",
+            "rgb": [
+                67,
+                114,
+                214
+            ]
         },
         "GLMA4": {
             "scientific_name": "Glycine max",
@@ -151,7 +247,13 @@
             "EPPO": " GLXMA",
             "authority": "(Linnaeus) Merrill",
             "collection_location": "NC",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#89b835",
+            "rgb": [
+                137,
+                184,
+                53
+            ]
         },
         "AMHY": {
             "scientific_name": "Amaranthus hybridus",
@@ -160,7 +262,13 @@
             "EPPO": "AMACH",
             "authority": "Linnaeus",
             "collection_location": "MD",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#ad289e",
+            "rgb": [
+                173,
+                40,
+                158
+            ]
         },
         "CHAL7": {
             "scientific_name": "Chenopodium album",
@@ -169,7 +277,13 @@
             "EPPO": "CHEAL",
             "authority": "Linnaeus",
             "collection_location": "MD",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#60e88e",
+            "rgb": [
+                96,
+                232,
+                142
+            ]
         },
         "PADI": {
             "scientific_name": "Panicum dichotomiflorum",
@@ -178,7 +292,13 @@
             "EPPO": "PANDI",
             "authority": "Michaux",
             "collection_location": "MD",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#e43fa1",
+            "rgb": [
+                228,
+                63,
+                161
+            ]
         },
         "DAST": {
             "scientific_name": "Datura stramonium",
@@ -187,7 +307,13 @@
             "EPPO": "DATST",
             "authority": "Linnaeus",
             "collection_location": "MD",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#458f28",
+            "rgb": [
+                69,
+                143,
+                40
+            ]
         },
         "ABTH": {
             "scientific_name": "Abutilon theophrasti",
@@ -196,7 +322,13 @@
             "EPPO": "ABUTH",
             "authority": "Medicus",
             "collection_location": "MD",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#c379e9",
+            "rgb": [
+                195,
+                121,
+                233
+            ]
         },
         "SEPU8": {
             "scientific_name": "Setaria pumila",
@@ -205,7 +337,13 @@
             "EPPO": "SETPU",
             "authority": "(C. Linnaeus) Romer and Schultes ",
             "collection_location": "MD",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#b7b831",
+            "rgb": [
+                183,
+                184,
+                49
+            ]
         },
         "SEFA": {
             "scientific_name": "Setaria faberi",
@@ -214,7 +352,13 @@
             "EPPO": "SETFA",
             "authority": "Herrmann",
             "collection_location": "MD",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#ad52b8",
+            "rgb": [
+                173,
+                82,
+                184
+            ]
         },
         "ERCA20": {
             "scientific_name": "Erigeron canadensis",
@@ -223,7 +367,13 @@
             "EPPO": "ERICA",
             "authority": "Linnaeus",
             "collection_location": "MD",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#36b473",
+            "rgb": [
+                54,
+                180,
+                115
+            ]
         },
         "ZEA": {
             "scientific_name": "Zea mays",
@@ -232,7 +382,13 @@
             "EPPO": "  ZEAMX",
             "authority": "Linnaeus",
             "collection_location": "MD",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#eb3775",
+            "rgb": [
+                235,
+                55,
+                117
+            ]
         },
         "plant": {
             "scientific_name": "unknown",
@@ -241,7 +397,13 @@
             "EPPO": "  unknown",
             "authority": "unknown",
             "collection_location": "unknown",
-            "polygon_id": ""
+            "polygon_id": "",
+            "hex": "#65ebbd",
+            "rgb": [
+                101,
+                235,
+                189
+            ]
         }
     },
     "Notes": {
