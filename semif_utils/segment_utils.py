@@ -49,14 +49,18 @@ def get_species_info(path, cls, default_species="grass"):
                      in spec_info["species"].keys() else default_species)
     return spec_info
 
-
+def get_bboxarea(bbox):
+    x1, y1, x2, y2 = bbox
+    width = float(x2) - float(x1)
+    length = float(y2) - float(y1)
+    area = width * length
+    return area
 ################################################################
 ######################## PROCESSING ############################
 ################################################################
 
 
 class GenCutoutProps:
-
     def __init__(self, img, mask):
         """Generate cutout properties and returns them as a dataclass."""
         self.img = img
@@ -87,7 +91,7 @@ class GenCutoutProps:
 
     def to_dataclass(self):
         table = self.from_regprops_table()
-        cutout_props = from_dict(data_class=CutoutProps, data=table)
+        cutout_props = CutoutProps(**table)
         return cutout_props
 
 class SegmentMask:
