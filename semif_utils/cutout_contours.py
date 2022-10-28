@@ -1,16 +1,15 @@
 from collections import defaultdict
-import math
+
 import cv2
 import Metashape
 import numpy as np
-from shapely.geometry import MultiPolygon, Polygon
-from shapely import affinity
 import pandas as pd
+from shapely.geometry import MultiPolygon, Polygon
 
 
 def with_dataframe(x, y):
     df = pd.DataFrame({'x': x, 'y': y})
-    return df  #.drop_duplicates(subset=['x', 'y'])
+    return df
 
 
 class CutoutMapper(object):
@@ -103,9 +102,8 @@ def mask_to_polygons(mask, epsilon=10., min_area=10.):
             all_polygons.append(poly)
     all_polygons = MultiPolygon(all_polygons)
 
-    return all_polygons
     #     all_polygons = shapely_poly_to_list(all_polygons)
-    # return all_polygons
+    return all_polygons
 
 
 def polygons_to_mask(polygons, im_size):
