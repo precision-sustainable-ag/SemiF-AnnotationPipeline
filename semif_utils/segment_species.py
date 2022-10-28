@@ -1,20 +1,25 @@
+import random
 
-from skimage.measure import label
-from scipy import ndimage as ndi
-from skimage.measure import label, regionprops
-from skimage import filters
-from skimage.segmentation import watershed
-from skimage.feature import peak_local_max
-import numpy as np
 import cv2
-from semif_utils.utils import (make_exg, thresh_vi, make_kmeans, otsu_thresh,
-                               reduce_holes, apply_mask, clear_border)
+import numpy as np
+from PIL import Image as PILImage
+from scipy import ndimage as ndi
+from skimage import filters
+from skimage.feature import peak_local_max
+from skimage.measure import label, regionprops
+from skimage.segmentation import watershed
+
+from semif_utils.segment_utils import get_species_info
+from semif_utils.utils import (apply_mask, clear_border, make_exg, make_kmeans,
+                               otsu_thresh, reduce_holes, thresh_vi)
 
 
 class Segment:
     def __init__(self, img, data) -> None:
-        self.growth_stage = data.growth_stage
+        self.dap = data.dap
         self.species = data.species
+        self.species_info = get_species_info(data.species_info,
+                                             data.species['USDA_symbol'])
         self.bbox_size_th = data.bbox_size_th
         self.img = img
         self.bbox = data.bbox
@@ -22,6 +27,8 @@ class Segment:
         self.props = None
         self.green_per = None
         self.extends_border = None
+        self.rgb, self.hex = self.species_info['rgb'], self.species_info['hex']
+        self.class_id = self.species_info['class_id']
 
         self.rounds = self.set_rounds()
 
@@ -29,10 +36,12 @@ class Segment:
         """Returns True if "green" False if not"""
         cutout = apply_mask(self.img, mask, "black")
         hsv = cv2.cvtColor(cutout, cv2.COLOR_RGB2HSV)
-        lower = np.array([(160*180)/360, (30*255)/100, (20*255)/100])
-        upper = np.array([(290*180)/360, (100*255)/100, (90*255)/100])
+        lower = np.array([(160 * 180) / 360, (30 * 255) / 100,
+                          (20 * 255) / 100])
+        upper = np.array([(290 * 180) / 360, (100 * 255) / 100,
+                          (90 * 255) / 100])
         hsv_mask = cv2.inRange(hsv, lower, upper)
-        diff = np.where(hsv_mask==1, 0, 1)
+        diff = np.where(hsv_mask == 1, 0, 1)
         return diff, np.sum(hsv_mask)
         # return True if np.sum(hsv_mask) > thresh else False
 
@@ -43,14 +52,16 @@ class Segment:
         lower = np.array([40, 70, 120])
         upper = np.array([90, 255, 255])
         hsv_mask = cv2.inRange(hsv, lower, upper)
-        return True if np.sum(hsv_mask) > thresh else False
+        return True if np.sum(hsv_mask) > thresh else False, np.sum(hsv_mask)
 
     def general_seg(self, mode="cluster"):
         exg_vi = make_exg(self.img, thresh=True)
         th_vi = thresh_vi(exg_vi)
         if mode == "cluster":
             temp_mask = make_kmeans(th_vi)
-            if not self.check_green(temp_mask):
+            chk_green, green_sum = self.check_green(temp_mask)
+            if not chk_green:  # if false
+                # Reverse mask
                 temp_mask = np.where(temp_mask == 1, 0, 1)
             temp_mask = reduce_holes(temp_mask * 255) * 255
         elif mode == "threshold":
@@ -117,7 +128,7 @@ class Segment:
 
     def broad_seedling(self):
         pass
-    
+
     def grass_seedling(self):
         pass
 
@@ -128,7 +139,7 @@ class Segment:
         pass
 
     def set_rounds(self):
-        if "coty" in self.growth_stage:
+        if self.dap < 10:
             self.rounds = 1
         else:
             self.rounds = 2
@@ -156,14 +167,37 @@ class Segment:
             is_green = True if self.green_per > percent_thresh else False
 
             return is_green
-    
+
     def get_bboxarea(self):
         x1, y1, x2, y2 = self.bbox
         width = float(x2) - float(x1)
         length = float(y2) - float(y1)
         area = width * length
         return area
-    
+
+    def rem_bbotblue(self):
+        mask = self.mask.copy().astype(np.uint8)
+        temp_cutout = cv2.bitwise_and(self.img, self.img, mask=mask)
+        mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+        hsv = cv2.cvtColor(temp_cutout, cv2.COLOR_RGB2HSV)
+        ## mask of blue (80,55,0) ~ (110, 130, 255)
+        hsvmask = cv2.inRange(hsv, (75, 22, 0), (110, 255, 255))
+        # Calculate number of hsv pixels
+        total_pixs = hsvmask.shape[0] * hsvmask.shape[1]
+        blue_prop = hsvmask.sum() / total_pixs
+        if blue_prop > .2:
+            hsvmask = np.where(hsvmask > 0, 1, 0)
+            self.mask = np.where(hsvmask != 0, 0, self.mask).astype(np.uint8)
+            return True
+        else:
+            return False
+
+    def is_grass(self):
+        pass
+
+    def is_cotyledon(self):
+        pass
+
     def is_small_bbox(self):
         """
         Return "cotlydon" for growth stage if bounding box is small
@@ -174,6 +208,11 @@ class Segment:
         area = width * length
         return True if area < self.bbox_size_th else False
 
+    def is_rgb_empty(self):
+        """ Returns true if rgb crop is empty
+        """
+        return True if self.img.max() == 0 else False
+
     def is_mask_empty(self):
         """ Returns true if mask is empty
         """
@@ -183,4 +222,10 @@ class Segment:
         """ 
         Returns True if segment is below pot elevation and thus noise
         """
+        pass
+
+    def semantic_mask(self):
+        pass
+
+    def instance_mask(self):
         pass
