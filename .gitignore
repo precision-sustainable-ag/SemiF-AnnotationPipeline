@@ -26,6 +26,12 @@ scripts/my_download_blob_parallel.py
 # (I'm not sure what this directory is for)
 exports/*
 
+# Assets
+Assets
+
+# Notebooks
+notebooks
+
 # Leave README.md files in each directory
 !**/README.md
 
@@ -38,9 +44,13 @@ outputs
 # Hydra files
 .hydra
 SEMIF.log
+
 # ---------- Misc -----------
 # Shell scripts
 # *.sh
+
+# YAPF code formatter files
+*.style.yapf
 
 # Mac stuff
 **/.DS_Store
