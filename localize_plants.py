@@ -1,5 +1,6 @@
 import logging
 from pathlib import Path
+
 import cv2
 import pandas as pd
 import torch
@@ -64,7 +65,9 @@ def main(cfg: DictConfig) -> None:
     else:
         raise ValueError("Device should be one of \"cpu\" of \"cuda:x\"")
 
-    if cfg.detect.concat_detections:
+    # Use detection results if they already exists
+    plant_detdir = Path(cfg.data.batchdir, "plant-detections")
+    if plant_detdir.exists() and any(plant_detdir.iterdir()):
         detection_dir = Path(cfg.data.batchdir, "plant-detections")
         detections = [x for x in detection_dir.glob("*.csv")]
         dfs = []
@@ -72,6 +75,8 @@ def main(cfg: DictConfig) -> None:
             df = pd.read_csv(det)
             df["imgname"] = det.stem + ".jpg"
             df = df.rename(columns={"classname": "name"})
+            # Remove colorchecker results
+            df = df[df["name"] != "colorchecker"]
             dfs.append(df)
         df = pd.concat(dfs, ignore_index=True)
         df.to_csv(csv_savepath)
@@ -91,7 +96,7 @@ def main(cfg: DictConfig) -> None:
     dfimgs = []
 
     log.info(f"Running inference on {len(images)} images")
-    for idx, imgp in tqdm(enumerate(images)):
+    for _, imgp in tqdm(enumerate(images)):
         if not save_detection:
             df, imgpath = inference(imgp, model, save_detection=save_detection)
 
