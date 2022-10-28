@@ -75,8 +75,6 @@ def main(cfg: DictConfig) -> None:
             df = pd.read_csv(det)
             df["imgname"] = det.stem + ".jpg"
             df = df.rename(columns={"classname": "name"})
-            # Remove colorchecker results
-            df = df[df["name"] != "colorchecker"]
             dfs.append(df)
         df = pd.concat(dfs, ignore_index=True)
         df.to_csv(csv_savepath)
