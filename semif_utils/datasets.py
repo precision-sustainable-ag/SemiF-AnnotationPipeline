@@ -1,7 +1,6 @@
 import datetime
 import json
 import os
-import typing
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -10,6 +9,7 @@ from typing import List, Optional, Union
 import cv2
 import exifread
 import numpy as np
+from PIL import Image as PILImage
 
 SCHEMA_VERSION = "1.0"
 
@@ -76,7 +76,8 @@ class BoxCoordinates:
     def __getitem__(self, key):
 
         if not hasattr(self, key):
-            raise AttributeError(f"{self.__class__.__name__} has not attribute {key}")
+            raise AttributeError(
+                f"{self.__class__.__name__} has not attribute {key}")
 
         return getattr(self, key)
 
@@ -92,6 +93,7 @@ class BBox:
     bbox_id: str
     image_id: str
     cls: str
+    instance_id: List[int] = field(default=None)
     local_coordinates: BoxCoordinates = field(init=True,
                                               default_factory=init_empty)
     global_coordinates: BoxCoordinates = field(init=True,
@@ -138,28 +140,21 @@ class BBox:
     @property
     def config(self):
         _config = {
-            "bbox_id":
-            self.bbox_id,
-            "image_id":
-            self.image_id,
-            "local_centroid":
-            list(
-                self.norm_local_centroid),  # Always use normalized coordinates
-            "local_coordinates":
-            self.norm_local_coordinates.
-            config,  # Always use normalized coordinates
-            "global_centroid":
-            list(self.global_centroid),
-            "global_coordinates":
-            self.global_coordinates.config,
-            "is_primary":
-            self.is_primary,
-            "cls":
-            self.cls,
-            "overlapping_bbox_ids":
-            [box.bbox_id for box in self._overlapping_bboxes],
-            "num_overlapping_bboxes":
-            len(self._overlapping_bboxes)
+            "bbox_id": self.bbox_id,
+            "image_id": self.image_id,
+            "local_centroid": list(self.norm_local_centroid
+                                   ),  # Always use normalized coordinates
+            "local_coordinates": self.norm_local_coordinates.
+                                 config,  # Always use normalized coordinates
+            "global_centroid": list(self.global_centroid),
+            "global_coordinates": self.global_coordinates.config,
+            "is_primary": self.is_primary,
+            "cls": self.cls,
+            "instance_id": self.instance_id,
+            "overlapping_bbox_ids": [
+                box.bbox_id for box in self._overlapping_bboxes
+            ],
+            "num_overlapping_bboxes": len(self._overlapping_bboxes)
         }
         return _config
 
@@ -421,7 +416,9 @@ class Box:
     global_coordinates: BoxCoordinates
     cls: str
     is_primary: bool
-    overlapping_bbox_ids: List[BBox] = field(init=False, default_factory=lambda : [])
+    instance_id: List[int] = field(default=None)
+    overlapping_bbox_ids: List[BBox] = field(init=False,
+                                             default_factory=lambda: [])
 
     def assign_species(self, species):
         self.cls = species
@@ -459,7 +456,7 @@ class Image:
     image_path: str
     image_id: str
     plant_date: str
-    growth_stage: str
+    dap: int
 
     def __post_init__(self):
         image_array = self.array
@@ -485,7 +482,7 @@ class Image:
             "image_id": self.image_id,
             "image_path": self.image_path,
             "plant_date": self.plant_date,
-            "growth_stage": self.growth_stage,
+            "dap": self.dap,
             "width": self.width,
             "height": self.height,
             "exif_meta": asdict(self.exif_meta),
@@ -551,7 +548,6 @@ class RemapImage(Image):
         _config = super(RemapImage, self).config
         _config["fullres_width"] = self.fullres_width
         _config["fullres_height"] = self.fullres_height
-        
 
         return _config
 
@@ -575,6 +571,7 @@ class ImageData(Image):
         # which reads the array for the width and height.
         # The width and height will be available in the metadata
         pass
+
     @property
     def config(self):
         _config = {
@@ -584,7 +581,7 @@ class ImageData(Image):
             "image_id": self.image_id,
             "image_path": self.image_path,
             "plant_date": self.plant_date,
-            "growth_stage": self.growth_stage,
+            "dap": self.dap,
             "width": self.width,
             "height": self.height,
             "exif_meta": asdict(self.exif_meta),
@@ -606,30 +603,35 @@ class ImageData(Image):
         except Exception as e:
             raise e
         return True
-    
+
     def save_binary_mask(self, binary_mask):
 
         fname = f"{self.image_id}.png"
-        mask_path = Path(self.blob_home, self.data_root, self.batch_id,"binary_masks",
-                           fname)
+        mask_path = Path(self.blob_home, self.data_root, self.batch_id,
+                         "meta_masks", "binary_masks", fname)
         cv2.imwrite(str(mask_path), binary_mask.astype(np.uint8))
         return True
-    
+
     def save_semantic_mask(self, semantic_mask):
 
+        pil_mask = PILImage.fromarray(semantic_mask[..., 1])
         fname = f"{self.image_id}.png"
-        mask_path = Path(self.blob_home, self.data_root, self.batch_id,"semantic_masks",
-                           fname)
-        cv2.imwrite(str(mask_path), semantic_mask.astype(np.unint8))
+        mask_path = Path(self.blob_home, self.data_root, self.batch_id,
+                         "meta_masks", "semantic_masks", fname)
+        # cv2.imwrite(str(mask_path), semantic_mask.astype(np.uint8))
+        pil_mask = pil_mask.save(mask_path)
         return True
-    
+
     def save_instance_mask(self, instance_mask):
 
         fname = f"{self.image_id}.png"
-        mask_path = Path(self.blob_home, self.data_root, self.batch_id,"instance_masks",
-                           fname)
-        cv2.imwrite(str(mask_path), instance_mask.astype(np.unint8))
+        mask_path = Path(self.blob_home, self.data_root, self.batch_id,
+                         "meta_masks", "instance_masks", fname)
+        pil_mask = PILImage.fromarray(instance_mask)
+        pil_mask = pil_mask.save(mask_path)
+        # cv2.imwrite(str(mask_path), instance_mask.astype(np.uint8))
         return True
+
 
 @dataclass
 class Mask:
@@ -696,20 +698,22 @@ class CutoutProps:
 
 # For Segmentation -------------------------------------------------------------------------------------
 
+
 @dataclass
 class Color:
 
     species: str
     hex: str = field(init=False)
     rgb: List[int] = field(init=False)
-    
+
     def __post_init__(self):
         self.rgb = ""
 
 
 @dataclass
 class SegmentData:
-    growth_stage: str
+    dap: str
+    species_info: str
     species: str
     bbox: tuple
     bbox_size_th: int
@@ -725,19 +729,23 @@ class Cutout:
     image_id: str
     cutout_num: int
     datetime: datetime.datetime  # Datetime of original image creation
+    dap: int  #days after planting
     cutout_props: CutoutProps
     local_contours: List[float] = None
-    cutout_id: str = field(init=False)
-    cutout_path: str = field(init=False)
+    cutout_id: str = None
+    cutout_path: str = None
     cls: str = None
     is_primary: bool = False
     extends_border: bool = False
     cutout_version: str = "1.0"
     schema_version: str = SCHEMA_VERSION
+    synth: bool = False
 
     def __post_init__(self):
         self.cutout_id = self.image_id + "_" + str(self.cutout_num)
-        self.cutout_path = str(Path(self.batch_id, self.cutout_id + ".png"))
+        if not self.synth:
+            self.cutout_path = str(Path(self.batch_id,
+                                        self.cutout_id + ".png"))
 
     @property
     def array(self):
@@ -756,6 +764,7 @@ class Cutout:
             "image_id": self.image_id,
             "cutout_id": self.cutout_id,
             "cutout_path": self.cutout_path,
+            "dap": self.dap,
             "cls": self.cls,
             "cutout_num": self.cutout_num,
             "is_primary": self.is_primary,
@@ -788,6 +797,34 @@ class Cutout:
                     cv2.cvtColor(cutout_array, cv2.COLOR_RGB2BGRA))
         return True
 
+    def save_cropout(self, img_array):
+
+        fname = f"{self.image_id}_{self.cutout_num}.jpg"
+        cutout_path = Path(self.blob_home, self.data_root, self.batch_id,
+                           fname)
+        cv2.imwrite(str(cutout_path), cv2.cvtColor(img_array,
+                                                   cv2.COLOR_RGB2BGR))
+        return True
+
+    def save_verysmall_cropout(self, img_array, boxarea):
+
+        fname = f"{self.image_id}_{self.cutout_num}_{boxarea}.jpg"
+        cutout_path = Path(self.blob_home, self.data_root,
+                           self.batch_id + "_very_small")
+        cutout_path.mkdir(parents=True, exist_ok=True)
+        cutout_path = Path(cutout_path, fname)
+        cv2.imwrite(str(cutout_path), cv2.cvtColor(img_array,
+                                                   cv2.COLOR_RGB2BGR))
+        return True
+
+    def save_cutout_mask(self, mask):
+
+        fname = f"{self.image_id}_{self.cutout_num}_mask.png"
+        mask_path = Path(self.blob_home, self.data_root, self.batch_id, fname)
+        cv2.imwrite(str(mask_path), cv2.cvtColor(mask, cv2.COLOR_RGB2BGR))
+        return True
+
+
 # Synthetic Data Generation -------------------------------------------------------------------------
 @dataclass
 class Pot:
@@ -804,7 +841,7 @@ class Pot:
         pot_array = np.ascontiguousarray(
             cv2.cvtColor(pot_array, cv2.COLOR_BGR2RGBA))
         return pot_array
-    
+
     @property
     def config(self):
         _config = {
@@ -838,7 +875,7 @@ class Background:
         background_array = np.ascontiguousarray(
             cv2.cvtColor(background_array, cv2.COLOR_BGR2RGB))
         return background_array
-    
+
     @property
     def config(self):
         _config = {
@@ -869,7 +906,7 @@ class SynthImage:
 
     def __post_init__(self):
         self.synth_id = uuid.uuid4()
-    
+
     @property
     def config(self):
         _config = {
@@ -911,7 +948,7 @@ class SynthDataContainer:
         self.backgrounds = self.get_dcs("Backgrounds")
         self.pots = self.get_dcs("Pots")
         self.cutouts = self.get_dcs("Cutouts")
-    
+
     def get_data_from_json(self, jsun):
         """ Open json and create dictionary
         """
@@ -919,7 +956,7 @@ class SynthDataContainer:
         with open(jsun) as json_file:
             data = json.load(json_file)
         return data
-        
+
     def get_jsons(self, collection):
         """ Gets json files
         """
@@ -944,7 +981,7 @@ class SynthDataContainer:
         Places connected items in a list of dataclasses.
         """
         syn_datacls = {"cutout": Cutout, "pot": Pot, "background": Background}
-        
+
         cursor = self.get_jsons(collection_str)
 
         if collection_str == "Cutouts":
@@ -979,9 +1016,6 @@ class SynthDataContainer:
 
         return docs
 
-    
-
-   
 
 CUTOUT_PROPS = [
     "area",  # float Area of the region i.e. number of pixels of the region scaled by pixel-area.
