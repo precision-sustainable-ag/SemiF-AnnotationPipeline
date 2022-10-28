@@ -1,15 +1,20 @@
 import json
+import logging
 from pathlib import Path
 
+import fiona
+import geopandas
 import matplotlib.path as mplPath
 import numpy as np
-import shapefile
 from dacite import Config, from_dict
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
+from shapely.geometry import MultiPolygon, Point, shape
 from tqdm import tqdm
 
 from semif_utils.datasets import ImageData
 from semif_utils.segment_utils import get_species_info
+
+log = logging.getLogger(__name__)
 
 
 def inpolygon(point, polygon):
@@ -18,63 +23,52 @@ def inpolygon(point, polygon):
 
 
 def main(cfg: DictConfig) -> None:
-
+    """ Identifies species by comparing shapefile polygon and global bbox centroid point.
+    """
+    # Config variables
     batch_id = cfg.general.batch_id
     species_info = cfg.data.species
     location = batch_id.split("_")[0]
+    metadata_path = Path(cfg.data.batchdir, "metadata")
+    # Get Json metadata files
+    image_metadata_files = sorted(list(metadata_path.glob("*.json")))
+
+    # Load shp file twice
     shapefile_path = Path(cfg.data.utilsdir, location, "shapefiles",
                           f"{location}.shp")
+    # Using Geopandas for poly contains point
+    polys = geopandas.GeoDataFrame.from_file(shapefile_path)
+    # Using fioana for check if point is in poly
+    Multi = MultiPolygon(
+        [shape(pol["geometry"]) for pol in fiona.open(shapefile_path)])
 
-    # Read the shapefiles
-    sf = shapefile.Reader(shapefile_path)
-    polygons = sf.shapeRecords()
-
-    metadata_path = Path(cfg.data.batchdir, "metadata")
-    image_metadata_files = metadata_path.glob("*.json")
-
+    # Iterate over json files
     for file in tqdm(image_metadata_files, desc="Assigning labels"):
+        # Read metadata and create ImageData dataclass
         with open(file) as f:
             j = json.load(f)
             imgdata = from_dict(data_class=ImageData,
                                 data=j,
                                 config=Config(check_types=False))
+        # Iterate over image bboxes
         for bbox in imgdata.bboxes:
-            # Assign species
-            for polygon in polygons:
-
-                # polygon_bbox is structured as [x_lower,y_lower,x_upper,y_upper]
-                polygon_bbox = polygon.shape.bbox
-                # Find if significant overlap
-                horizontal = polygon_bbox[0] < bbox.global_centroid[
-                    0] and polygon_bbox[2] > bbox.global_centroid[0]
-                vertical = polygon_bbox[1] < bbox.global_centroid[
-                    1] and polygon_bbox[3] > bbox.global_centroid[1]
-
-                in_polygon_bbox = horizontal and vertical
-
-                if in_polygon_bbox:
-                    # Find if in the polygon
-                    # Fix handling polygon with inner parts
-                    parts_in_polygon = polygon.shape.parts
-
-                    if len(parts_in_polygon) == 1:
-                        polygon_points = polygon.shape.points
-                    else:
-                        polygon_points = polygon.shape.points[
-                            0:parts_in_polygon[1]]
-
-                    x, y = bbox.global_centroid[0], bbox.global_centroid[1]
-                    in_polygon = inpolygon((x, y), polygon_points)
-
-                    if in_polygon:
-                        spec_info = get_species_info(species_info,
-                                                     polygon.record["species"])
-                        bbox.assign_species(spec_info)
-                        # get_species_info(species_info)
-
-                        break
+            x = bbox.global_centroid[0]
+            y = bbox.global_centroid[1]
+            point = Point(x, y)
+            # Identify shp file polygon that contains bbox centroid point
+            for poly in polys.itertuples():
+                # Check if species polygon contains bbox centroid
+                if poly.geometry.contains(point):
+                    spec_info = get_species_info(species_info, poly.species)
+                    break
+                if not point.within(Multi):
+                    # If centroid lies outside of any polygon
+                    spec_info = get_species_info(species_info, "plant")
+                    log.info(
+                        f"{bbox.bbox_id} centroid not within any potting group polygon for image {imgdata.image_id}. Assigning default class 'plant'"
+                    )
+                    break
+            bbox.assign_species(spec_info)
         # Save
         imgdata.save_config(metadata_path)
-
-    # Close to avoid memory leak
-    sf.close()
+    log.info(f"Assigning species complete for batch {batch_id}")
