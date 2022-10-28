@@ -1,34 +1,32 @@
+import copy
 import json
+import logging
+import operator
 import os
 import platform
 import random
+from dataclasses import asdict, replace
 from datetime import datetime
-from difflib import get_close_matches
 from pathlib import Path
-from datetime import datetime
+
 import cv2
 import numpy as np
 import pandas as pd
-import logging
-import skimage
-import operator
 import torch
-from dataclasses import replace, asdict
 from dacite import Config, from_dict
 from PIL import Image
 from scipy import ndimage
 from scipy import ndimage as ndi
-from skimage import (color, feature, filters, measure, morphology,
-                     segmentation, util)
+from skimage import filters, measure, morphology, segmentation
 from skimage.color import label2rgb
 from skimage.exposure import rescale_intensity
 from skimage.filters import rank
 from skimage.measure import label
 from skimage.morphology import disk
-from skimage.segmentation import random_walker, watershed
+from skimage.segmentation import watershed
 from sklearn.cluster import KMeans
 
-from semif_utils.datasets import CUTOUT_PROPS, CutoutProps, ImageData, Cutout
+from semif_utils.datasets import Cutout, ImageData
 
 log = logging.getLogger(__name__)
 
@@ -107,49 +105,8 @@ def parse_dict(props_tabl):
             ndict[key] = np.sum(np.array(sum_val_entry))
         elif val.shape[0] == 0:
             ndict[key] = None
-        # else:
-        #     print("That")
-        #     print("That val.shape for else")
-        #     print(val.shape[0])
-        #     print(val)
-        #     ndict[key] = float(val)
     return ndict
 
-def growth_stage(batch_date, plant_date_list):
-    """ Classifies growth stage and approximates planting date by comparing the 
-        batch upload date with a list of "planting dates" in config.planting.
-
-        Input:
-        batch_date(str)      -  Gathered from cfg.general.batch_id.strip("_)[0] (ex. 2022-06-28)
-        plant_date_list(list)-  List of dates, by location, taken from cfg.planting that 
-                                represent all planting dates by locations
-        
-        Returns:
-        pl_dt(int)           -  Planting date in config that is closest to, but not more recent than,
-                                the batch date. Planting dates before the batch date are excluded. 
-        g_stage(str)         -  Growth stage classification based on numbers of days after planting date
-                                (subject to change).
-        """
-
-    batch_date = datetime.strptime(batch_date, "%Y-%m-%d")
-    plant_date_list = [datetime.strptime(x, "%Y-%m-%d") for x in plant_date_list]
-    # Remove plant dates that are newer than batch date
-    plant_date_list = [x for x in plant_date_list if x <= batch_date]
-    # Difference and get indices
-    deltas = [abs(ti - batch_date) for ti in plant_date_list]
-    min_index, min_delta = min(enumerate(deltas), key=operator.itemgetter(1))
-    
-    pl_dt = plant_date_list[min_index].strftime('%Y-%m-%d')
-    if min_delta.days < 2:
-        g_stage = "seed"
-    elif min_delta.days < 10:
-        g_stage = "cotyledon"
-    elif min_delta.days < 20:
-        g_stage = "seedling"
-    else:
-        g_stage = "vegetative"
-
-    return g_stage, pl_dt
 
 def get_image_meta(path):
     with open(path) as f:
@@ -159,13 +116,15 @@ def get_image_meta(path):
                             config=Config(check_types=False))
     return imgdata
 
+
 def get_cutout_meta(path):
     with open(path) as f:
         j = json.load(f)
         cutout = from_dict(data_class=Cutout,
-                            data=j,
-                            config=Config(check_types=False))
+                           data=j,
+                           config=Config(check_types=False))
     return cutout
+
 
 def cutoutmeta2csv(cutoutdir, batch_id, save_df=False):
     # Get all json files
@@ -197,31 +156,48 @@ def cutoutmeta2csv(cutoutdir, batch_id, save_df=False):
         cutouts_df.to_csv(f"{cutoutdir}/{batch_id}.csv", index=False)
     return cutouts_df
 
+
 def growth_stage(batch_date, plant_date_list):
     """ Gets rough approximation of growth stage by comparing the batch upload date
         with a list of "planting dates" in config.planting. Uses a threshold value,
         "coty_thresh" to differentiate between cotyledon and vegetative. 
-        Returns growth stage and planting date."""
+        Returns growth stage and planting date.
+        "" Classifies growth stage and approximates planting date by comparing the 
+        batch upload date with a list of "planting dates" in config.planting.
+
+        Input:
+        batch_date(str)      -  Gathered from cfg.general.batch_id.strip("_)[0] (ex. 2022-06-28)
+        plant_date_list(list)-  List of dates, by location, taken from cfg.planting that 
+                                represent all planting dates by locations
+        
+        Returns:
+        pl_dt(int)           -  Planting date in config that is closest to, but not more recent than,
+                                the batch date. Planting dates before the batch date are excluded. 
+        g_stage(str)         -  Growth stage classification based on numbers of days after planting date
+                                (subject to change).
+        """
 
     batch_date = datetime.strptime(batch_date, "%Y-%m-%d")
-    plant_date_list = [datetime.strptime(x, "%Y-%m-%d") for x in plant_date_list]
+    plant_date_list = [
+        datetime.strptime(x, "%Y-%m-%d") for x in plant_date_list
+    ]
     # Remove plant dates that are newer than batch date
     plant_date_list = [x for x in plant_date_list if x <= batch_date]
     # Difference and get indices
     deltas = [abs(ti - batch_date) for ti in plant_date_list]
     min_index, min_delta = min(enumerate(deltas), key=operator.itemgetter(1))
-    
 
     pl_dt = plant_date_list[min_index].strftime('%Y-%m-%d')
-    if min_delta.days < 2:
+    days_after_planting = min_delta.days
+    if days_after_planting < 2:
         g_stage = "seed"
-    elif min_delta.days < 10:
+    elif days_after_planting < 10:
         g_stage = "cotyledon"
-    elif min_delta.days < 20:
+    elif days_after_planting < 20:
         g_stage = "seedling"
     else:
         g_stage = "vegetative"
-    return g_stage, pl_dt
+    return g_stage, pl_dt, days_after_planting
 
 
 def is_green(green_sum, image_shape, percent_thresh=.2):
@@ -341,7 +317,7 @@ def thresh_vi(vi, low=20, upper=100, sigma=2):
 ######################################################
 
 
-def rescale_bbox(box, scale):
+def rescale_bbox(box, scale, save_changes):
     """Rescales local bbox coordinates, that were first scaled to "downscaled_photo" size (height=3184, width=4796),
        to original image size (height=6368, width=9592). Takes in and returns "Box" dataclass.
 
@@ -352,6 +328,9 @@ def rescale_bbox(box, scale):
     Returns:
         box (dataclass): box metadata with scaled/updated bbox
     """
+    if not save_changes:
+        box = copy.deepcopy(box)
+
     box.local_coordinates = replace(
         box.local_coordinates,
         top_left=[
@@ -372,6 +351,7 @@ def rescale_bbox(box, scale):
         bottom_right=[
             c * s for c, s in zip(box.local_coordinates["bottom_right"], scale)
         ])
+
     return box
 
 
@@ -379,9 +359,11 @@ def rescale_bbox(box, scale):
 ################# MORPHOLOGICAL ######################
 ######################################################
 
+
 def region_props(img, label):
     props = [x.area for x in measure.regionprops(label, img)]
     return props
+
 
 def clean_mask(mask, kernel_size=3, iterations=1, dilation=True):
     if int(kernel_size):
@@ -470,7 +452,7 @@ def make_kmeans(exg_mask):
     exg = exg_mask.reshape(rows * cols, 1)
     kmeans = KMeans(n_clusters=n_classes, random_state=3).fit(exg)
     mask = kmeans.labels_.reshape(rows, cols)
-    # mask = check_kmeans(mask)
+    mask = check_kmeans(mask)
     return mask.astype("uint64")
 
 
@@ -493,10 +475,11 @@ def get_watershed(vi, disk1=1, grad1_thresh=12, disk2=10, lbl_fact=2.5):
     return wtrshed_lbls
 
 
-def multiple_otsu(vi):
+def multiple_otsu(vi, classes=3):
     thresholds = filters.threshold_multiotsu(vi, classes=3)
     regions = np.digitize(vi, bins=thresholds)
     return regions
+
 
 ######################################################
 ##################### CONTOURS #######################
@@ -505,12 +488,12 @@ def contour_mask(img, mode="biggest"):
     # For using find_contours
     # get most significant contours
     contours_mask, hierachy = cv2.findContours(img, cv2.RETR_EXTERNAL,
-                                            cv2.CHAIN_APPROX_NONE)
+                                               cv2.CHAIN_APPROX_NONE)
     mask = np.zeros(img.shape, np.uint8)
     # find the biggest countour (c) by the area
     if mode == "biggest":
-        c = max(contours_mask, key = cv2.contourArea)
-        cv2.drawContours(mask, [c], -1, (255),1)
+        c = max(contours_mask, key=cv2.contourArea)
+        cv2.drawContours(mask, [c], -1, (255), 1)
     return mask
 
 
