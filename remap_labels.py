@@ -1,16 +1,16 @@
 import logging
 from pathlib import Path
+
 from omegaconf import DictConfig
+
 from bbox.bbox_transformations import BBoxFilter, BBoxMapper
 from bbox.connectors import BBoxComponents, SfMComponents
-from bbox.io_utils import ParseXML, ParseYOLOCsv
-from semif_utils.utils import growth_stage, rescale_bbox
+from bbox.io_utils import ParseYOLOCsv
 
 log = logging.getLogger(__name__)
 
 
 class RemapLabels:
-
     def __init__(self, cfg: DictConfig) -> None:
 
         self.batch_id = cfg.general.batch_id
@@ -25,9 +25,7 @@ class RemapLabels:
         self.raw_label = self.autosfmdir / "detections.csv"
         self.downscaled = cfg.autosfm.autosfm_config.downscale.enabled
         self.state_id = self.batch_id.split("_")[0]
-        self.batch_date = self.batch_id.split("_")[1]
         self.plant_dates = getattr(cfg.planting, self.state_id).plant_dates
-        
         if self.downscaled:
             self.image_dir = self.autosfmdir / "downscaled_photos"
         else:
@@ -47,7 +45,7 @@ class RemapLabels:
         reader = ParseYOLOCsv(image_path=self.image_dir,
                               label_path=self.raw_label,
                               fullres_image_path=self.fullres_image_path,
-                              fov_cams = self.fov_cams)
+                              fov_cams=self.fov_cams)
 
         # Initialize the connector and get a list of all the images
         box_connector = BBoxComponents(
@@ -65,7 +63,8 @@ class RemapLabels:
         imgs = box_connector.images
         # Map the bounding boxes from local coordinates to global coordinate system
         log.info("Staring mapping.")
-        metashape_project_path = Path(self.batch_dir, "autosfm", "project", f"{self.batch_id}.psx")
+        metashape_project_path = Path(self.batch_dir, "autosfm", "project",
+                                      f"{self.batch_id}.psx")
         mapper = BBoxMapper(metashape_project_path, imgs)
         mapper.map()
         # Sanity check
