@@ -1,4 +1,2 @@
-multiprocess: False
-clear_border: False
-species_specific: True
-bbox_size_th: 20000
+multiprocess: True
+cpus_left: 2
