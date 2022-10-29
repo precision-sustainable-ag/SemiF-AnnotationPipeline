@@ -1,2 +1,4 @@
 multiprocess: True
 cpus_left: 2
+clear_border: False
+species_specific: True

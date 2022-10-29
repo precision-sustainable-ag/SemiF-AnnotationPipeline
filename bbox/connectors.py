@@ -1,7 +1,7 @@
 import os
 import sys
-from typing import Callable
 from multiprocessing import Pool, cpu_count
+from typing import Callable
 
 sys.path.append("..")
 
@@ -11,11 +11,11 @@ import cv2
 import numpy as np
 import pandas as pd
 from semif_utils.datasets import BBox, BoxCoordinates, CameraInfo, RemapImage
-from tqdm import tqdm
 from semif_utils.utils import growth_stage
+from tqdm import tqdm
+
 
 class SfMComponents:
-
     def __init__(self,
                  base_path,
                  camera_reference_file="camera_reference.csv",
@@ -26,8 +26,8 @@ class SfMComponents:
         self.camera_reference_file = camera_reference_file
         self.fov_reference_file = fov_reference_file
         self.gcp_reference_file = gcp_reference_file
-
         self._camera_reference = None
+        self.dog = 34
         self._fov_reference = None
         self._gcp_reference = None
 
@@ -53,10 +53,9 @@ class SfMComponents:
 class BBoxComponents:
     """Reads bounding box coordinate files and converts to BBox class
     """
-
-    def __init__(self, data_dir, developed_dir, batch_dir, image_dir,plant_dates,
-                 camera_reference: pd.DataFrame, reader: Callable, multiprocessing: bool, 
-                 *args, **kwargs):
+    def __init__(self, data_dir, developed_dir, batch_dir, image_dir,
+                 plant_dates, camera_reference: pd.DataFrame, reader: Callable,
+                 multiprocessing: bool, *args, **kwargs):
         self.data_dir = Path(data_dir)
         self.developed_dir = Path(developed_dir)
         self.batch_dir = Path(batch_dir)
@@ -64,9 +63,11 @@ class BBoxComponents:
         self.plant_dates = plant_dates
         self.batch_id = self.batch_dir.name
         self.batch_date = self.batch_id.split("_")[1]
-        self.growth_stage, self.plant_date = growth_stage(self.batch_date, self.plant_dates)
+        self.growth_stage, self.plant_date, self.dap = growth_stage(
+            self.batch_date, self.plant_dates)
+        dog = 10
         self.multiprocessing = multiprocessing
-        
+
         self.camera_reference = camera_reference
         self.reader = reader
         self.image_list, self.bounding_boxes = self.reader(*args, **kwargs)
@@ -173,24 +174,24 @@ class BBoxComponents:
         yaw, pitch, roll = self.get_orientation_angles(image_id)
         focal_length = self.get_focal_length(image_id)
         cam_info = CameraInfo(camera_location=camera_location,
-                                pixel_width=pixel_width,
-                                pixel_height=pixel_height,
-                                yaw=yaw,
-                                pitch=pitch,
-                                roll=roll,
-                                focal_length=focal_length,
-                                fov=fov)
+                              pixel_width=pixel_width,
+                              pixel_height=pixel_height,
+                              yaw=yaw,
+                              pitch=pitch,
+                              roll=roll,
+                              focal_length=focal_length,
+                              fov=fov)
 
         remap_image = RemapImage(blob_home=self.data_dir.name,
-                            data_root=self.developed_dir.name,
-                            batch_id=self.batch_id,
-                            image_path=path,
-                            image_id=image_id,
-                            bboxes=self.bboxes[image_id],
-                            camera_info=cam_info,
-                            plant_date=self.plant_date,
-                            growth_stage=self.growth_stage,
-                            fullres_path=fullres_path)
+                                 data_root=self.developed_dir.name,
+                                 batch_id=self.batch_id,
+                                 image_path=path,
+                                 image_id=image_id,
+                                 bboxes=self.bboxes[image_id],
+                                 camera_info=cam_info,
+                                 plant_date=self.plant_date,
+                                 dap=self.dap,
+                                 fullres_path=fullres_path)
         # Set the full resolution height and width
         if path != fullres_path:
             _image = cv2.imread(str(fullres_path))
@@ -210,13 +211,18 @@ class BBoxComponents:
             if self.multiprocessing:
                 n_processes = cpu_count()
                 with Pool(processes=n_processes) as p:
-                    _images = list(tqdm(p.imap(self._fetch_image_metadata, self.image_list), 
-                                               desc="Fetching Image metadata and creating RemapImage", 
-                                               total=len(self.image_list)))
+                    _images = list(
+                        tqdm(p.imap(self._fetch_image_metadata,
+                                    self.image_list),
+                             desc=
+                             "Fetching Image metadata and creating RemapImage",
+                             total=len(self.image_list)))
                 self._images = _images
             else:
-                for image in tqdm(self.image_list,
-                                desc="Fetching Image metadata and creating RemapImage"):
+                for image in tqdm(
+                        self.image_list,
+                        desc="Fetching Image metadata and creating RemapImage"
+                ):
                     remap_image = self._fetch_image_metadata(image)
                     self._images.append(remap_image)
         return self._images

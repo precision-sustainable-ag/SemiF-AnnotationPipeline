@@ -7,7 +7,6 @@ import pandas as pd
 
 
 class ParseXML:
-
     def __init__(self, image_path, label_path):
         self.image_path = image_path
         self.label_path = label_path
@@ -83,26 +82,35 @@ class ParseXML:
 
 
 class ParseYOLOCsv:
-
-    def __init__(self, image_path, label_path, fullres_image_path=None, fov_cams=None):
+    def __init__(self,
+                 image_path,
+                 label_path,
+                 fullres_image_path=None,
+                 fov_cams=None):
         self.image_path = image_path
         self.label_path = label_path
         self.fov_cams = fov_cams
         if fullres_image_path is not None:
             self.fullres_image_path = fullres_image_path
         else:
-             self.fullres_image_path = self.image_path
+            self.fullres_image_path = self.image_path
         self.create_image_list()
 
     def create_image_list(self):
 
         images = Path(self.image_path).glob("*.jpg")
         images = [x for x in images]
-        cams = [Path(self.image_path, x + ".jpg") for x in pd.read_csv(self.fov_cams)["label"]]
+        cams = [
+            Path(self.image_path, x + ".jpg")
+            for x in pd.read_csv(self.fov_cams)["label"]
+        ]
         images = list(set(cams) & set(images))
         fullres_images = Path(self.fullres_image_path).glob("*.jpg")
         fullres_images = [x for x in fullres_images]
-        full_cams = [Path(self.fullres_image_path, x + ".jpg") for x in pd.read_csv(self.fov_cams)["label"]]
+        full_cams = [
+            Path(self.fullres_image_path, x + ".jpg")
+            for x in pd.read_csv(self.fov_cams)["label"]
+        ]
         fullres_images = list(set(full_cams) & set(fullres_images))
         assert len(fullres_images) == len(images)
 
@@ -112,7 +120,9 @@ class ParseYOLOCsv:
             "id": image_id,
             "path": str(path),
             "fullres_path": fullres_path
-        } for image_id, path, fullres_path in zip(image_ids, images, fullres_images)]
+        }
+                           for image_id, path, fullres_path in zip(
+                               image_ids, images, fullres_images)]
 
     def parse(self, df):
 
@@ -134,7 +144,6 @@ class ParseYOLOCsv:
                 "cls": cls,
                 "is_normalized": True
             }
-
             boxes.append(bbox)
 
         return boxes

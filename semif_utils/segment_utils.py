@@ -1,17 +1,18 @@
 import json
+import random
 from difflib import get_close_matches
 from pathlib import Path
 
 import cv2
 import numpy as np
-from dacite import Config, from_dict
 from skimage import measure
 
-from semif_utils.datasets import CUTOUT_PROPS, CutoutProps, ImageData
-from semif_utils.utils import (get_watershed, make_exg, make_exg_minus_exr,
-                               make_exr, make_kmeans, make_ndi, multiple_otsu,
-                               otsu_thresh, parse_dict, read_json, apply_mask,
-                               reduce_holes, rescale_bbox)
+from semif_utils.datasets import CUTOUT_PROPS, CutoutProps
+from semif_utils.utils import (apply_mask, get_watershed, make_exg,
+                               make_exg_minus_exr, make_exr, make_kmeans,
+                               make_ndi, multiple_otsu, otsu_thresh,
+                               parse_dict, read_json, reduce_holes,
+                               rescale_bbox)
 
 ################################################################
 ########################## SETUP ###############################
@@ -42,12 +43,19 @@ def save_cutout_json(cutout, cutoutpath):
         json.dump(cutout, j, indent=4, default=str)
 
 
-def get_species_info(path, cls, default_species="grass"):
+def load_speciesinfo(path):
     with open(path) as f:
         spec_info = json.load(f)
-        spec_info = (spec_info["species"][cls] if cls
-                     in spec_info["species"].keys() else default_species)
     return spec_info
+
+
+def get_species_info(path, cls, default_species="plant"):
+
+    spec_info = (spec_info["species"][cls]
+                 if cls in spec_info["species"].keys() else
+                 spec_info["species"][default_species])
+    return spec_info
+
 
 def get_bboxarea(bbox):
     x1, y1, x2, y2 = bbox
@@ -55,6 +63,8 @@ def get_bboxarea(bbox):
     length = float(y2) - float(y1)
     area = width * length
     return area
+
+
 ################################################################
 ######################## PROCESSING ############################
 ################################################################
@@ -65,10 +75,10 @@ class GenCutoutProps:
         """Generate cutout properties and returns them as a dataclass."""
         self.img = img
         self.mask = mask
-        self.green_thresh = 1000 # TODO change to normalized based on size of image
+        self.green_thresh = 1000  # TODO change to normalized based on size of image
         self.green_sum = int(np.sum(self.green_mask()))
         self.is_green = True if self.green_sum > self.green_thresh else False
-        
+
     def green_mask(self):
         """Returns binary mask if values are within certain "green" HSV range."""
         cutout = apply_mask(self.img, self.mask, "black")
@@ -94,8 +104,8 @@ class GenCutoutProps:
         cutout_props = CutoutProps(**table)
         return cutout_props
 
-class SegmentMask:
 
+class SegmentMask:
     def otsu(self, vi):
         # Otsu's thresh
         vi_mask = otsu_thresh(vi)
@@ -119,7 +129,6 @@ class SegmentMask:
 
 
 class VegetationIndex:
-
     def exg(self, img, thresh=0):
         exg_vi = make_exg(img, thresh=0)
         return exg_vi
@@ -137,8 +146,8 @@ class VegetationIndex:
         return ndi_vi
 
 
-def prep_bbox(box, scale):
-    box = rescale_bbox(box, scale)
+def prep_bbox(box, scale, save_changes=True):
+    box = rescale_bbox(box, scale, save_changes=save_changes)
     x1, y1 = box.local_coordinates["top_left"]
     x2, y2 = box.local_coordinates["bottom_right"]
     x1, y1 = int(x1), int(y1)
@@ -190,3 +199,37 @@ def species_info(speciesjson, df, default_species="grass"):
                 species_data["species"][x]
 
     return update_specmap
+
+
+################################################################
+######################## Colors ############################
+################################################################
+
+
+def get_random_color(pastel_factor=0.5):
+    return [((x + pastel_factor) / (1.0 + pastel_factor)) * 255
+            for x in [random.uniform(0, 1.0) for i in [1, 2, 3]]]
+
+
+def color_distance(c1, c2):
+    return sum([abs(x[0] - x[1]) for x in zip(c1, c2)])
+
+
+def to_rgb(color):
+    return [int(x) for x in color]
+
+
+def generate_new_color(existing_colors, pastel_factor=0.5):
+    """https://gist.github.com/adewes/5884820"""
+    max_distance = None
+    best_color = None
+    for i in range(0, 100):
+        color = get_random_color(pastel_factor=pastel_factor)
+        if not existing_colors:
+            return color
+        best_distance = min(
+            [color_distance(color, c) for c in existing_colors])
+        if not max_distance or best_distance > max_distance:
+            max_distance = best_distance
+            best_color = color
+    return to_rgb(best_color)

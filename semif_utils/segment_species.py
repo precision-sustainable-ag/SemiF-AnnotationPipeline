@@ -9,7 +9,7 @@ from skimage.feature import peak_local_max
 from skimage.measure import label, regionprops
 from skimage.segmentation import watershed
 
-from semif_utils.segment_utils import get_species_info
+from semif_utils.segment_utils import load_speciesinfo
 from semif_utils.utils import (apply_mask, clear_border, make_exg, make_kmeans,
                                otsu_thresh, reduce_holes, thresh_vi)
 
@@ -18,8 +18,7 @@ class Segment:
     def __init__(self, img, data) -> None:
         self.dap = data.dap
         self.species = data.species
-        self.species_info = get_species_info(data.species_info,
-                                             data.species['USDA_symbol'])
+        # self.species_info = load_speciesinfo(data.species_info)["species"]
         self.bbox_size_th = data.bbox_size_th
         self.img = img
         self.bbox = data.bbox
@@ -27,8 +26,8 @@ class Segment:
         self.props = None
         self.green_per = None
         self.extends_border = None
-        self.rgb, self.hex = self.species_info['rgb'], self.species_info['hex']
-        self.class_id = self.species_info['class_id']
+        self.rgb, self.hex = self.species['rgb'], self.species['hex']
+        self.class_id = self.species['class_id']
 
         self.rounds = self.set_rounds()
 

@@ -12,7 +12,7 @@ from shapely.geometry import MultiPolygon, Point, shape
 from tqdm import tqdm
 
 from semif_utils.datasets import ImageData
-from semif_utils.segment_utils import get_species_info
+from semif_utils.segment_utils import get_species_info, load_speciesinfo
 
 log = logging.getLogger(__name__)
 
@@ -30,6 +30,7 @@ def main(cfg: DictConfig) -> None:
     species_info = cfg.data.species
     location = batch_id.split("_")[0]
     metadata_path = Path(cfg.data.batchdir, "metadata")
+    spec_dict = load_speciesinfo(species_info)
     # Get Json metadata files
     image_metadata_files = sorted(list(metadata_path.glob("*.json")))
 
@@ -52,18 +53,25 @@ def main(cfg: DictConfig) -> None:
                                 config=Config(check_types=False))
         # Iterate over image bboxes
         for bbox in imgdata.bboxes:
+            # print(bbox.cls)
             x = bbox.global_centroid[0]
             y = bbox.global_centroid[1]
+            bbox_cls = bbox.cls
             point = Point(x, y)
             # Identify shp file polygon that contains bbox centroid point
             for poly in polys.itertuples():
+                if bbox_cls == "colorchecker":
+                    spec_info = spec_dict["species"][bbox_cls]
+                    break
                 # Check if species polygon contains bbox centroid
                 if poly.geometry.contains(point):
-                    spec_info = get_species_info(species_info, poly.species)
-                    break
+                    poly_cls = poly.species
+                    if poly_cls in spec_dict["species"].keys():
+                        spec_info = spec_dict["species"][poly_cls]
+                        break
                 if not point.within(Multi):
                     # If centroid lies outside of any polygon
-                    spec_info = get_species_info(species_info, "plant")
+                    spec_info = spec_dict["species"]["plant"]
                     log.info(
                         f"{bbox.bbox_id} centroid not within any potting group polygon for image {imgdata.image_id}. Assigning default class 'plant'"
                     )

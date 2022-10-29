@@ -2,18 +2,22 @@ import logging
 from dataclasses import asdict
 from multiprocessing import Manager, Pool, Process, cpu_count
 from pathlib import Path
-from semif_utils.segment_species import Segment
-import numpy as np
-from omegaconf import DictConfig
-
-from semif_utils.segment_species import Segment
-from semif_utils.cutout_contours import CutoutMapper, mask_to_polygons
-from semif_utils.datasets import BatchMetadata, Cutout, SegmentData
-from semif_utils.segment_utils import GenCutoutProps, prep_bbox, get_species_info
-from semif_utils.utils import (apply_mask, crop_cutouts, get_image_meta,
-                               get_upload_datetime)
 from statistics import mean
+
+import cv2
+import numpy as np
 import pandas as pd
+from omegaconf import DictConfig
+from tqdm import tqdm
+
+from semif_utils.cutout_contours import mask_to_polygons
+from semif_utils.datasets import BatchMetadata, Cutout, SegmentData
+from semif_utils.segment_species import Segment
+from semif_utils.segment_utils import (GenCutoutProps, generate_new_color,
+                                       prep_bbox)
+from semif_utils.utils import (apply_mask, get_image_meta, get_upload_datetime,
+                               reduce_holes)
+
 log = logging.getLogger(__name__)
 
 
@@ -28,9 +32,10 @@ class SegmentVegetation:
         self.metadata = self.batchdir / "metadata"
         self.mtshp_project_path = Path(self.batchdir, "autosfm", "project",
                                        f"{self.batch_id}.psx")
-        self.binary_mask_dir = self.batchdir / "binary_masks"
-        self.semantic_mask_dir = self.batchdir / "semantic_masks"
-        self.instance_mask_dir = self.batchdir / "instance_masks"
+        # Create image mask directories
+        self.binary_mask_dir = self.batchdir / "meta_masks" / "binary_masks"
+        self.semantic_mask_dir = self.batchdir / "meta_masks" / "semantic_masks"
+        self.instance_mask_dir = self.batchdir / "meta_masks" / "instance_masks"
 
         self.cutout_batch_dir = self.cutout_dir / self.batch_id
         self.clear_border = cfg.segment.clear_border
@@ -38,31 +43,37 @@ class SegmentVegetation:
 
         if not self.cutout_batch_dir.exists():
             self.cutout_batch_dir.mkdir(parents=True, exist_ok=True)
-        if not self.binary_mask_dir.exists():
-            self.binary_mask_dir.mkdir(parents=True, exist_ok=True)
+        # if not self.binary_mask_dir.exists():
+        #     self.binary_mask_dir.mkdir(parents=True, exist_ok=True)
         if not self.semantic_mask_dir.exists():
             self.semantic_mask_dir.mkdir(parents=True, exist_ok=True)
         if not self.instance_mask_dir.exists():
             self.instance_mask_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.bbox_areas = []
         self.bbox_th = None
-        self.sevenfive = None # 75th percentile mark
-    
+        self.coty_th = None  # 75th percentile mark
+
     def bboxareas(self, imagedata_list):
-        scale = [imagedata_list[0].fullres_width, imagedata_list[0].fullres_height]
+        """ Calculates the mean and the 25% interquartile of the area 
+            of all bboxes for all images. """
+        # TODO calculate average area for each species and store in dictionary
+        # key = species, value = average area
+        scale = [
+            imagedata_list[0].fullres_width, imagedata_list[0].fullres_height
+        ]
         per_img_bboxes = [img.bboxes for img in imagedata_list]
-        boxs = [box for box in per_img_bboxes]      
+        boxs = [box for box in per_img_bboxes]
         for box in boxs:
             for bo in box:
-                box, x1, y1, x2, y2 = prep_bbox(bo, scale)
+                box, x1, y1, x2, y2 = prep_bbox(bo, scale, save_changes=False)
                 width = float(x2) - float(x1)
                 length = float(y2) - float(y1)
                 area = width * length
                 self.bbox_areas.append(area)
         self.bbox_th = mean(self.bbox_areas)
-        self.sevenfive = pd.Series(self.bbox_areas).describe().iloc[6]
-         
+        self.coty_th = pd.Series(self.bbox_areas).describe().iloc[4]
+
     def cutout_pipeline(self, payload):
         """ Main Processing pipeline. Reads images from list of labels in
             labeldir,             
@@ -73,74 +84,111 @@ class SegmentVegetation:
 
         # Get bboxes
         bboxes = imgdata.bboxes
+
         ## Process on images by individual bbox detection
         cutout_num = 0
         cutout_ids = []
-        binary_mask_zeros = np.zeros(rgb_array.shape[:2], dtype=np.uint8)
+        semantic_mask_zeros = np.zeros(rgb_array.shape, dtype=np.uint8)
+        instance_mask_zeros = np.zeros(rgb_array.shape, dtype=np.uint8)
+        colors = []
+        log.info(
+            f"Processing {len(bboxes)} bounding boxes for image {imgdata.image_id}."
+        )
         for box in bboxes:
             # Scale the box that will be used for the cutout
-            spec = box.cls
+            spec_cls = box.cls
+            cm_name = spec_cls["common_name"]
+            if cm_name == "colorchecker":
+                print(imgdata.image_id)
+
             scale = [imgdata.fullres_width, imgdata.fullres_height]
             box, x1, y1, x2, y2 = prep_bbox(box, scale)
-            rgb_crop = rgb_array[y1:y2, x1:x2]
-            species_info = get_species_info(self.species_path, spec['USDA_symbol'])
-            rgb = species_info['rgb']
-            hex = species_info['hex']
 
-            data = SegmentData(species=box.cls,
-                               growth_stage=imgdata.growth_stage,
+            rgb_crop = rgb_array[y1:y2, x1:x2]
+            if not rgb_crop.size > 0:
+                continue
+            data = SegmentData(species=spec_cls,
+                               species_info=self.species_path,
+                               dap=imgdata.dap,
                                bbox=(x1, y1, x2, y2),
                                bbox_size_th=self.bbox_th)
 
             seg = Segment(rgb_crop, data)
             boxarea = seg.get_bboxarea()
-            
-            if boxarea < self.sevenfive and "coty" not in seg.growth_stage:
-                log.info("Very small detection result. Ignoring.")
-                break
-            
-            if boxarea < self.bbox_th and "coty" not in seg.growth_stage:
-                log.info("Small detection result. Ignoring.")
-                break
 
-            if boxarea < self.bbox_th and "coty" in seg.growth_stage:
-                log.info("Processing coty.")
+            # if boxarea < self.coty_th and "coty" not in seg.growth_stage:
+            # log.info("Very small detection result. Ignoring.")
+            # very_small = 1
+
+            # if seg.is_rgb_empty():
+            # continue
+
+            if boxarea < self.bbox_th and seg.dap < 10:
+                # log.info("Processing cotyldon.")
                 seg.mask = seg.cotlydon()
-        
+
             else:
-                log.info("Processing vegetative")
+                # log.info("Processing vegetative")
                 # TODO: make multiple options for based on species
                 # seg.mask = seg.multi_otsu(img_type="vi", classes=3)
                 # seg.mask = seg.lambsquarters(cotlydon=False)
                 seg.mask = seg.general_seg(mode="cluster")
 
-            if seg.is_mask_empty():
-                break
+            if seg.is_mask_empty() and cm_name != "colorchecker":
+                continue
 
             seg.props = GenCutoutProps(rgb_crop, seg.mask).to_dataclass()
 
-            # if not seg.is_green():
-            #     break
-            
             if seg.rounds == 2:
-                log.info("Round 2")
+                # log.info("Round 2")
                 seg = Segment(apply_mask(rgb_crop, seg.mask, "black"), data)
                 # General segmentation
                 seg.mask = seg.general_seg(mode="cluster")
-                seg.props = GenCutoutProps(rgb_crop, seg.mask).to_dataclass()
 
-                if seg.is_mask_empty():
-                    break
-            if 'seg.mask' in locals():
-                binary_mask_zeros[y1:y2, x1:x2] = seg.mask
+            if seg.rem_bbotblue():
+                seg.mask = reduce_holes(seg.mask,
+                                        min_object_size=10000,
+                                        min_hole_size=10000)
+
+            # Identify kernel for leaf edge smoothing based on bbox area
+            if boxarea < 50000:  # Very small
+                median_kernel = 3
+
+            elif boxarea < 100000:  # Small
+                median_kernel = 7
+
+            elif boxarea < 200000:  # Med
+                median_kernel = 9
+
+            elif boxarea > 200000:  # Large
+                median_kernel = 11
+            # Smooth mask edges
+            seg.mask = cv2.medianBlur(seg.mask.astype(np.uint8), median_kernel)
+            if seg.is_mask_empty() and cm_name != "colorchecker":
+                continue
+            seg.mask = np.where(seg.mask != 0, 1, 0)
+            # Get morphological properties
+            seg.props = GenCutoutProps(rgb_crop, seg.mask).to_dataclass()
+
+            if seg.props.green_sum < 100 and cm_name != "colorchecker":
+                continue
+
+            # Create semantic mask
+            seg.mask = np.where(seg.mask != 0, 255, 0)
+            semantic_mask_zeros[y1:y2, x1:x2][seg.mask == 255] = seg.class_id
+            # Create instance mask
+            box.instance_id = generate_new_color(colors, pastel_factor=0.7)
+            colors.append(box.instance_id)
+            instance_mask_zeros[y1:y2,
+                                x1:x2][seg.mask == 255] = box.instance_id
 
             cutout_array = apply_mask(rgb_crop, seg.mask, "black")
-            cropped_mask2 = crop_cutouts(seg.mask)
-            cutout_contours = mask_to_polygons(cropped_mask2,
+            # cropped_mask2 = crop_cutouts(seg.mask)
+            cutout_contours = mask_to_polygons(seg.mask,
                                                epsilon=10.,
                                                min_area=10)
 
-            cropped_cutout2 = crop_cutouts(cutout_array)
+            # cropped_cutout2 = crop_cutouts(cutout_array)
 
             # Create dataclass
             cutout = Cutout(blob_home=self.data_dir.name,
@@ -149,21 +197,31 @@ class SegmentVegetation:
                             image_id=imgdata.image_id,
                             cutout_num=cutout_num,
                             datetime=imgdata.exif_meta.DateTime,
+                            dap=seg.dap,
                             cutout_props=asdict(seg.props),
                             local_contours=cutout_contours,
                             is_primary=box.is_primary,
                             cls=seg.species,
                             extends_border=seg.get_extends_borders())
-            cutout.save_cutout(cropped_cutout2)
-            cutout.save_config(self.cutout_dir)
 
+            # if very_small == 1:
+            # cutout.save_verysmall_cropout(rgb_crop, boxarea)
+
+            cutout.save_cutout(cutout_array)
+            cutout.save_config(self.cutout_dir)
+            cutout.save_cropout(rgb_crop)
+            cutout.save_cutout_mask(seg.mask.astype(np.uint8) * 255)
             cutout_ids.append(cutout.cutout_id)
             cutout_num += 1
-            
+        log.info(
+            f"Saved {len(cutout_ids)} cutouts for image {imgdata.image_id}")
         # To json
         imgdata.cutout_ids = cutout_ids
         imgdata.save_config(self.metadata)
-        imgdata.save_binary_mask(binary_mask_zeros)
+        # imgdata.save_binary_mask(binary_mask_zeros)
+        imgdata.save_semantic_mask(semantic_mask_zeros)
+        imgdata.save_instance_mask(instance_mask_zeros)
+        log.info(f"{imgdata.image_id} finished.")
 
 
 def return_dataclass_list(label, return_lbls):
@@ -173,7 +231,6 @@ def return_dataclass_list(label, return_lbls):
 
 
 def create_dataclasses(metadir):
-    log.info("Creating dataclasses")
     labels = sorted([str(x) for x in (metadir).glob("*.json")])
     jobs = []
     manager = Manager()
@@ -213,18 +270,21 @@ def main(cfg: DictConfig) -> None:
             data = {"imgdata": img, "idx": idx}
             payloads.append(data)
 
-        log.info("Multi-Processing image data.")
-        procs = cpu_count() - 1
-        pool = Pool(processes=procs)
-        pool.map(svg.cutout_pipeline, payloads)
-        pool.close()
-        pool.join()
-        log.info("Finished segmenting vegetation")
+        log.info(f"Multi-Processing image data for batch {batch_dir.name}.")
+        procs = cpu_count() - cfg.segment.cpus_left
+        with Pool(processes=procs) as pool:
+            with tqdm(total=len(payloads)) as pbar:
+                for _ in pool.imap_unordered(svg.cutout_pipeline, payloads):
+                    pbar.update()
+            pool.close()
+            pool.join()
+        log.info(f"Finished segmenting vegetation for batch {batch_dir.name}")
     else:
         # Single process
-        log.info("Processing image data.")
+        log.info(f"Processing image data for batch {batch_dir.name}.")
         return_list = create_dataclasses(metadir)
+
         svg.bboxareas(return_list)
-        for imgdata in return_list:
+        for imgdata in tqdm(return_list):
             svg.cutout_pipeline(imgdata)
-        log.info("Finished segmenting vegetation")
+        log.info(f"Finished segmenting vegetation for batch {batch_dir.name}")
