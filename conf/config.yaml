@@ -46,7 +46,8 @@ data:
   modeldir: ${data.datadir}/${blob_names.model}
   utilsdir: ${data.datadir}/${blob_names.utils}
   logdir: ${general.workdir}/logs
-  species: ${data.utilsdir}/species_info.json # All species information
+  species: ${data.utilsdir}/species_information/species_info.json # All species information
+  species_poly: ${data.utilsdir}/autosfm/weed_locations_2022/weed_locations.shp
   rename: False
 
 im_development:
