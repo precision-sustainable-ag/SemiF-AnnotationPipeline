@@ -124,7 +124,7 @@ class SegmentVegetation:
             # continue
 
             if boxarea < self.bbox_th and seg.dap < 10:
-                # log.info("Processing cotyldon.")
+                log.info("Processing cotyldon.")
                 seg.mask = seg.cotlydon()
 
             else:
@@ -151,7 +151,9 @@ class SegmentVegetation:
                                         min_hole_size=10000)
 
             # Identify kernel for leaf edge smoothing based on bbox area
-            if boxarea < 50000:  # Very small
+            if boxarea < 25000:  # Very very small
+                median_kernel = 1
+            elif boxarea < 50000:  # Very small
                 median_kernel = 3
 
             elif boxarea < 100000:  # Small
@@ -170,7 +172,7 @@ class SegmentVegetation:
             # Get morphological properties
             seg.props = GenCutoutProps(rgb_crop, seg.mask).to_dataclass()
 
-            if seg.props.green_sum < 100 and cm_name != "colorchecker":
+            if seg.props.green_sum < 5 and cm_name != "colorchecker":
                 continue
 
             # Create semantic mask
