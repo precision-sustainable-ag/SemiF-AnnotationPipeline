@@ -35,8 +35,7 @@ def main(cfg: DictConfig) -> None:
     image_metadata_files = sorted(list(metadata_path.glob("*.json")))
 
     # Load shp file twice
-    shapefile_path = Path(cfg.data.utilsdir, location, "shapefiles",
-                          f"{location}.shp")
+    shapefile_path = Path(cfg.data.species_poly)
     # Using Geopandas for poly contains point
     polys = geopandas.GeoDataFrame.from_file(shapefile_path)
     # Using fioana for check if point is in poly
