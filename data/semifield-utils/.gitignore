@@ -1,6 +1,7 @@
 # Ignore everything
-*
 
+
+# shapefiles/**
 # Except this
 !.gitignore
 

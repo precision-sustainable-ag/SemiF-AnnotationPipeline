@@ -680,6 +680,8 @@ class CutoutProps:
     "extent",  # float Ratio of pixels in the region to pixels in the total bounding box. Computed as area / (rows * cols)
     "solidity",  # float Ratio of pixels in the region to pixels of the convex hull image.
     "perimeter",  # float Perimeter of object which approximates the contour as a line 
+    "blur_effect", float, Compute a metric that indicates the strength of blur in an image (0 for no blur, 1 for maximal blur)
+    "num_components", int number of connected mask components
     """
     area: Union[float, list]
     area_bbox: Union[float, list]
@@ -694,6 +696,14 @@ class CutoutProps:
     perimeter: Union[float, list]
     is_green: bool
     green_sum: int
+    exg_sum: float
+    blur_effect: float
+    num_components: int
+    color_distribution: dict
+    # intensity_mean: float
+    # intensity_min: float
+    # feret_diameter_maxfloat: float
+    # equivalent_diameter_area: float
 
 
 # For Segmentation -------------------------------------------------------------------------------------
@@ -1029,4 +1039,9 @@ CUTOUT_PROPS = [
     "solidity",  # float Ratio of pixels in the region to pixels of the convex hull image.
     # "label",  # int The label in the labeled input image.
     "perimeter",  # float Perimeter of object which approximates the contour as a line through the centers of border pixels using a 4-connectivity.
+    # "intensity_max",  # Float Value with the greatest intensity in the region.
+    # "intensity_mean",  # flaot Value with the mean intensity in the region.
+    # "intensity_min",  # float Value with the least intensity in the region.
+    # "feret_diameter_maxfloat",  # flaot Maximum Feret’s diameter computed as the longest distance between points around a region’s convex hull contour as determined by find_contours
+    # "equivalent_diameter_area",  # float The diameter of a circle with the same area as the region.
 ]

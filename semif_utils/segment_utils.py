@@ -5,14 +5,15 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+from PIL import Image
 from skimage import measure
 
 from semif_utils.datasets import CUTOUT_PROPS, CutoutProps
-from semif_utils.utils import (apply_mask, get_watershed, make_exg,
-                               make_exg_minus_exr, make_exr, make_kmeans,
-                               make_ndi, multiple_otsu, otsu_thresh,
-                               parse_dict, read_json, reduce_holes,
-                               rescale_bbox)
+from semif_utils.utils import (apply_mask, exact_color, get_watershed,
+                               make_exg, make_exg_minus_exr, make_exr,
+                               make_kmeans, make_ndi, multiple_otsu,
+                               otsu_thresh, parse_dict, read_json,
+                               reduce_holes, rescale_bbox, trans_cutout)
 
 ################################################################
 ########################## SETUP ###############################
@@ -75,19 +76,54 @@ class GenCutoutProps:
         """Generate cutout properties and returns them as a dataclass."""
         self.img = img
         self.mask = mask
-        self.green_thresh = 1000  # TODO change to normalized based on size of image
+        self.cutout = apply_mask(self.img, self.mask, "black")
+        self.green_thresh = 100  # TODO change to normalized based on size of image
         self.green_sum = int(np.sum(self.green_mask()))
         self.is_green = True if self.green_sum > self.green_thresh else False
+        self.color_dist_tol = 12
+
+    def get_blur_effect(self):
+        # 0 for no blur, 1 for maximal blur
+        blur_effect = measure.blur_effect(self.cutout, channel_axis=2)
+        return blur_effect
+
+    def exg_sum(self):
+        sumexg = np.sum(make_exg(self.cutout, normalize=True))
+        return sumexg
 
     def green_mask(self):
         """Returns binary mask if values are within certain "green" HSV range."""
-        cutout = apply_mask(self.img, self.mask, "black")
-        hsv = cv2.cvtColor(cutout, cv2.COLOR_RGB2HSV)
+        hsv = cv2.cvtColor(self.cutout, cv2.COLOR_RGB2HSV)
         lower = np.array([40, 70, 120])
         upper = np.array([90, 255, 255])
         hsv_mask = cv2.inRange(hsv, lower, upper)
         hsv_mask = np.where(hsv_mask == 255, 1, 0)
         return hsv_mask
+
+    def num_connected_components(self):
+        if len(self.mask.shape) > 2:
+            mask = self.mask[..., 0]
+        else:
+            mask = self.mask
+        labels, num = measure.label(mask,
+                                    background=0,
+                                    connectivity=2,
+                                    return_num=True)
+        return num
+
+    def color_distribution(self, ignore_black=True):
+
+        cos = exact_color(Image.fromarray(self.img),
+                          None,
+                          self.color_dist_tol,
+                          2,
+                          save=False,
+                          show=False,
+                          ignore_black=ignore_black,
+                          return_colors=True,
+                          transparent=False)
+        coldict = cos.to_dict(orient="records")
+        return coldict
 
     def from_regprops_table(self, connectivity=2):
         """Generates list of region properties for each cutout mask"""
@@ -97,6 +133,12 @@ class GenCutoutProps:
         nprops = [parse_dict(d) for d in props][0]
         nprops["is_green"] = self.is_green
         nprops["green_sum"] = self.green_sum
+        nprops["exg_sum"] = self.exg_sum()
+        nprops["blur_effect"] = self.get_blur_effect()
+        nprops["num_components"] = self.num_connected_components()
+        nprops["color_distribution"] = self.color_distribution(
+            ignore_black=True)
+
         return nprops
 
     def to_dataclass(self):
