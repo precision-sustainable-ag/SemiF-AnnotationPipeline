@@ -17,7 +17,8 @@ def load_model(model_path, device):
     model = torch.hub.load('ultralytics/yolov5',
                            'custom',
                            path=model_path,
-                           device=device)
+                           device=device,
+                           force_reload=True)
     ## set model inference config and settings
     model.conf = 0.25  # NMS confidence threshold
     model.iou = 0.15  # NMS IoU threshold
