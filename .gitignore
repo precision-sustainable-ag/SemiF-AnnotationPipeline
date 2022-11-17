@@ -29,9 +29,6 @@ exports/*
 # Assets
 Assets
 
-# Notebooks
-notebooks
-
 # Leave README.md files in each directory
 !**/README.md
 

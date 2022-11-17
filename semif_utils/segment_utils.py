@@ -5,7 +5,10 @@ from pathlib import Path
 
 import cv2
 import numpy as np
+import numpy.ma as ma
+import pandas as pd
 from PIL import Image
+from scipy import stats
 from skimage import measure
 
 from semif_utils.datasets import CUTOUT_PROPS, CutoutProps
@@ -13,7 +16,7 @@ from semif_utils.utils import (apply_mask, exact_color, get_watershed,
                                make_exg, make_exg_minus_exr, make_exr,
                                make_kmeans, make_ndi, multiple_otsu,
                                otsu_thresh, parse_dict, read_json,
-                               reduce_holes, rescale_bbox, trans_cutout)
+                               reduce_holes, rescale_bbox)
 
 ################################################################
 ########################## SETUP ###############################
@@ -72,6 +75,7 @@ def get_bboxarea(bbox):
 
 
 class GenCutoutProps:
+
     def __init__(self, img, mask):
         """Generate cutout properties and returns them as a dataclass."""
         self.img = img
@@ -111,9 +115,34 @@ class GenCutoutProps:
                                     return_num=True)
         return num
 
-    def color_distribution(self, ignore_black=True):
+    def descriptive_stats(self):
+        """ Ignores 0 mask values to calculate descriptive statistics of the cutout array"""
+        image_copy = self.cutout.copy()
+        # Mask out zero values for descriptive stats
+        black_pixels_mask = np.all(self.cutout == [0, 0, 0], axis=-1)
+        non_black_pixels_mask = ~black_pixels_mask
+        image_copy[black_pixels_mask] = [1, 1, 1]
+        image_copy[non_black_pixels_mask] = [0, 0, 0]
+        maimg = ma.array(self.cutout, mask=image_copy)
 
-        cos = exact_color(Image.fromarray(self.img),
+        # Get descriptive stats for each channel
+        channels = ["r", "g", "b"]
+        desc_stats = dict()
+        for idx, c in enumerate(channels):
+            scipy_desc = stats.describe(maimg[..., idx].flatten())
+            rec_key = f"channel_{c}"
+            rec = pd.DataFrame(maimg[..., idx].flatten(),
+                               columns=[rec_key]).describe().to_dict()
+            rec[rec_key]["variance"] = scipy_desc.variance
+            rec[rec_key]["skewness"] = scipy_desc.skewness
+            rec[rec_key]["kurtosis"] = scipy_desc.kurtosis
+            desc_stats.update(rec)
+
+        return desc_stats
+
+    def color_distribution(self, ignore_black=True):
+        """ Ignores black (0) values and looks at the occurence of the top 12 most common RGB values."""
+        cos = exact_color(Image.fromarray(self.cutout),
                           None,
                           self.color_dist_tol,
                           2,
@@ -138,6 +167,7 @@ class GenCutoutProps:
         nprops["num_components"] = self.num_connected_components()
         nprops["color_distribution"] = self.color_distribution(
             ignore_black=True)
+        nprops["descriptive_stats"] = self.descriptive_stats()
 
         return nprops
 
@@ -148,6 +178,7 @@ class GenCutoutProps:
 
 
 class SegmentMask:
+
     def otsu(self, vi):
         # Otsu's thresh
         vi_mask = otsu_thresh(vi)
@@ -171,6 +202,7 @@ class SegmentMask:
 
 
 class VegetationIndex:
+
     def exg(self, img, thresh=0):
         exg_vi = make_exg(img, thresh=0)
         return exg_vi
@@ -269,8 +301,7 @@ def generate_new_color(existing_colors, pastel_factor=0.5):
         color = get_random_color(pastel_factor=pastel_factor)
         if not existing_colors:
             return color
-        best_distance = min(
-            [color_distance(color, c) for c in existing_colors])
+        best_distance = min([color_distance(color, c) for c in existing_colors])
         if not max_distance or best_distance > max_distance:
             max_distance = best_distance
             best_color = color

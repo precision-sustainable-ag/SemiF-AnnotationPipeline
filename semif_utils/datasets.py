@@ -143,7 +143,7 @@ class BBox:
             "bbox_id": self.bbox_id,
             "image_id": self.image_id,
             "local_centroid": list(self.norm_local_centroid
-                                   ),  # Always use normalized coordinates
+                                  ),  # Always use normalized coordinates
             "local_coordinates": self.norm_local_coordinates.
                                  config,  # Always use normalized coordinates
             "global_centroid": list(self.global_centroid),
@@ -682,6 +682,8 @@ class CutoutProps:
     "perimeter",  # float Perimeter of object which approximates the contour as a line 
     "blur_effect", float, Compute a metric that indicates the strength of blur in an image (0 for no blur, 1 for maximal blur)
     "num_components", int number of connected mask components
+    "color_distribution", dict (hex number, rgb, and occurnce) of top 12 most common colors. Excludes zero (black)
+    "descriptive stats", dict, calculates descriptives stats of individual channels while excluding 0 (black)
     """
     area: Union[float, list]
     area_bbox: Union[float, list]
@@ -700,10 +702,7 @@ class CutoutProps:
     blur_effect: float
     num_components: int
     color_distribution: dict
-    # intensity_mean: float
-    # intensity_min: float
-    # feret_diameter_maxfloat: float
-    # equivalent_diameter_area: float
+    descriptive_stats: dict
 
 
 # For Segmentation -------------------------------------------------------------------------------------
@@ -754,8 +753,7 @@ class Cutout:
     def __post_init__(self):
         self.cutout_id = self.image_id + "_" + str(self.cutout_num)
         if not self.synth:
-            self.cutout_path = str(Path(self.batch_id,
-                                        self.cutout_id + ".png"))
+            self.cutout_path = str(Path(self.batch_id, self.cutout_id + ".png"))
 
     @property
     def array(self):
@@ -801,8 +799,7 @@ class Cutout:
     def save_cutout(self, cutout_array):
 
         fname = f"{self.image_id}_{self.cutout_num}.png"
-        cutout_path = Path(self.blob_home, self.data_root, self.batch_id,
-                           fname)
+        cutout_path = Path(self.blob_home, self.data_root, self.batch_id, fname)
         cv2.imwrite(str(cutout_path),
                     cv2.cvtColor(cutout_array, cv2.COLOR_RGB2BGRA))
         return True
@@ -810,8 +807,7 @@ class Cutout:
     def save_cropout(self, img_array):
 
         fname = f"{self.image_id}_{self.cutout_num}.jpg"
-        cutout_path = Path(self.blob_home, self.data_root, self.batch_id,
-                           fname)
+        cutout_path = Path(self.blob_home, self.data_root, self.batch_id, fname)
         cv2.imwrite(str(cutout_path), cv2.cvtColor(img_array,
                                                    cv2.COLOR_RGB2BGR))
         return True
