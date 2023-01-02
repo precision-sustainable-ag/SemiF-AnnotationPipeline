@@ -1,62 +1,33 @@
-## Main .gitignore file. While many are empty, directories are left inplace
-## to provide an example of directory structure.
+# Hydra outputs
+**outputs
 
-#--------- Project Ignore ---------
+# Example results
+examples
 
-# Ignore everything in data except README and species json list (see below).
-# data/*
-!data/README.md
-!data/species.json
-!data/semifield-developed-images-trial
-!data/semifield-upload-trial
-!data/semifield-cutouts-trial
-!data/semifield-synthetic-images-trial
-!data/semifield-models-trial
+# Admin scripts
+*scripts
 
-Assets/NC*
-Assets/updates*
-Assets/ORTHO*
-*.qgz
-# Ignore everything in models dir except readme
-models/*
+# Metashape license files
+**.lic
 
-# (I'm not sure what this directory is for)
-exports/*
+# VS code stuff
+**.vscode
 
-# Leave README.md files in each directory
-!**/README.md
-
-# Outputs log files form hydra
-outputs
-
-#QGIS project files
-*.qgz
-
-# Hydra files
-.hydra
-SEMIF.log
-# ---------- Misc -----------
-# Shell scripts
-# *.sh
-
-# Mac stuff
-**/.DS_Store
-
-# PDF resource docs
-*.pdf
+# Byte-compiled / optimized / DLL files
+**__pycache__/
 
 # Jupyter Notebook
 **.ipynb_checkpoints
+**ipynb
 
-# Pytest cache
-**.pytest_cache
+# Hydra
+*.hydra
 
-# Mac OSX
-**._.DS_Store
-
-# Pycache
-**__pycache __
-
-*.pyc
-
-*.vscode
+# Environments
+**.env
+**.venv
+**env/
+**venv/
+**ENV/
+**env.bak/
+**venv.bak/

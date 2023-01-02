@@ -1,15 +1,60 @@
-# SemiField Annotation Pipeline
 
-This repo contains the code necessary to automatically annotate batches of incoming images from 3 location around the US and was designed specifically for the Semi-field image acquisition protocols developed by the [PSA network](https://www.precisionsustainableag.org/).
+We use git subtree to organize this project. This repos contain
 
-Details about the project and repo documentation can be found on the SemiField private Confluence page. Direct links to various sections can be found below.
+After pulling this repo,
 
-- [Overview](https://precision-sustainable-ag.atlassian.net/l/cp/KvWLivGW)
-  
-- [Pipeline Description](https://precision-sustainable-ag.atlassian.net/wiki/spaces/SAP/pages/151945228/Pipeline+Description)
-    
-- [Setup](https://precision-sustainable-ag.atlassian.net/wiki/spaces/SAP/pages/152077232/Setup)
-  
-- [Pipeline Execution](https://precision-sustainable-ag.atlassian.net/wiki/spaces/SAP/pages/153911297/Pipeline+Execution)
-  
-- [Data Products and Metadata](https://precision-sustainable-ag.atlassian.net/wiki/spaces/SAP/pages/159711242/Data+Products+and+Metadata)
+# SemiF-AnnotationPipeline
+## 1. Pull this remote
+
+```
+git clone git@github.com:mkutu/Pipeline.git
+```
+
+## 2. Change branchs
+
+Move into the main project
+```
+cd Pipeline
+```
+
+Change to the correct branch. At the time of writting, `develop`
+```
+git checkout -b develop origin/restruct
+```
+
+## 3. Add SemiF-AnnotationPipeline as a remote
+
+Add SemiF-AnnotationPipeline sub-project as a remote. Refer to the remote as `ann_origin` to keep it short.
+```bash
+git remote add -f ann_origin git@github.com:precision-sustainable-ag/SemiF-AnnotationPipeline.git
+```
+
+## 4. Fetch and pull the SemiF-AnnoationPipeline branch
+Fetch the correct sub-project branch. At the time of writting, `sfann-hydra-restruct`
+```bash
+git fetch ann_origin sfann-hydra-restruct
+```
+```bash
+git subtree pull --prefix SemiF-AnnotationPipeline ann_origin sfann-hydra-restruct
+```
+
+# SemiF-SyntheticPipeline
+
+The steps are exactly the same starting from #3 except different branch names (at time of writing) and abbreviations are used (`develop` and `synth_origin` respectively). Steps are condensed to just code below.
+
+```
+git remote add -f synth_origin git@github.com:precision-sustainable-ag/SemiF-SyntheticPipeline.git
+git fetch synth_origin develop
+git subtree pull --prefix SemiF-SyntheticPipeline synth_origin develop
+```
+
+# Push a subtree repo upstream
+
+`git subtree push --prefix=subtree subtree_origin branch`
+
+For examples,
+```
+git subtree push --prefix=Semif-SyntheticPipeline synth_origin develop
+```
+
+

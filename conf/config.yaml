@@ -1,69 +1,94 @@
+# Hydra defaults and settings. Ignore these (don't change)
 defaults:
-  - autosfm: autosfm
-  - maintenance: maintenance
-  - planting: planting
+  - movedata: movedata
+  - asfm: asfm
+  - semif: semif
+  - inspect: inspect
+# ancillary configs
+  - detect: detect
+  - segment: segment
+  - planting: planting # Planting dates
+  - cutouts: cutouts
+  - override hydra/job_logging: custom # custom logging 
   - _self_
 
 hydra:
+  searchpath: # Search for config in other repos
+      # You can also use file based schema:
+      - file://MoveData/conf
+      - file://autoSfM/conf
+      - file://SemiF-AnnotationPipeline/conf
+      - file://SemiF-SyntheticPipeline/conf
+      - file://SemiF-InspectCutouts/conf
+
   run:
-    dir: ./
+    # dir: ./outputs
+    
+    dir: ${logs.logdir}/${job.jobname}/${general.batch_id}
   output_subdir: 
 
+# Required config. Only change these.
+#----------------------------------------------------
 general:
-  batch_id: ??? # Control the batch_id through the command line
-  save_to_database: False
-  from_database: False
-  db: test  # test, trial, WIR
-  multitask: False
-  multitasks: [develop_images, copy_from_blob, auto_sfm, localize_plants, remap_labels, assign_species, segment_vegetation, copy_products_to_blobs]
-  task: develop_images  # auto_sfm, localize_plants, remap_labels, segment_vegetation
+  # Do not put key in the config since the file is committed to GitHub
+  season: summer_weeds_2022
+  metashape_key: ???
+  weed_location_shp: weed_locations_2022/weed_locations.shp
+#----------------------------------------------------
+  batch_id: ??? # NOTE: ??? is a special syntax. Do not remove. Set in shell scripts
+  task: ???
+  # Main working directory 
   workdir: ${hydra:runtime.cwd}  # where the code is executed
 
-blob_names:
+# Other job/naming options (currently not used)
+job:
+  jobname: ${general.season}
+  job_now: &nowdir ${now:%Y-%m-%d}/${now:%H-%M-%S}
+  jobdir: ${data.datadir}/${job.jobname}/${job.job_now}
+
+repo_names:
+  semif_annotation: SemiF-AnnotationPipeline
+  semif_snyth: SemiF-SyntheticPipeline
+
+blob_names: # directory names in SemiF-AP/data that mimic blob container structure
   upload: semifield-upload-images
   developed: semifield-developed-images
   utils: semifield-utils
   cutout: semifield-cutouts
   model: semifield-models
+  synth: semifield-synth
 
-blob_storage:
-  blobhome: ${general.workdir}/blob_storage # /home/azureuser
-  uploaddir: ${blob_storage.blobhome}/${blob_names.upload}
-  developeddir: ${blob_storage.blobhome}/${blob_names.developed}
-  rawbatchdir: ${blob_storage.developeddir}/${general.batch_id}
-  utilsdir: ${blob_storage.blobhome}/${blob_names.utils}
-  cutoutdir: ${blob_storage.blobhome}/${blob_names.cutout}
-  modeldir: ${blob_storage.blobhome}/${blob_names.model}
-
+# Root data locations (SemiFAnnotationPipeline/data/)
 data:
-  datadir: ${general.workdir}/data
-  uploaddir: ${data.datadir}/${blob_names.upload}
+  # Main data folders (replicates blob container naming)
+  datadir: ${semif.workdir}/data
   developeddir: ${data.datadir}/${blob_names.developed}
-  batchdir: ${data.developeddir}/${general.batch_id} # Is overiden by shell script
   cutoutdir: ${data.datadir}/${blob_names.cutout}
   modeldir: ${data.datadir}/${blob_names.model}
   utilsdir: ${data.datadir}/${blob_names.utils}
+  # Logs
   logdir: ${general.workdir}/logs
-  species: ${data.utilsdir}/species_info.json # All species information
-  rename: False
+  # Batch directory
+  batchdir: ${data.developeddir}/${general.batch_id} 
+  # All species information
+  species: ${data.utilsdir}/species_information/species_info.json
+  species_poly: ${data.utilsdir}/autosfm/${general.weed_location_shp}
+  # Ground control points directory
+  gcp_dir: ${data.datadir}/${blob_names.utils}/autosfm/GroundControlPoints
+  gcp_ref: None
+  metashape_key_path: ${general.workdir}/keys/metashape_key.txt
+  
+# Batch sub-directories
+batchdata:
+  images: ${data.batchdir}/images #preprocessed images
+  masks: ${data.batchdir}/masks #blue bbot pixel masks
+  plant_dects: ${data.batchdir}/plant-detections # Skovsen et al. pre-inferenced detection if available
+  autosfm: ${data.batchdir}/autosfm # asfm batch dir
+  metadata: ${data.batchdir}/metadata # metadata created from remap
+  meta_masks: ${data.batchdir}/meta_masks # created from segment vegetation
+  batchmeta: ${data.batchdir}/${general.batch_id}.json # created from seg veg
+  cutouts: ${data.cutoutdir}/${general.batch_id}
 
-im_development:
-  color_profiles_dir: ${blob_storage.utilsdir}/image_development/color_profiles
-  dev_profiles_dir: ${blob_storage.utilsdir}/image_development/dev_profiles
-
-detect:
-  concat_detections: True
-  model_filename: best.pt
-  model_path: ${data.modeldir}/plant_detector/${detect.model_filename}
-  detections_csv: ${data.batchdir}/autosfm
-  save_detection: False
-  detectioncropdir: ${general.imagedir} # Location to save detection crops
-  device: "cpu:0"
-
-segment:  # Segment Vegetation
-  multiprocess: True
-  clear_border: True
-  save_mask: False # Not implemented
-  vi: exg
-  class_algorithm: kmeans
-  num_classes: 1
+logs:
+  logdir: ${general.workdir}/.batchlogs
+  processed: ${logs.logdir}/processed.txt

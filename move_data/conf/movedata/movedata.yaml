@@ -1,0 +1,14 @@
+workdir: ${general.workdir}/MoveData
+ignore_missing: False
+azure_batch_contents: ${logs.logdir}/batchdata.txt
+error_data: ${data.batchdir}/error_data
+list_data: ${movedata.workdir}/ListData.sh
+miss_azure_log: ${logs.logdir}/missing_azure_data.txt
+
+upload:
+  script: ${movedata.workdir}/UploadBatch.sh
+  metadata: ${data.batchdir}/metadata
+  metamasks: ${data.batchdir}/meta_masks
+  metajson: ${data.batchdir}/${general.batch_id}.json
+  autosfm: ${data.batchdir}/autosfm
+

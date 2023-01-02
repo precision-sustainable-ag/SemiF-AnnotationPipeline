@@ -1,0 +1,6 @@
+model_filename: best.pt
+model_path: ${data.modeldir}/plant_detector/${detect.model_filename}
+detections_csv: ${data.batchdir}/autosfm
+save_detection: False
+# detectioncropdir: ${general.imagedir} # Location to save detection crops
+device: "cuda:0"
