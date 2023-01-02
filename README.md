@@ -4,12 +4,18 @@
 <br>
 
 ## Table of Contents  
+[Dataflow](#dataflow)
 [Setup](#setup)  
 [Structure](#structure)  
 [Configuration](#configuration)  
 [Run](#run)  
 
 <br>
+
+## Dataflow
+
+![](assets/dataflow_repo.png)
+
 
 ## Setup
 
@@ -40,7 +46,7 @@ Output should say "`nfs4`"
 
 ## Structure
 
-![](assets/dataflow_repo.png)
+
 
 
 ### [Move_data](move_data/README.md)
