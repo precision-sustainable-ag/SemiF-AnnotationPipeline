@@ -3,7 +3,7 @@ import time
 
 from omegaconf import DictConfig
 
-from MoveData.utils.download_utils import DownloadData
+from move_data.utils.download_utils import DownloadData
 
 log = logging.getLogger(__name__)
 

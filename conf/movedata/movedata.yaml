@@ -11,4 +11,3 @@ upload:
   metamasks: ${data.batchdir}/meta_masks
   metajson: ${data.batchdir}/${general.batch_id}.json
   autosfm: ${data.batchdir}/autosfm
-

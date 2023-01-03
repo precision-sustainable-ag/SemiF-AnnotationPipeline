@@ -13,3 +13,4 @@ Upload depends on presence of:
 - `meta_masks`
 - `[batch_id].json`
 - presence of `[batch_id]`  in  `/.batchlogs/processed.txt`
+

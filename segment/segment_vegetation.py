@@ -26,7 +26,7 @@ class SegmentVegetation:
 
     def __init__(self, cfg: DictConfig) -> None:
 
-        self.data_dir = Path(cfg.data.datadir)
+        self.data_name = Path(cfg.data.datadir).name
         self.cutout_dir = Path(cfg.data.cutoutdir)
         self.batchdir = Path(cfg.data.batchdir)
         self.batch_id = self.batchdir.name
@@ -190,7 +190,7 @@ class SegmentVegetation:
             # cropped_cutout2 = crop_cutouts(cutout_array)
 
             # Create dataclass
-            cutout = Cutout(blob_home=self.data_dir.name,
+            cutout = Cutout(blob_home=self.data_name,
                             data_root=self.cutout_dir.name,
                             batch_id=self.batch_id,
                             image_id=imgdata.image_id,
