@@ -14,6 +14,7 @@ DONEYET="${COMMAND}.alreadyrun"
 need_process=./.batchlogs/unprocessed.txt
 while read -r line
     do
+        line=${line%%:*}
         # If exit code for the below command is not 1, then continue processing,
         # else skips remaining processes and goes to the next batch. 
         # This is done for each process.

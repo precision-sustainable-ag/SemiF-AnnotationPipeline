@@ -2,7 +2,7 @@ import logging
 import os
 import shutil
 from pathlib import Path
-from move_data.utils.utils import read_keys
+from utils.utils import read_keys
 from omegaconf import DictConfig
 
 log = logging.getLogger(__name__)

@@ -39,8 +39,7 @@ def main(cfg: DictConfig) -> None:
             exit(0)
 
     except Exception as e:
-        log.error(f"Failed to check asfm contents. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to check asfm contents. Exiting")
         exit(1)
 
     try:
@@ -53,8 +52,7 @@ def main(cfg: DictConfig) -> None:
                 resize_masks(cfg)
 
     except Exception as e:
-        log.error(f"Failed to downsize images. Exiting.")
-        print(traceback.format_exc())
+        log.exception(f"Failed to downsize images. Exiting.")
         exit(1)
 
     log.info(f"Initializing SfM")
@@ -66,64 +64,56 @@ def main(cfg: DictConfig) -> None:
         if cfg["asfm"]["use_masking"]:
             pipeline.add_masks()
     except Exception as e:
-        log.error(f"Failed to add photos. Exiting.")
-        print(traceback.format_exc())
+        log.exception(f"Failed to add photos. Exiting.")
         exit(1)
 
     try:
         log.info(f"Detecting markers")
         pipeline.detect_markers()
     except Exception as e:
-        log.error(f"Failed to detect markers. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to detect markers. Exiting")
         exit(1)
 
     try:
         log.info(f"Importing references")
         pipeline.import_reference()
     except Exception as e:
-        log.error(f"Failed to import reference. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to import reference. Exiting")
         exit(1)
 
     try:
         log.info(f"Aligning photos")
         pipeline.align_photos(correct=True)
     except Exception as e:
-        log.error(f"Failed to align photos. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to align photos. Exiting")
         exit(1)
 
     try:
         log.info(f"Optimizing cameras")
         pipeline.optimize_cameras()
     except Exception as e:
-        log.error(f"Failed to optimize cameras. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to optimize cameras. Exiting")
         exit(1)
 
     try:
         log.info(f"Exporting GCP reference")
         pipeline.export_gcp_reference()
     except Exception as e:
-        log.error(f"Failed to export GCP reference. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to export GCP reference. Exiting")
         exit(1)
 
     try:
         log.info(f"Exporting camera reference")
         pipeline.export_camera_reference()
     except Exception as e:
-        log.error(f"Failed to export camera reference. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to export camera reference. Exiting")
         exit(1)
 
     try:
         log.info(f"Exporting error stats")
         pipeline.export_stats()
     except Exception as e:
-        log.error(f"Failed to export error stats. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to export error stats. Exiting")
         exit(1)
 
     # Electives
@@ -132,8 +122,7 @@ def main(cfg: DictConfig) -> None:
             log.info(f"Building depth maps")
             pipeline.build_depth_map()
     except Exception as e:
-        log.error(f"Failed to build depth maps. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to build depth maps. Exiting")
         exit(1)
 
     try:
@@ -141,8 +130,7 @@ def main(cfg: DictConfig) -> None:
             log.info(f"Buidling dense point cloud")
             pipeline.build_dense_cloud()
     except Exception as e:
-        log.error(f"Failed to buidl dense point cloud. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to buidl dense point cloud. Exiting")
         exit(1)
 
     try:
@@ -150,8 +138,7 @@ def main(cfg: DictConfig) -> None:
             log.info(f"Building DEM")
             pipeline.build_dem()
     except Exception as e:
-        log.error(f"Failed to build DEM. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to build DEM. Exiting")
         exit(1)
 
     try:
@@ -159,8 +146,7 @@ def main(cfg: DictConfig) -> None:
             log.info(f"Building orthomosaic")
             pipeline.build_ortomosaic()
     except Exception as e:
-        log.error(f"Failed to build orthomosaic. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to build orthomosaic. Exiting")
         exit(1)
 
     try:
@@ -168,15 +154,13 @@ def main(cfg: DictConfig) -> None:
             log.info(f"Exporting camera FOV information")
             pipeline.camera_fov()
     except Exception as e:
-        log.error(f"Failed to export camera FOV information. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to export camera FOV information. Exiting")
         exit(1)
 
     try:
         log.info(f"Exporting preview image")
         pipeline.capture_view()
     except Exception as e:
-        log.error(f"Failed to export preview image. Exiting")
-        print(traceback.format_exc())
+        log.exception(f"Failed to export preview image. Exiting")
         exit(1)
     log.info(f"AutoSfM Complete")

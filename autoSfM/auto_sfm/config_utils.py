@@ -3,6 +3,7 @@ from pathlib import Path
 
 import yaml
 from omegaconf import DictConfig
+from utils.utils import read_keys
 
 
 def make_dir(path):
@@ -42,9 +43,8 @@ def parse_yml(config_file):
 
 
 def create_config(cfg):
-    with open(cfg.data.metashape_key_path, 'r') as mkey:
-        key = mkey.readline().strip('\n')
-    cfg.general.metashape_key = key
+    keys = read_keys(cfg.pipeline_keys)
+    cfg.general.metashape_key = keys.ms_lic
     # Prep config
     cfg = config_gcp_path(cfg)
     make_autosfm_dirs(cfg)

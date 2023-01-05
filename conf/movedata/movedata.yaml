@@ -16,7 +16,7 @@ find_missing:
 
   container_list: ${logs.logdir}/container_list.txt
   processed_data: # These items must be in batch folder to be considered "fully processed"
-    - .json
+    - ".json"
     - autosfm
     - logs
     - metadata
