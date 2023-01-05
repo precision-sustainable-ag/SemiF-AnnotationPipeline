@@ -1,7 +1,6 @@
-# Ignore everything
-*
-# Species info
-# !semifield-utils/species_information/*
-!semifield-utils/species_information/colors.py
-# Except this
-!.gitignore
+
+# Image directory
+semifield-developed-images
+
+
+
