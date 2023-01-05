@@ -12,7 +12,8 @@ class DownloadData:
 
     def __init__(self, cfg: DictConfig) -> None:
         self.cfg = cfg
-        self.workdir = cfg.movedata.workdir
+        self.download_script = cfg.movedata.download_data.download_sh
+        self.container_list = Path(cfg.movedata.find_missing.container_list)
         self.developed = cfg.data.developeddir
         self.batch = cfg.general.batch_id
         self.batchdir = cfg.data.batchdir
@@ -49,21 +50,14 @@ class DownloadData:
                     f.write(f"{self.batch}: {dat}\n")
 
     def list_azure_data(self):
-        # Lists the content of the semifield-developed-images container
-        # and writes it to a txt file in .batchlogs. Calls a shell script "ListData.sh"
-        # Uses a AzCopy in shell script because Azure python API is slow.
-
-        if not Path(self.azure_items).is_file():
-            os.system(f'bash {self.list_azure_path}')
+        # Read local azure batch content file
+        with open(self.container_list, 'r') as f:
+            lines = [line.strip() for line in f.readlines()]
+        return lines
 
     def find_missing_azure_data(self):
         # Organizes and cleans the results of ListData.sh
-
-        self.list_azure_data()
-
-        # Read local azure batch content file
-        with open(self.azure_items, 'r') as f:
-            lines = [line.strip() for line in f.readlines()]
+        lines = self.list_azure_data()
 
         # Get lines only relevant to this batch
         batch_lines = [line for line in lines if self.batch in line]
@@ -74,11 +68,9 @@ class DownloadData:
         ]
 
         # Find difference between 2 sets
-        necessary = ["images", "masks", "plant-detections"]
-        for i in necessary:
+        for i in self.necessary:
             if i not in present_data:
                 self.miss_src.append(i)
-
         # Ignore prediction_images because they aren't necessary for processing
         if "prediction_images" in self.miss_src:
             self.miss_src.remove("prediction_images")
@@ -89,11 +81,8 @@ class DownloadData:
     def download_azure_batch(self):
         # Run download script
         for i in self.miss_local:
-            # print(
-            #     f"\n{self.workdir}/scripts/DownloadBatch.sh \n{self.batch} \n{i} \n{self.developed} \n{self.pkeys.down_dev}"
-            # )
             os.system(
-                f'bash {self.workdir}/scripts/DownloadBatch.sh {self.batch} {i} {self.developed} "{self.pkeys.down_dev}"'
+                f'bash {self.download_script} {self.batch} {i} {self.developed} "{self.pkeys.down_dev}"'
             )
 
     def move_empty_data(self):
@@ -123,9 +112,10 @@ class DownloadData:
                 shutil.move(src, dst)
 
     def move_missing_images(self):
-        # Check that the number of downloaded images and masks match.
-        # If they don't, move extra data to a "error_data" folder in the batch directory
-        # Assume either images or masks will have missing data, not both
+        """Check that the number of downloaded images and masks match.
+        If they don't, move extra data to a "error_data" folder in the batch directory
+        Assume either images or masks will have missing data, not both"""
+
         # TODO: account for if seperate data is missing in images and masks
         imgs = [
             x.stem for x in Path(self.batchdir, "images").glob("*.jpg")

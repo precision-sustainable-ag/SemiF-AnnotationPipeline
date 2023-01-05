@@ -40,7 +40,7 @@ def main(cfg: DictConfig) -> None:
     try:
         # Run download script
         log.info("Downloading data from azure blob container")
-        dd.download_azure_batch()
+        # dd.download_azure_batch()
     except Exception as e:
         log.exception(f"Failed to download batch from blob container.\n{e}")
         exit(1)

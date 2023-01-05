@@ -20,7 +20,8 @@ class ListBatches:
         self.keypath = cfg.pipeline_keys
         self.pkeys = self.read_keys()
         self.temp_path = Path(cfg.movedata.find_missing.container_list)
-        self.pkeys = read_keys()
+
+        self.pkeys = read_keys(cfg.movedata.SAS_keys)
         # Required data directories to be considered "processed".
         # Should be sub-directories of batch_id in Azure
         self.batch_data = cfg.movedata.find_missing.processed_data
