@@ -44,7 +44,7 @@ blob_names: # directory names in SemiF-AP/data that mimic blob container structu
 # temp data locations (SemiFAnnotationPipeline/data/)
 data:
   # Main data folders (replicates blob container naming)
-  datadir: ${semif.workdir}/data
+  datadir: ${general.workdir}/data
   developeddir: ${data.datadir}/${blob_names.developed}
   cutoutdir: ${data.datadir}/${blob_names.cutout}
   modeldir: ${data.datadir}/${blob_names.model}
@@ -77,3 +77,4 @@ batchdata:
 logs:
   logdir: ${general.workdir}/.batchlogs
   processed: ${logs.logdir}/processed.txt
+  unprocessed: ${logs.logdir}/unprocessed.txt

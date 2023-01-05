@@ -12,6 +12,7 @@ examples
 
 # VS code stuff
 **.vscode
+**workspace.code-workspace
 
 # Byte-compiled / optimized / DLL files
 **__pycache__/

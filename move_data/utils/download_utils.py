@@ -2,7 +2,7 @@ import logging
 import os
 import shutil
 from pathlib import Path
-
+from move_data.utils.utils import read_keys
 from omegaconf import DictConfig
 
 log = logging.getLogger(__name__)
@@ -20,19 +20,21 @@ class DownloadData:
         self.azure_items = cfg.movedata.azure_batch_contents
         self.list_azure_path = cfg.movedata.list_data
         self.miss_az_log = cfg.movedata.miss_azure_log
+        self.necessary = cfg.movedata.download_data.input_data
+        self.pkeys = read_keys(cfg.movedata.SAS_keys)
+
         self.miss_src = []
         self.miss_local = []
 
     def list_missing_local(self):
-        """Checks for the existance of 2 necessary folders and 1 optional in the main batch directory.
+        """Checks for the existance of 2 necessary folders and 1 optional in the main local batch directory.
             1. images - (folder) preprocessed ("developed") images 
             2. masks - (folder) bench bot masks
             3. plant-detections (optional) - (folder) of plant-detection results (gives warning if not present)
         """
-        necessary = ["images", "masks", "plant-detections"]
 
         # Check for necessary directories
-        for nec in necessary:
+        for nec in self.necessary:
             if not Path(self.batchdir, nec).exists():
                 self.miss_local.append(nec)
 
@@ -87,8 +89,11 @@ class DownloadData:
     def download_azure_batch(self):
         # Run download script
         for i in self.miss_local:
+            # print(
+            #     f"\n{self.workdir}/scripts/DownloadBatch.sh \n{self.batch} \n{i} \n{self.developed} \n{self.pkeys.down_dev}"
+            # )
             os.system(
-                f'bash {self.workdir}/DownloadBatch.sh {self.batch} {i} {self.developed}'
+                f'bash {self.workdir}/scripts/DownloadBatch.sh {self.batch} {i} {self.developed} "{self.pkeys.down_dev}"'
             )
 
     def move_empty_data(self):

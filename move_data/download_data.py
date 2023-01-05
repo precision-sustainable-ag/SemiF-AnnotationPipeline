@@ -21,7 +21,7 @@ def main(cfg: DictConfig) -> None:
             log.error(f"Azure data missing: {dd.miss_src}. Skipping batch.")
             exit(1)
     except Exception as e:
-        log.error(f"Failed to find missing Azure data for {batch}.\n{e}")
+        log.exception(f"Failed to find missing Azure data for {batch}.\n{e}")
         exit(1)
 
     try:
@@ -32,7 +32,7 @@ def main(cfg: DictConfig) -> None:
         dd.list_missing_local()
         log.info(f"Missing {dd.miss_local}.")
     except Exception as e:
-        log.error(
+        log.exception(
             f"Failed to find missing local data prior to download for {batch}.\n{e}"
         )
         exit(1)
@@ -42,7 +42,7 @@ def main(cfg: DictConfig) -> None:
         log.info("Downloading data from azure blob container")
         dd.download_azure_batch()
     except Exception as e:
-        log.error(f"Failed to download batch from blob container.\n{e}")
+        log.exception(f"Failed to download batch from blob container.\n{e}")
         exit(1)
 
     try:
@@ -50,14 +50,14 @@ def main(cfg: DictConfig) -> None:
         log.info("Searching for empty images or masks.")
         dd.move_empty_data()
     except Exception as e:
-        log.error(f"Failed to move empty masks or images.\n{e}")
+        log.exception(f"Failed to move empty masks or images.\n{e}")
         exit(1)
 
     try:
         log.info("Searching for mismatched images and masks.")
         dd.move_missing_images()
     except Exception as e:
-        log.error(f"Moving mismatched images failed. Exiting. \n{e}")
+        log.exception(f"Moving mismatched images failed. Exiting. \n{e}")
         exit(1)
 
     end = time.time()
