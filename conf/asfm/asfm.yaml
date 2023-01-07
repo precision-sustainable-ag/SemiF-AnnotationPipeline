@@ -1,0 +1,66 @@
+workdir: autoSfM
+# Number of GPUs to use
+num_gpus: 21 # 8=255, 7=127, 6=63, 5=31, 4=15, 3=7, 2=3, 1=1; or use 'all' to use all available gpus
+# Masks blue benchbot pixels if masks are present
+use_masking: True
+
+## Defines output directory and file paths for the various data products
+# Main project driectory
+proj_dir: ${batchdata.autosfm}/project
+proj_path: ${batchdata.autosfm}/project/${general.batch_id}.psx
+# Rescaled photos and mask outputs and used as main asfm inputs
+down_photos: ${batchdata.autosfm}/downscaled_photos
+down_masks: ${batchdata.autosfm}/downscaled_masks
+# Reference directory and csv paths outputs
+refs: ${batchdata.autosfm}/reference
+gcp_ref: ${batchdata.autosfm}/reference/gcp_reference.csv
+cam_ref: ${batchdata.autosfm}/reference/camera_reference.csv
+err_ref: ${batchdata.autosfm}/reference/error_statistics.csv
+fov_ref: ${batchdata.autosfm}/reference/fov.csv
+# Orthomosaic output
+orthodir: ${batchdata.autosfm}/ortho
+ortho_path: ${asfm.orthodir}/orthomosaic.tif
+# DEM output
+demdir: ${batchdata.autosfm}/dem
+dem_path: ${asfm.demdir}/dem.tif
+# Preview image setttings and output
+preview: ${batchdata.autosfm}/${general.batch_id}_preview.png
+max_wid: 2500
+dpi: 100 
+# Config save paths (depricated, not used)
+config_save_path: ${autosfm.autosfm_volume}/config/config.yml
+config_copy_path: ${data.logdir}/autosfm/config_${general.batch_id}.yml
+
+## Main processing settings
+# Electives
+downscale:
+  enabled: True
+  factor: 1 # between (0, 1]
+
+align_photos:
+  downscale: 1 # Accuracy parameter, lower means higher accuracy
+  autosave: True
+
+depth_map:
+  enabled: True
+  downscale: 1
+  autosave: True
+
+dense_cloud:
+  enabled: True
+  autosave: True
+
+dem: 
+  enabled: True
+  autosave: True
+  export: 
+    enabled: True
+
+orthomosaic:
+  enabled: True
+  export: 
+    enabled: True
+  autosave: True
+
+camera_fov:
+    enabled: True

@@ -12,11 +12,16 @@ import pandas as pd
 
 VERSION = 1.2
 NOTES = {
-    "1": "USDA symbols are used as species index key.",
-    "2": "When difference between USDA and EPPO codes, scientific_names, or authority occured, USDA information was used.",
-    "3": "Purple nutsedge (CYRO) is used by may also be yellow nutsedge (CYES).",
-    "4": "North Carolina (MD), Texas (TX), Maryland (MD)",
-    "5": "Brassicas class contains 4 species - Brassica napus, Brassica rapa, Brassica juncea, Brassica hirta"
+    "1":
+    "USDA symbols are used as species index key.",
+    "2":
+    "When difference between USDA and EPPO codes, scientific_names, or authority occured, USDA information was used.",
+    "3":
+    "Purple nutsedge (CYRO) is used by may also be yellow nutsedge (CYES).",
+    "4":
+    "North Carolina (MD), Texas (TX), Maryland (MD)",
+    "5":
+    "Brassicas class contains 4 species - Brassica napus, Brassica rapa, Brassica juncea, Brassica hirta"
 }
 
 # csv = "class_list.csv"

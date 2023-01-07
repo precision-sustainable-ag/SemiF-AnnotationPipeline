@@ -1,0 +1,38 @@
+workdir: ${general.workdir}/move_data
+ignore_missing: False
+azure_batch_contents: ${logs.logdir}/container_list.txt
+error_data: ${data.batchdir}/error_data
+list_data: ${movedata.workdir}/scripts/ListData.sh
+miss_azure_log: ${logs.logdir}/missing_azure_data.txt
+
+SAS_keys: ${general.workdir}/keys/pipeline_keys.yaml
+
+find_missing:
+  read_keys: False
+  az_list: False
+  organize_temp: False
+  find_missing: True
+  write_missing: True
+
+  container_list: ${logs.logdir}/container_list.txt
+  processed_data: # These items must be in batch folder to be considered "fully processed"
+    - ".json"
+    - autosfm
+    - logs
+    - metadata
+    - meta_masks
+
+download_data:
+  download_sh: ${movedata.workdir}/scripts/DownloadBatch.sh
+  input_data: # Must be present in blob container
+    - images
+    - masks
+    - plant-detections
+    
+
+upload:
+  script: ${movedata.workdir}/UploadBatch.sh
+  metadata: ${data.batchdir}/metadata
+  metamasks: ${data.batchdir}/meta_masks
+  metajson: ${data.batchdir}/${general.batch_id}.json
+  autosfm: ${data.batchdir}/autosfm

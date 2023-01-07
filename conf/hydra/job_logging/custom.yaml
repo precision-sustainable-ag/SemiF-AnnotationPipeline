@@ -1,7 +1,7 @@
 version: 1
 formatters:
   simple:
-    format: '[%(asctime)s][%(levelname)s] - %(message)s'
+    format: '[%(asctime)s][%(name)s][%(levelname)s] - %(message)s'
 handlers:
   console:
     class: logging.StreamHandler
@@ -10,7 +10,7 @@ handlers:
   file:
     class: logging.FileHandler
     formatter: simple
-    filename: ${hydra.runtime.output_dir}/${hydra.job.name}.log
+    filename: ${hydra.runtime.output_dir}/${general.task}.log
 root:
   handlers:
     - console

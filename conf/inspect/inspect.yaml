@@ -1,0 +1,18 @@
+workdir: ${general.workdir}/SemiF-InspectCutouts
+
+outdir: ${inspect.workdir}/data/${general.season}
+overwrite_season_csv: True
+season_csv: ${inspect.outdir}/${general.season}.csv
+
+compile:
+  initiate: False
+  save: True
+
+stats:
+  calculate: True
+  save: True
+
+visually_inspect:
+  start: True
+  sample_size: 30
+  

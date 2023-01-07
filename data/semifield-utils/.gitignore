@@ -1,8 +1,0 @@
-# Ignore everything
-
-
-# shapefiles/**
-# Except this
-!.gitignore
-
-!.species_info.json
