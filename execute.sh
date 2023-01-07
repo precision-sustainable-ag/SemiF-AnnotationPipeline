@@ -6,7 +6,6 @@ set -o pipefail
 COMMAND=./execute.sh
 DONEYET="${COMMAND}.alreadyrun"
 
-
 ## Main processessing section that runs individual processes 
 ## but moves to another batch if any single process fails with exit code 1.
 
@@ -20,6 +19,8 @@ while read -r line
         # This is done for each process.
             
             # Download images
+        python PIPELINE.py general.batch_id=${line-} general.task=find_unprocessed
+        if [  $? -eq 0 ]; then
         python PIPELINE.py general.batch_id=${line-} general.task=download_data
         if [  $? -eq 0 ]; then
             python PIPELINE.py general.batch_id=${line-} general.task=autosfm_pipeline
@@ -49,6 +50,7 @@ while read -r line
                         fi
                     fi
                 fi
+            fi
             fi
         # Terminal message if a batch is being skipped. (ie exit code = 1)
         else

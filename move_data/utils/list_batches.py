@@ -1,9 +1,7 @@
 import logging
 import os
-import re
 from pathlib import Path
 from omegaconf import DictConfig
-import numpy as np
 from utils.utils import read_keys
 import pandas as pd
 
@@ -18,7 +16,7 @@ class ListBatches:
     def __init__(self, cfg):
         self.cfg = cfg
         self.keypath = cfg.pipeline_keys
-        self.pkeys = self.read_keys()
+        self.pkeys = read_keys(cfg.pipeline_keys)
         self.temp_path = Path(cfg.movedata.find_missing.container_list)
 
         self.pkeys = read_keys(cfg.movedata.SAS_keys)

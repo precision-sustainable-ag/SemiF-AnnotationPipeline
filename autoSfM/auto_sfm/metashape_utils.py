@@ -30,24 +30,6 @@ class SfM:
         self.num_gpus = cfg["asfm"]["num_gpus"] if cfg["asfm"][
             "num_gpus"] != "all" else 2**len(ms.app.enumGPUDevices()) - 1
 
-        # or use all detectable gpus
-        # mask = 2 ** len(ms.app.enumGPUDevices()) - 1 # to enable all the Detected GPU instances
-
-        # self.load_reference()
-
-    # def load_reference(self):
-    #     """Loads the camer and gcp references if present
-    #     """
-    #     if os.path.exists(self.cfg["camera_export_path"]):
-    #         self.camera_reference = pd.read_csv(self.cfg["camera_export_path"])
-    #     else:
-    #         self.camera_reference = None
-
-    #     if os.path.exists(self.cfg["gcp_export_path"]):
-    #         self.gcp_reference = pd.read_csv(self.cfg["gcp_export_path"])
-    #     else:
-    #         self.gcp_reference = None
-
     def load_or_create_project(self, project_path: str) -> ms.Document:
         """Opens a project if it exists or creates and saves a project
 

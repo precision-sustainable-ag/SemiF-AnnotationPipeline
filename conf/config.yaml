@@ -1,12 +1,5 @@
 # Hydra defaults and settings. Ignore these (don't change)
 defaults:
-<<<<<<< HEAD
-  - autosfm: autosfm
-  - maintenance: maintenance
-  - segment: segment
-  - planting: planting
-  - override hydra/job_logging: custom
-=======
   - movedata: movedata
   - asfm: asfm
   - semif: semif
@@ -16,7 +9,6 @@ defaults:
   - segment: segment
   - planting: planting # Planting dates
   - override hydra/job_logging: custom # custom logging 
->>>>>>> major/restructure
   - _self_
 
 hydra:
@@ -59,11 +51,6 @@ data:
   utilsdir: ${data.datadir}/${blob_names.utils}
   # Logs
   logdir: ${general.workdir}/logs
-<<<<<<< HEAD
-  species: ${data.utilsdir}/species_information/species_info.json # All species information
-  species_poly: ${data.utilsdir}/autosfm/weed_locations_2022/weed_locations.shp
-  rename: False
-=======
   # Batch directory
   batchdir: ${data.developeddir}/${general.batch_id} 
   # All species information
@@ -72,7 +59,6 @@ data:
   # Ground control points directory
   gcp_dir: ${data.datadir}/${blob_names.utils}/autosfm/GroundControlPoints
   gcp_ref: None
->>>>>>> major/restructure
 
 pipeline_keys: ${general.workdir}/keys/pipeline_keys.yaml
   
@@ -88,17 +74,7 @@ batchdata:
   batchmeta: ${data.batchdir}/${general.batch_id}.json # created from seg veg
   cutouts: ${data.cutoutdir}/${general.batch_id}
 
-<<<<<<< HEAD
-detect:
-  model_filename: best.pt
-  model_path: ${data.modeldir}/plant_detector/${detect.model_filename}
-  detections_csv: ${data.batchdir}/autosfm
-  save_detection: False
-  # detectioncropdir: ${general.imagedir} # Location to save detection crops
-  device: "cuda:0"
-=======
 logs:
   logdir: ${general.workdir}/.batchlogs
   processed: ${logs.logdir}/processed.txt
   unprocessed: ${logs.logdir}/unprocessed.txt
->>>>>>> major/restructure
