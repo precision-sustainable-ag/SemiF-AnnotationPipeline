@@ -3,7 +3,26 @@
 
 ## Run the pipeline
 
-1. Setup keys
+1. [Setup keys](./keys/README.md)
+
+2. Manually list batches  
+
+    Create a file (`.batchlogs/unprocessed.txt`) and list the batches you want processed. Batches must be in the same "season". For example:
+
+    ```txt
+    MD_2022-06-22
+    MD_2022-06-24
+    NC_2022-06-27
+    TX_2022-06-28
+    ```
+    
+
+    :warning: **Batches from various seasons cannot be processed together.** :
+
+3. Define season in [config.yaml](./conf/config.yaml#L25)  
+
+    Choose which "season" or type of crop to process. 
+
 
 <br>
 
