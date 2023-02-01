@@ -63,12 +63,11 @@ def make_custom_sort(orders):
     return process
 
 
-with open("data/semifield-utils/species_information/species_info_og.json"
-          ) as outfile:
+with open("species_info_og.json") as outfile:
     data = json.load(outfile)
 spec = data["species"]
 for usda_sym in spec.keys():
-    info = spec[usda_sym]["scientific_name"].split(" ")
+    info = spec[usda_sym]["common_name"].split(" ")
     genus, species = info[0], info[1] if len(info) > 1 else info[0]
     spec[usda_sym]["genus"] = genus
     spec[usda_sym]["species"] = species
