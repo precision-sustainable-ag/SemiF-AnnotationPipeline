@@ -1,6 +1,18 @@
 
 # SemiField Annotation Pipeline
 
+## Run the pipeline
+
+1. Setup keys
+
+<br>
+
+-----
+
+<br>
+
+## Confluence Links
+
 This repo contains the code necessary to automatically annotate batches of incoming images from 3 location around the US and was designed specifically for the Semi-field image acquisition protocols developed by the [PSA network](https://www.precisionsustainableag.org/).
 
 Details about the project and repo documentation can be found on the SemiField private Confluence page. Direct links to various sections can be found below.
