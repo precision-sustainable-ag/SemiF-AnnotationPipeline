@@ -5,7 +5,7 @@ from pathlib import Path
 
 from omegaconf import DictConfig
 
-from MoveData.utils.upload_utils import UploadData
+from move_data.utils.upload_utils import UploadData
 
 log = logging.getLogger(__name__)
 

@@ -1,12 +1,15 @@
 import glob
 import logging
 import os
-from math import ceil
+
 from multiprocessing import Pool
 from pathlib import Path
-
+from math import ceil
 import piexif
 from PIL import Image
+from PIL import ImageFile
+
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 log = logging.getLogger(__name__)
 
@@ -81,10 +84,8 @@ def resize_photo_diretory(cfg):
     num_files = len(files)
     pool = Pool()
     data = []
-
+    log.info(f"Processing {num_files} files.")
     for i, src in enumerate(files):
-
-        log.info(f"Processing {i+1}/{num_files} files.")
 
         filename = src.split(os.path.sep)[-1]
         dst = os.path.join(save_dir, filename)

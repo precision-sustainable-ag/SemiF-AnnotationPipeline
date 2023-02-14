@@ -1,5 +1,6 @@
 # Hydra defaults and settings. Ignore these (don't change)
 defaults:
+  - batches: batches
   - movedata: movedata
   - asfm: asfm
   - semif: semif
@@ -14,7 +15,7 @@ defaults:
 hydra:
   run:
     # dir: ./outputs
-    dir: ${logs.logdir}/${job.jobname}/${general.batch_id}
+    dir: ${logs.logdir}/${job.jobname}
     # dir: ${logs.logdir}/${job.jobname}
   output_subdir: 
 
@@ -26,9 +27,17 @@ general:
 #----------------------------------------------------
   metashape_key: ??? # Do not put key in the config since the file is committed to GitHub
   batch_id: ???
-  task: ???
   # Main working directory 
   workdir: ${hydra:runtime.cwd}  # where the code is executed
+
+pipeline:
+  download_data: False
+  autosfm_pipeline: False
+  localize_plants: False
+  remap_labels: False
+  assign_species: True #True
+  segment_vegetation: False #True
+  upload_data: False # True
 
 # Other job/naming options (currently not used)
 job:
@@ -79,3 +88,4 @@ logs:
   logdir: ${general.workdir}/.batchlogs
   processed: ${logs.logdir}/processed.txt
   unprocessed: ${logs.logdir}/unprocessed.txt
+

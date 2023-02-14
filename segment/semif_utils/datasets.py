@@ -425,8 +425,6 @@ class Image:
     batch_id: str
     image_path: str
     image_id: str
-    plant_date: str
-    dap: int
 
     def __post_init__(self):
         image_array = self.array
@@ -450,8 +448,6 @@ class Image:
             "batch_id": self.batch_id,
             "image_id": self.image_id,
             "image_path": self.image_path,
-            "plant_date": self.plant_date,
-            "dap": self.dap,
             "width": self.width,
             "height": self.height,
             "exif_meta": asdict(self.exif_meta),
@@ -551,8 +547,6 @@ class ImageData(Image):
             "batch_id": self.batch_id,
             "image_id": self.image_id,
             "image_path": self.image_path,
-            "plant_date": self.plant_date,
-            "dap": self.dap,
             "width": self.width,
             "height": self.height,
             "exif_meta": asdict(self.exif_meta),
@@ -674,7 +668,8 @@ class CutoutProps:
     blur_effect: float
     num_components: int
     color_distribution: dict
-    descriptive_stats: dict
+    cropout_descriptive_stats: dict
+    cutout_descriptive_stats: dict
 
 
 # For Segmentation -------------------------------------------------------------------------------------
@@ -693,7 +688,6 @@ class Color:
 
 @dataclass
 class SegmentData:
-    dap: str
     species_info: str
     species: str
     bbox: tuple
@@ -706,13 +700,15 @@ class Cutout:
     """Per cutout. Goes to PlantCutouts"""
     blob_home: str
     data_root: str
+    season: str
     batch_id: str
     image_id: str
     cutout_num: int
     datetime: datetime.datetime  # Datetime of original image creation
-    dap: int  #days after planting
     cutout_props: CutoutProps
-    local_contours: List[float] = None
+    # rgb_cropout_mean: List[float]
+    # rgb_cutout_mean: List[float]
+    # local_contours: List[float] = None
     cutout_id: str = None
     cutout_path: str = None
     cls: str = None
@@ -741,20 +737,23 @@ class Cutout:
         _config = {
             "blob_home": self.blob_home,
             "data_root": self.data_root,
+            "season": self.season,
             "batch_id": self.batch_id,
             "image_id": self.image_id,
             "cutout_id": self.cutout_id,
             "cutout_path": self.cutout_path,
-            "dap": self.dap,
             "cls": self.cls,
             "cutout_num": self.cutout_num,
             "is_primary": self.is_primary,
             "datetime": self.datetime,
             "cutout_props": self.cutout_props,
+            # "rgb_cropout_mean": self.rgb_cropout_mean,
+            # "rgb_cutout_mean": self.rgb_cutout_mean,
             "extends_border": self.extends_border,
             "cutout_version": self.cutout_version,
-            "schema_version": self.schema_version,
-            "local_contours": self.local_contours
+            "schema_version": self.schema_version
+
+            # "local_contours": self.local_contours
         }
 
         return _config

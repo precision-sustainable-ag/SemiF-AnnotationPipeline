@@ -32,6 +32,7 @@ from skimage.measure import label
 from skimage.morphology import disk
 from skimage.segmentation import watershed
 from sklearn.cluster import KMeans
+from tqdm import tqdm
 
 log = logging.getLogger(__name__)
 
@@ -46,13 +47,16 @@ def read_json(path):
         data = json.load(json_file)
     return data
 
+
 def save_json(path, data):
     with open(path, "w") as f:
         json.dump(data, f, indent=4, default=str)
-        
+
+
 ######################################################
 ################## GET METADATA ######################
 ######################################################
+
 
 def create_dataclasses(metadir, cfg):
     labels = sorted([str(x) for x in (metadir).glob("*.json")])
@@ -64,6 +68,7 @@ def create_dataclasses(metadir, cfg):
             return_list.append(x)
     log.info(f"Converted metadata to {len(return_list)} dataclasses")
     return return_list
+
 
 def get_bbox_info(csv_path):
 
@@ -144,34 +149,74 @@ def get_cutout_meta(path):
     return cutout
 
 
-def cutoutmeta2csv(cutoutdir, batch_id, save_df=False):
+def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
     # Get all json files
     metas = [x for x in Path(cutoutdir, batch_id).glob("*.json")]
     cutouts = []
-    for meta in metas:
+    for meta in tqdm(metas):
         # Get dictionaries
         cutout = asdict(get_cutout_meta(meta))
         row = cutout["cutout_props"]
         cls = cutout["cls"]
+
+        # Color distribution data
+        cd = cutout["cutout_props"]["color_distribution"]
+        nd = dict()
+        for idx, c in enumerate(cd):
+            nd["hex_" + str(idx)] = c["hex"]
+            nd["rgb_" + str(idx)] = c["rgb"]
+            nd["occurences_" + str(idx)] = int(c["occurence"])
+        # exit(1)
+        cutout.update(nd)
+
+        # Descriptive stats
+        ds = cutout["cutout_props"]["descriptive_stats"]
+        nd = dict()
+        for d in ds:
+            chan_suff = d.split("_")[-1]
+            for chan in ds[d]:
+
+                nd[chan_suff + "_" + chan] = ds[d][chan]
+        cutout.update(nd)
+
         # Extend nested dicts to single column header
         for ro in row:
             rec = {ro: row[ro]}
             cutout.update(rec)
             for cl in cls:
                 spec = {cl: cls[cl]}
+                if cl == "rgb":
+                    r = {"r": str(spec["rgb"][0])}
+                    g = {"g": str(spec["rgb"][1])}
+                    b = {"b": str(spec["rgb"][2])}
+                    cutout.update(r)
+                    cutout.update(g)
+                    cutout.update(b)
                 cutout.update(spec)
         # Remove duplicate nested dicts
         cutout.pop("cutout_props")
         cutout.pop("cls")
+        cutout.pop("rgb")
+        cutout.pop("local_contours")
+        cutout.pop("descriptive_stats")
+        cutout.pop("color_distribution")
         # Create and append df
-        cutdf = pd.DataFrame(cutout)
+        cutdf = pd.DataFrame(cutout, index=[0])
         cutouts.append(cutdf)
     # Concat and reset index of main df
     cutouts_df = pd.concat(cutouts)
     cutouts_df = cutouts_df.reset_index()
-    # Save dataframe
+    cutouts_df.drop(columns="index", inplace=True)
+    cutouts_df.sort_values(by=['image_id', 'cutout_num'],
+                           axis=0,
+                           ascending=[True, True],
+                           inplace=True,
+                           kind='quicksort',
+                           na_position='first',
+                           ignore_index=True,
+                           key=None)
     if save_df:
-        cutouts_df.to_csv(f"{cutoutdir}/{batch_id}.csv", index=False)
+        cutouts_df.to_csv(csv_savepath, index=False)
     return cutouts_df
 
 
@@ -636,12 +681,14 @@ def img2RGBA(img):
 
 
 class Point(object):
+
     def __init__(self, x, y):
         self.x = x
         self.y = y
 
 
 class Rect(object):
+
     def __init__(self, p1, p2):
         """Store the top, bottom, left and right values for points
         p1 and p2 are the (corners) in either order

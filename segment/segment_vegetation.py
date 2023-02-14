@@ -14,9 +14,8 @@ from semif_utils.datasets import BatchMetadata, Cutout, SegmentData
 from semif_utils.segment_species import Segment
 from semif_utils.segment_utils import (GenCutoutProps, generate_new_color,
                                        prep_bbox)
-from semif_utils.utils import (apply_mask, create_dataclasses,
+from semif_utils.utils import (apply_mask, create_dataclasses, cutoutmeta2csv,
                                get_upload_datetime, reduce_holes, save_json)
-from synth_utils.config_utils import cutoutmeta2csv
 from tqdm import tqdm
 
 log = logging.getLogger(__name__)
@@ -29,6 +28,7 @@ class SegmentVegetation:
         self.data_name = Path(cfg.data.datadir).name
         self.cutout_dir = Path(cfg.data.cutoutdir)
         self.batchdir = Path(cfg.data.batchdir)
+        self.season = cfg.general.season
         self.batch_id = self.batchdir.name
         self.species_path = cfg.data.species
         self.metadata = cfg.batchdata.metadata
@@ -101,29 +101,26 @@ class SegmentVegetation:
             # Scale the box that will be used for the cutout
             spec_cls = box.cls
             cm_name = spec_cls["common_name"]
-            if cm_name == "colorchecker":
-                print(imgdata.image_id)
 
             scale = [imgdata.fullres_width, imgdata.fullres_height]
             box, x1, y1, x2, y2 = prep_bbox(box, scale)
 
             rgb_crop = rgb_array[y1:y2, x1:x2]
-            if not rgb_crop.size > 0:
+
+            if rgb_crop.size <= 0:
+                print(y1, y2, x1, x2)
+                log.warning("rgb crop size <= 0.")
                 continue
+
             data = SegmentData(species=spec_cls,
                                species_info=self.species_path,
-                               dap=imgdata.dap,
                                bbox=(x1, y1, x2, y2),
                                bbox_size_th=self.bbox_th)
 
             seg = Segment(rgb_crop, data)
             boxarea = seg.get_bboxarea()
 
-            # if boxarea < self.coty_th and "coty" not in seg.growth_stage:
-            # log.info("Very small detection result. Ignoring.")
-            # very_small = 1
-
-            if boxarea < self.bbox_th and seg.dap < 10:
+            if boxarea < self.bbox_th and boxarea < 25000:
                 log.info("Processing cotyldon.")
                 seg.mask = seg.cotlydon()
 
@@ -132,11 +129,14 @@ class SegmentVegetation:
                 seg.mask = seg.general_seg(mode="cluster")
 
             if seg.is_mask_empty() and cm_name != "colorchecker":
+                log.warning(
+                    "Mask is empty and it's not a color checker. Ignoring cutout"
+                )
                 continue
 
-            seg.props = GenCutoutProps(rgb_crop, seg.mask).to_dataclass()
+            # seg.props = GenCutoutProps(rgb_crop, seg.mask).to_dataclass()
 
-            if seg.rounds == 2:
+            if boxarea < 200000 == 2:
                 # log.info("Round 2")
                 seg = Segment(apply_mask(rgb_crop, seg.mask, "black"), data)
                 # General segmentation
@@ -161,16 +161,16 @@ class SegmentVegetation:
 
             elif boxarea > 200000:  # Large
                 median_kernel = 11
+
             # Smooth mask edges
             seg.mask = cv2.medianBlur(seg.mask.astype(np.uint8), median_kernel)
+
             if seg.is_mask_empty() and cm_name != "colorchecker":
+                log.warning(
+                    "Mask is empty and it's not a color checker (2). Ignoring cutout."
+                )
                 continue
             seg.mask = np.where(seg.mask != 0, 1, 0)
-            # Get morphological properties
-            seg.props = GenCutoutProps(rgb_crop, seg.mask).to_dataclass()
-
-            if seg.props.green_sum < 5 and cm_name != "colorchecker":
-                continue
 
             # Create semantic mask
             seg.mask = np.where(seg.mask != 0, 255, 0)
@@ -182,26 +182,43 @@ class SegmentVegetation:
                                 x1:x2][seg.mask == 255] = box.instance_id
 
             cutout_array = apply_mask(rgb_crop, seg.mask, "black")
+
+            # Get morphological properties
+            seg.props = GenCutoutProps(rgb_crop, seg.mask).to_dataclass()
+
+            # Skip saving non-green cutouts unless its a colorchecker result
+            if seg.props.green_sum < 5 and cm_name != "colorchecker":
+                log.warning(
+                    "Cutout is not green and it's not a color checker. Ignoring cutout."
+                )
+                continue
+            # calculate mean of cutout and rgb_crops
+            # rgb_cropout_mean = calc_ch_means(rgb_crop)
+            # rgb_cutout_mean = calc_ch_means(cutout_array, cutout=True)
+
             # cropped_mask2 = crop_cutouts(seg.mask)
-            cutout_contours = mask_to_polygons(seg.mask,
-                                               epsilon=10.,
-                                               min_area=10)
+            # cutout_contours = mask_to_polygons(seg.mask,
+            #                                    epsilon=10.,
+            #                                    min_area=10)
 
             # cropped_cutout2 = crop_cutouts(cutout_array)
 
             # Create dataclass
-            cutout = Cutout(blob_home=self.data_name,
-                            data_root=self.cutout_dir.name,
-                            batch_id=self.batch_id,
-                            image_id=imgdata.image_id,
-                            cutout_num=cutout_num,
-                            datetime=imgdata.exif_meta.DateTime,
-                            dap=seg.dap,
-                            cutout_props=asdict(seg.props),
-                            local_contours=cutout_contours,
-                            is_primary=box.is_primary,
-                            cls=seg.species,
-                            extends_border=seg.get_extends_borders())
+            cutout = Cutout(
+                blob_home=self.data_name,
+                data_root=self.cutout_dir.name,
+                season=self.season,
+                batch_id=self.batch_id,
+                image_id=imgdata.image_id,
+                cutout_num=cutout_num,
+                datetime=imgdata.exif_meta.DateTime,
+                cutout_props=asdict(seg.props),
+                # rgb_cropout_mean=rgb_cropout_mean,
+                # rgb_cutout_mean=rgb_cutout_mean,
+                # local_contours=cutout_contours,
+                is_primary=box.is_primary,
+                cls=seg.species,
+                extends_border=seg.get_extends_borders())
 
             # if very_small == 1:
             # cutout.save_verysmall_cropout(rgb_crop, boxarea)

@@ -12,7 +12,6 @@ from skimage.segmentation import watershed
 class Segment:
 
     def __init__(self, img, data) -> None:
-        self.dap = data.dap
         self.species = data.species
         self.bbox_size_th = data.bbox_size_th
         self.img = img
@@ -23,8 +22,6 @@ class Segment:
         self.extends_border = None
         self.rgb, self.hex = self.species['rgb'], self.species['hex']
         self.class_id = self.species['class_id']
-
-        self.rounds = self.set_rounds()
 
     def remove_blue(self, mask, thresh=20000):
         """Returns True if "green" False if not"""
@@ -131,12 +128,6 @@ class Segment:
 
     def grass_vegetative(self):
         pass
-
-    def set_rounds(self):
-        if self.dap < 10:
-            self.rounds = 1
-        else:
-            self.rounds = 2
 
     def get_extends_borders(self):
         self.extends_border = False if np.array_equal(

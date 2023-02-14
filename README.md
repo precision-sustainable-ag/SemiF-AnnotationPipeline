@@ -5,9 +5,13 @@
 
 1. [Setup keys](./keys/README.md)
 
-2. Manually list batches  
+<br>
 
-    Create a file (`.batchlogs/unprocessed.txt`) and list the batches you want processed. Batches must be in the same "season". For example:
+2. Manually list batches
+
+    Create a file (`.batchlogs/unprocessed.txt`) and list the batches you want processed. Batches must be in the same "season". List the batches with one batch per line, for example:
+
+    **_NOTE:_**  The listed batches must be in the `semifield-developed-images` blob storage container.
 
     ```txt
     MD_2022-06-22
@@ -15,13 +19,56 @@
     NC_2022-06-27
     TX_2022-06-28
     ```
+
+    :warning: **Batches from different seasons cannot be processed together.** 
+
+    **_NOTE:_**  If only listing one batch, it must be followed by an empty line.
+
+<br>
+
+3. Define season in [config.yaml](./conf/config.yaml#L25)
+
+    Choose which "season" or type of crop to process. The season must correctly correspond with the listed batches in `.batchlogs/unprocessed.txt`. All batches must be of a single season.
+
+    The [`general.season`](./conf/config.yaml#L25) must be written exactly as one of currently available seasons, defined below:
+
+    1. `summer_weeds_2022`
+    2. `cool_season_covers_2022_2023`
+ 
+ <br>
+
+4. Other config settings
     
+| process | setting | description | default
+| :---: | :---: | :---: | :---: |
+AutoSfM | [downscale.factor](./conf/asfm/asfm.yaml#L38) | Input image downscaling factor (0-1) | 0.5
+AutoSfM | [align_photos.downscale](./conf/asfm/asfm.yaml#L41) |  Image alignment accuracy, lower is better | 1
+AutoSfM | [depth_map.downscale](./conf/asfm/asfm.yaml#L46) |  Depth map quality, lower is better | 4
 
-    :warning: **Batches from various seasons cannot be processed together.** :
+<br>
 
-3. Define season in [config.yaml](./conf/config.yaml#L25)  
+5. Run the pipeline
 
-    Choose which "season" or type of crop to process. 
+    ```shell
+    ./execute.sh
+    ```
+<br>
+
+6. Monitor Logs in `.batchlogs`
+
+<br>
+
+-----
+
+<br>
+
+# Release Notes:
+
+## Cool season cover crops 2022/23
+
+1. Removed `dap` (days after planting) metadata information in `image` and `cutout` metadata
+2. added `season` metadata field in `cutouts`
+3. added `cropout_mean`, `cutout_mean`, `cropout_std`, and `cropout_std` metadata for individual cutout images
 
 
 <br>
