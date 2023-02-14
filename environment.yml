@@ -1,15 +1,13 @@
-name: semiff
+name: semif
 channels:
   - pytorch
   - conda-forge
-  - conda-forge/label/dev
 dependencies:
   - python=3.9
   - pip
   - cudatoolkit==11.3.1
   - pytorch::pytorch
   - pytorch::torchvision
-  - conda-forge::geopandas
   - pip:
     - colormap==1.0.4
     - dacite==1.8.0
@@ -17,6 +15,7 @@ dependencies:
     - exifread==3.0.0
     - extcolors==1.0.0
     - Fiona==1.9.0
+    - geopandas==0.12.1
     - hydra-core==1.2
     - matplotlib==3.6.2
     - omegaconf==2.3
