@@ -7,7 +7,8 @@ import fiona
 import geopandas
 import matplotlib.path as mplPath
 import numpy as np
-from dacite import Config, from_dict
+from dacite.config import Config
+from dacite.core import from_dict
 from omegaconf import DictConfig
 from semif_utils.datasets import ImageData
 from semif_utils.segment_utils import load_speciesinfo

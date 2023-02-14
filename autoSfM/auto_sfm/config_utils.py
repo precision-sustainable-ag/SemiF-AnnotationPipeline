@@ -25,12 +25,17 @@ def config_gcp_path(cfg):
     batch_id = cfg["general"]["batch_id"]
     gcp_dir = cfg["data"]["gcp_dir"]
     state_id = batch_id.split("_")[0]
+    gcp_reference_path = None
     if state_id == "NC":
         gcp_reference_path = os.path.join(
             gcp_dir, f"GroundControlPoints_NC_2022-07-14_elongated.csv")
     elif state_id == "MD":
         gcp_reference_path = os.path.join(
             gcp_dir, f"GroundControlPoints_MD_2022-06-21_elongated.csv")
+    elif state_id == "TX":
+        gcp_reference_path = os.path.join(
+            gcp_dir, f"GroundControlPoints_TX_2022-12-21_elongated.csv")
+
     cfg["data"]["gcp_ref"] = gcp_reference_path
     return cfg
 

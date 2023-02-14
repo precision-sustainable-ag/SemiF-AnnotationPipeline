@@ -14,6 +14,7 @@ class DownloadData:
         self.cfg = cfg
         self.download_script = cfg.movedata.download_data.download_sh
         self.container_list = Path(cfg.movedata.find_missing.container_list)
+        print(self.container_list)
         self.developed = cfg.data.developeddir
         self.batch = cfg.general.batch_id
         self.batchdir = cfg.data.batchdir

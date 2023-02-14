@@ -114,30 +114,89 @@ class GenCutoutProps:
                                     return_num=True)
         return num
 
-    def descriptive_stats(self):
-        """ Ignores 0 mask values to calculate descriptive statistics of the cutout array"""
-        image_copy = self.cutout.copy()
-        # Mask out zero values for descriptive stats
-        black_pixels_mask = np.all(self.cutout == [0, 0, 0], axis=-1)
-        non_black_pixels_mask = ~black_pixels_mask
-        image_copy[black_pixels_mask] = [1, 1, 1]
-        image_copy[non_black_pixels_mask] = [0, 0, 0]
-        maimg = ma.array(self.cutout, mask=image_copy)
+    def calc_ch_means(self):
+        """Calculates the mean of each channel passed as 
 
-        # Get descriptive stats for each channel
-        channels = ["r", "g", "b"]
+
+            Args:
+                img (np.array): rgb input image
+
+            Returns:
+                list: list of means
+            """
+        r, g, b = cv2.split(self.img)
+
+        r_mean = np.mean(r, dtype=np.float32)
+        g_mean = np.mean(g, dtype=np.float32)
+        b_mean = np.mean(b, dtype=np.float32)
+
+        return [r_mean, g_mean, b_mean]
+
+    def calc_ch_stds(self):
+        """calculates standard deviation of each channel of the
+        croptout array, not cutout.
+
+        Returns:
+            list: list of std for r,g,b in that order
+        """
+        r, g, b = cv2.split(self.img)
+
+        r_std = np.std(r, dtype=np.float32)
+        g_std = np.std(g, dtype=np.float32)
+        b_std = np.std(b, dtype=np.float32)
+
+        return [r_std, g_std, b_std]
+
+    def descriptive_stats(self, rgb_img, ignore_zeros=False):
+
+        rgb_img = rgb_img.astype(np.float64)
+
+        if ignore_zeros:
+            #     # Mask out zero values for descriptive stats
+            rgb_img[rgb_img == [0, 0, 0]] = np.nan
+
+        rgb_channels = cv2.split(rgb_img)
+        str_channels = ["r", "g", "b"]
         desc_stats = dict()
-        for idx, c in enumerate(channels):
-            scipy_desc = stats.describe(maimg[..., idx].flatten())
-            rec_key = f"channel_{c}"
-            rec = pd.DataFrame(maimg[..., idx].flatten(),
-                               columns=[rec_key]).describe().to_dict()
-            rec[rec_key]["variance"] = scipy_desc.variance
-            rec[rec_key]["skewness"] = scipy_desc.skewness
-            rec[rec_key]["kurtosis"] = scipy_desc.kurtosis
-            desc_stats.update(rec)
+        for img_c, str_c in zip(rgb_channels, str_channels):
+            rec_key = f"channel_{str_c}"
+            # dataframe describe automatically ignores nans
+            c_df = pd.DataFrame(img_c.flatten(), columns=[rec_key]).describe()
+            # scipy describe stats ignore nans
+            c_scipy_desc = stats.describe(img_c.flatten(), nan_policy='omit')
+            c_df.loc["variance"] = c_scipy_desc.variance
+            c_df.loc["skewness"] = c_scipy_desc.skewness
+            c_df.loc["kurtosis"] = c_scipy_desc.kurtosis
+            desc_stats.update(c_df.to_dict())
 
         return desc_stats
+
+    # def descriptive_stats(self, img, ignore_zeros=False):
+    #     """ Ignores 0 mask values to calculate descriptive statistics of the cutout array"""
+
+    #     image_copy = img.copy()
+    #     if ignore_zeros:
+    #         # Mask out zero values for descriptive stats
+    #         black_pixels_mask = np.all(self.cutout == [0, 0, 0], axis=-1)
+    #         non_black_pixels_mask = ~black_pixels_mask
+    #         image_copy[black_pixels_mask] = [1, 1, 1]
+    #         image_copy[non_black_pixels_mask] = [0, 0, 0]
+    #         maimg = ma.array(self.cutout, mask=image_copy)
+
+    #     # Get descriptive stats for each channel
+    #     channels = ["r", "g", "b"]
+    #     desc_stats = dict()
+    #     for idx, c in enumerate(channels):
+    #         scipy_desc = stats.describe(maimg[..., idx].flatten())
+    #         rec_key = f"channel_{c}"
+    #         rec = pd.DataFrame(maimg[..., idx].flatten(),
+    #                            columns=[rec_key]).describe().to_dict()
+    #         rec[rec_key]["variance"] = scipy_desc.variance
+    #         rec[rec_key]["skewness"] = scipy_desc.skewness
+    #         rec[rec_key]["kurtosis"] = scipy_desc.kurtosis
+    #         desc_stats.update(rec)
+
+    # return desc_stats
 
     def color_distribution(self, ignore_black=True):
         """ Ignores black (0) values and looks at the occurence of the top 12 most common RGB values."""
@@ -166,7 +225,9 @@ class GenCutoutProps:
         nprops["num_components"] = self.num_connected_components()
         nprops["color_distribution"] = self.color_distribution(
             ignore_black=True)
-        nprops["descriptive_stats"] = self.descriptive_stats()
+        nprops["cropout_descriptive_stats"] = self.descriptive_stats(self.img)
+        nprops["cutout_descriptive_stats"] = self.descriptive_stats(
+            self.cutout, ignore_zeros=True)
 
         return nprops
 

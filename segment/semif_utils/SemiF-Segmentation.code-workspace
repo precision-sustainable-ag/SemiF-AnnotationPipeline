@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "../../../../mkutuga/SemiF-Segmentation"
+		},
+		{
+			"path": "../.."
+		}
+	],
+	"settings": {
+		"python.formatting.provider": "yapf"
+	}
+}

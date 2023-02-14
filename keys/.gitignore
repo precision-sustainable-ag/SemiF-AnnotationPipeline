@@ -3,3 +3,6 @@
 
 # Except this
 !.gitignore
+
+# and readme
+!README.md

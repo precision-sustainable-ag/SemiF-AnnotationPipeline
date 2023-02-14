@@ -26,7 +26,7 @@ class RemapLabels:
         self.raw_label = self.autosfmdir / "detections.csv"
         self.downscaled = cfg.asfm.downscale.enabled
         self.state_id = self.batch_id.split("_")[0]
-        self.plant_dates = getattr(cfg.planting, self.state_id).plant_dates
+
         if self.downscaled:
             self.image_dir = self.autosfmdir / "downscaled_photos"
         else:
@@ -54,7 +54,6 @@ class RemapLabels:
             self.developed_dir,
             self.batch_dir,
             self.image_dir,
-            self.plant_dates,
             self.camera_reference,
             reader,
             True,
@@ -63,7 +62,7 @@ class RemapLabels:
         log.info("Fetching image metadata.")
         imgs = box_connector.images
         # Map the bounding boxes from local coordinates to global coordinate system
-        log.info("Staring mapping.")
+        log.info("Starting mapping.")
         metashape_project_path = Path(self.batch_dir, "autosfm", "project",
                                       f"{self.batch_id}.psx")
         mapper = BBoxMapper(metashape_project_path, imgs)
@@ -88,7 +87,6 @@ class RemapLabels:
         log.info("Saving bounding box metadata.")
         # Save the config
         for img in imgs:
-
             Path(self.metadata).mkdir(parents=True, exist_ok=True)
             img.image_path = Path("images", Path(img.image_path).name)
             img.save_config(self.metadata)
@@ -98,9 +96,7 @@ class RemapLabels:
 
 def main(cfg: DictConfig) -> None:
     start = time.time()
-
     rmpl = RemapLabels(cfg)
     imgs = rmpl.remap_labels()
-
     end = time.time()
     log.info(f"Remap completed in {end - start} seconds.")
