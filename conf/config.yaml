@@ -21,7 +21,8 @@ hydra:
 # Required config. Only change these.
 #----------------------------------------------------
 general:
-  season: summer_weeds_2022
+  # season: summer_weeds_2022
+  season: cool_season_covers_2022_2023
 #----------------------------------------------------
   metashape_key: ??? # Do not put key in the config since the file is committed to GitHub
   batch_id: ???

@@ -1,6 +1,6 @@
 # Hydra outputs
 **outputs
-
+developed
 # Example results
 examples
 
@@ -19,7 +19,6 @@ examples
 
 # Jupyter Notebook
 **.ipynb_checkpoints
-**ipynb
 
 # Hydra
 *.hydra
