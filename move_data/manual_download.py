@@ -1,7 +1,8 @@
+import random
+from pathlib import Path
+
 import cv2
 import numpy as np
-from pathlib import Path
-import random
 
 
 class Test:
@@ -71,20 +72,38 @@ path = "/home/psa_images/SemiF-AnnotationPipeline/.batchlogs/container_list.txt"
 with open(path, 'r') as f:
     lines = [line.rstrip() for line in f]
 
-    images = [line for line in lines if "images" in line]
-    images = [image for image in images if "prediction" not in image]
-    images = [image for image in images if "_tmp" not in image]
-    metamasks = [line for line in lines if "meta_masks" in line]
-    metadata = [line for line in lines if "metadata" in line]
-    jsons = [line for line in lines if ".json" in line]
-    logs = [line for line in lines if "logs" in line]
-    # download = [[
-    #     img, mm, metad, json, log
-    # ] for img, mm, metad, json, log in zip(sorted(images), sorted(
-    #     metamasks), sorted(metadata), sorted(jsons), sorted(logs))]
+    images = sorted([line for line in lines if "images" in line])
+    images = sorted([image for image in images if "prediction" not in image])
+    images = sorted([image for image in images if "_tmp" not in image])
+    metamasks = sorted([line for line in lines if "meta_masks" in line])
+    metadata = sorted([line for line in lines if "metadata" in line])
+    jsons = sorted([line for line in lines if ".json" in line])
+    logs = sorted([line for line in lines if "logs" in line])
 
 dwnlad = images + metamasks + metadata + jsons + logs
+
+batches = set()
+for item in dwnlad:
+    batch = item.split("/")[0]
+    batches.add(batch)
+
+batches_2_download = []
+for batch in batches:
+    images = batch + "/images"
+    meta_masks = batch + "/meta_masks"
+    metadata = batch + "/metadata"
+    logs = batch + "/logs"
+    jsons = batch + "/" + batch + ".json"
+    necessary_data = [images, meta_masks, metadata, logs, jsons]
+    if set(necessary_data).issubset(dwnlad):
+        batches_2_download.append(images)
+        batches_2_download.append(meta_masks)
+        batches_2_download.append(metadata)
+        batches_2_download.append(logs)
+        batches_2_download.append(jsons)
+
+batches_2_download = [x for x in batches_2_download if "MD" not in x]
 save_path = "/home/psa_images/SemiF-AnnotationPipeline/.batchlogs/batch_download.txt"
 with open(save_path, 'w') as f:
-    for item in dwnlad:
+    for item in sorted(batches_2_download):
         f.write(f"{item}\n")

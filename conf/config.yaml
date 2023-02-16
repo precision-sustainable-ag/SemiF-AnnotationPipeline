@@ -34,9 +34,9 @@ pipeline:
   download_data: False
   autosfm_pipeline: False
   localize_plants: False
-  remap_labels: False
-  assign_species: True #True
-  segment_vegetation: False #True
+  remap_labels: True 
+  assign_species: True
+  segment_vegetation: True #True
   upload_data: False # True
 
 # Other job/naming options (currently not used)

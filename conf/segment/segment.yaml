@@ -1,2 +1,2 @@
-multiprocess: False
+multiprocess: True
 cpus_left: 5  
