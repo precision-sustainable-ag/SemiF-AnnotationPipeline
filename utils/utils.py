@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import cv2
+import numpy as np
 import pandas as pd
 import yaml
 
@@ -51,3 +53,18 @@ def cutout_csvs2df(cutout_dir):
         if len(csv) > 0:
             csvs.append(csv[0])
     df = pd.concat([pd.read_csv(x, low_memory=False) for x in csvs])
+
+
+def trans_cutout(img):
+    """ Get transparent cutout from cutout image with black background. Requires RGB image"""
+
+    # img = cv2.cvtColor(cv2.imread(imgpath), cv2.COLOR_BGR2RGB)
+    # threshold on black to make a mask
+    color = (0, 0, 0)
+    mask = np.where((img == color).all(axis=2), 0, 255).astype(np.uint8)
+
+    # put mask into alpha channel
+    result = img.copy()
+    result = cv2.cvtColor(result, cv2.COLOR_BGR2BGRA)
+    result[:, :, 3] = mask
+    return result

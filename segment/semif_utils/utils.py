@@ -7,7 +7,7 @@ import platform
 import random
 from dataclasses import asdict, replace
 from datetime import datetime
-from multiprocessing import Manager, Pool, Process, cpu_count
+from multiprocessing import Pool, cpu_count
 from pathlib import Path
 
 import cv2
@@ -169,8 +169,18 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         # exit(1)
         cutout.update(nd)
 
-        # Descriptive stats
-        ds = cutout["cutout_props"]["descriptive_stats"]
+        # croput Descriptive stats
+        ds = cutout["cutout_props"]["cropout_descriptive_stats"]
+        nd = dict()
+        for d in ds:
+            chan_suff = d.split("_")[-1]
+            for chan in ds[d]:
+
+                nd[chan_suff + "_" + chan] = ds[d][chan]
+        cutout.update(nd)
+
+        # croput Descriptive stats
+        ds = cutout["cutout_props"]["cutout_descriptive_stats"]
         nd = dict()
         for d in ds:
             chan_suff = d.split("_")[-1]
@@ -197,8 +207,9 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         cutout.pop("cutout_props")
         cutout.pop("cls")
         cutout.pop("rgb")
-        cutout.pop("local_contours")
-        cutout.pop("descriptive_stats")
+        # cutout.pop("local_contours")
+        cutout.pop("cropout_descriptive_stats")
+        cutout.pop("cutout_descriptive_stats")
         cutout.pop("color_distribution")
         # Create and append df
         cutdf = pd.DataFrame(cutout, index=[0])
