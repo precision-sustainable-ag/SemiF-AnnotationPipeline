@@ -8,9 +8,9 @@ miss_azure_log: ${logs.logdir}/missing_azure_data.txt
 SAS_keys: ${general.workdir}/keys/pipeline_keys.yaml
 
 find_missing:
-  read_keys: False
-  az_list: False
-  organize_temp: False
+  read_keys: True
+  az_list: True
+  organize_temp: True
   find_missing: True
   write_missing: True
 

@@ -24,14 +24,14 @@ def run_PIPELINE(cfg: DictConfig) -> None:
     # whoami = getpass.getuser()
     # read batch from file
     # batches = cfg.batches
-
+        
     tasks = [k for k, v in cfg.pipeline.items() if v]
     for tsk in tasks:
         # log.info(f"Starting {cfg.general.get(tsk)} as {whoami}")
         try:
             task = get_method(f"{tsk}.main")
             task(cfg)
-            # Write batch to yaml
+            # Switch find_unprocessed to false so it only runs once
 
         except Exception as e:
             log.exception("Failed")

@@ -1,24 +1,16 @@
 import logging
-import time
 
+import hydra
 from omegaconf import DictConfig
 
+# sys.path.append("move_data")
 from move_data.utils.list_batches import ListBatches
 
 log = logging.getLogger(__name__)
 
-
+@hydra.main(version_base="1.2", config_path="conf", config_name="config")
 def main(cfg: DictConfig) -> None:
     lb = ListBatches(cfg)
-
-    if cfg.movedata.find_missing.read_keys:
-        # Read download key
-        try:
-            log.info("Reading SAS tokens.")
-            lb.read_keys()
-        except Exception as e:
-            log.exception(f"Failed to read SAS tokens. Exiting.")
-            exit(1)
 
     if cfg.movedata.find_missing.az_list:
         # List blob container contents
@@ -57,3 +49,6 @@ def main(cfg: DictConfig) -> None:
         except Exception as e:
             log.exception(f"Failed to write missing items. Exiting.")
             exit(1)
+
+if __name__ == "__main__":
+    main()

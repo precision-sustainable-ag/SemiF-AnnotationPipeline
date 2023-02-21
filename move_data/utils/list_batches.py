@@ -1,9 +1,12 @@
 import logging
 import os
 from pathlib import Path
-from omegaconf import DictConfig
-from utils.utils import read_keys
+
+import numpy as np
 import pandas as pd
+from omegaconf import DictConfig
+
+from utils.utils import read_keys
 
 log = logging.getLogger(__name__)
 
@@ -14,8 +17,6 @@ class ListBatches:
     """
 
     def __init__(self, cfg):
-        self.cfg = cfg
-        self.keypath = cfg.pipeline_keys
         self.pkeys = read_keys(cfg.pipeline_keys)
         self.temp_path = Path(cfg.movedata.find_missing.container_list)
 
@@ -56,6 +57,7 @@ class ListBatches:
 
     def read_temp_results(self):
         """Reads temporary file created using 'azcopy list'"""
+        
         with open(self.temp_path, 'r') as f:
             lines = [line.rstrip() for line in f]
         return lines
@@ -74,6 +76,7 @@ class ListBatches:
         exp_df.columns = ["batch", "child"]
         concat_df = pd.concat([res, exp_df], axis=1)
         df = concat_df[["batch", "child"]]
+        df = df.dropna()
         return df
 
     def find_missing(self):

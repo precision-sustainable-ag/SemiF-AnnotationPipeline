@@ -68,42 +68,63 @@ import random
 #     for imgn in rand_imgs:
 #         f.write(f"{imgn}\n")
 
-path = "/home/psa_images/SemiF-AnnotationPipeline/.batchlogs/container_list.txt"
-with open(path, 'r') as f:
-    lines = [line.rstrip() for line in f]
+def check_for_preprocessed_batches():
+    pass
 
-    images = sorted([line for line in lines if "images" in line])
-    images = sorted([image for image in images if "prediction" not in image])
-    images = sorted([image for image in images if "_tmp" not in image])
-    metamasks = sorted([line for line in lines if "meta_masks" in line])
-    metadata = sorted([line for line in lines if "metadata" in line])
-    jsons = sorted([line for line in lines if ".json" in line])
-    logs = sorted([line for line in lines if "logs" in line])
+def check_processed_batches():
+    path = "/home/psa_images/SemiF-AnnotationPipeline/.batchlogs/container_list.txt"
+    with open(path, 'r') as f:
+        lines = [line.rstrip() for line in f]
 
-dwnlad = images + metamasks + metadata + jsons + logs
+        images = sorted([line for line in lines if "images" in line])
+        images = sorted([image for image in images if "prediction" not in image])
+        images = sorted([image for image in images if "_tmp" not in image])
+        metamasks = sorted([line for line in lines if "meta_masks" in line])
+        metadata = sorted([line for line in lines if "metadata" in line])
+        jsons = sorted([line for line in lines if ".json" in line])
+        logs = sorted([line for line in lines if "logs" in line])
+        autosfm = sorted([line for line in lines if "autosfm" in line])
 
-batches = set()
-for item in dwnlad:
-    batch = item.split("/")[0]
-    batches.add(batch)
+    dwnlad = images + metamasks + metadata + jsons + logs + autosfm
 
-batches_2_download = []
-for batch in batches:
-    images = batch + "/images"
-    meta_masks = batch + "/meta_masks"
-    metadata = batch + "/metadata"
-    logs = batch + "/logs"
-    jsons = batch + "/" + batch + ".json"
-    necessary_data = [images, meta_masks, metadata, logs, jsons]
-    if set(necessary_data).issubset(dwnlad):
-        batches_2_download.append(images)
-        batches_2_download.append(meta_masks)
-        batches_2_download.append(metadata)
-        batches_2_download.append(logs)
-        batches_2_download.append(jsons)
+    batches = set()
+    for item in dwnlad:
+        batch = item.split("/")[0]
+        batches.add(batch)
 
-batches_2_download = [x for x in batches_2_download if "MD" not in x]
-save_path = "/home/psa_images/SemiF-AnnotationPipeline/.batchlogs/batch_download.txt"
-with open(save_path, 'w') as f:
-    for item in sorted(batches_2_download):
-        f.write(f"{item}\n")
+    batches_2_download = []
+    for batch in batches:
+        # Necessary directories
+        images = f"{batch}/images"
+        meta_masks = f"{batch}/meta_masks"
+        metadata = f"{batch}/metadata"
+        logs = f"{batch}/logs"
+        jsons = f"{batch}/{batch}.json"
+        autosfm_dir = f"{batch}/autosfm"
+
+        # Autosfm reference data
+        autosfm_ref = f"{batch}/autosfm/reference/fov.csv"
+        camera_reference = f"{batch}/autosfm/reference/camera_reference.csv"
+        error_statistics = f"{batch}/autosfm/reference/error_statistics.csv"
+        gcp_reference = f"{batch}/autosfm/reference/gcp_reference.csv"
+        # Concat
+        necessary_data = [images, meta_masks, metadata, logs, jsons, autosfm_dir]
+        if set(necessary_data).issubset(dwnlad):
+            batches_2_download.append(images)
+            batches_2_download.append(meta_masks)
+            batches_2_download.append(metadata)
+            batches_2_download.append(logs)
+            batches_2_download.append(jsons)
+            batches_2_download.append(autosfm_ref)
+            batches_2_download.append(camera_reference)
+            batches_2_download.append(error_statistics)
+            batches_2_download.append(gcp_reference)
+
+    # batches_2_download = [x for x in batches_2_download if "NC" not in x]
+    save_path = "/home/psa_images/SemiF-AnnotationPipeline/.batchlogs/batch_download.txt"
+    with open(save_path, 'w') as f:
+        for item in sorted(batches_2_download): 
+            f.write(f"{item}\n")
+
+if __name__=="__main__":
+    check_processed_batches()

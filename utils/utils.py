@@ -24,6 +24,17 @@ def read_keys(keypath):
                             ms_lic=pipe_keys['metashape']['lic'])
     return keys
 
+def read_yaml(keypath):
+    with open(keypath, 'r') as file:
+        cfg = yaml.safe_load(file)
+        
+        temp_path = Path(cfg["find_missing"]["container_list"])
+        print(cfg)
+        pkeys = cfg.movedata.SAS_keys
+        # Required data directories to be considered "processed".
+        # Should be sub-directories of batch_id in Azure
+        batch_data = cfg.movedata.find_missing.processed_data
+    return temp_path, pkeys, batch_data
 
 def remove_batch(cfg, batch):
     with open(cfg.logs.unprocessed, "r") as f:

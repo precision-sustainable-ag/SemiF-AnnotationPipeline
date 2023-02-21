@@ -12,10 +12,17 @@ COMMAND=./execute.sh
 need_process=./.batchlogs/unprocessed.txt
 
 # while read line
-for line in `cat $need_process`
-    do
-        
-        line=${line%%:*}
+count=0
+IFS=$'\n'
 
-        python PIPELINE.py general.batch_id=${line-} 
+for line in $(cat $need_process)
+    do
+        # echo $line
+        new_line=${line%%:*}
+        echo $new_line
+        # run without finding unprocessed
+        python PIPELINE.py general.batch_id=${new_line-}
+    
+    count=$((count+1))
+        
     done

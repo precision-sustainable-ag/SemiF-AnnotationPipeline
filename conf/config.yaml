@@ -31,13 +31,13 @@ general:
   workdir: ${hydra:runtime.cwd}  # where the code is executed
 
 pipeline:
-  download_data: False
-  autosfm_pipeline: False
-  localize_plants: False
-  remap_labels: True 
+  download_data: True
+  autosfm_pipeline: True
+  localize_plants: True
+  remap_labels: True
   assign_species: True
-  segment_vegetation: True #True
-  upload_data: False # True
+  segment_vegetation: True
+  upload_data: False 
 
 # Other job/naming options (currently not used)
 job:
