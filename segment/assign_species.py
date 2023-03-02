@@ -58,6 +58,7 @@ def main(cfg: DictConfig) -> None:
             x = bbox.global_centroid[0]
             y = bbox.global_centroid[1]
             bbox_cls = bbox.cls
+            
             point = Point(x, y)
             # Identify shp file polygon that contains bbox centroid point
             for poly in polys.itertuples():
@@ -77,6 +78,9 @@ def main(cfg: DictConfig) -> None:
                         f"{bbox.bbox_id} centroid not within any potting group polygon for image {imgdata.image_id}. Assigning default class 'plant'"
                     )
                     break
+                # else:
+                #     print(bbox_cls)
+                #     print(poly)
             bbox.assign_species(spec_info)
         # Save
         imgdata.save_config(metadata_path)

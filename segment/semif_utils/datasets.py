@@ -914,23 +914,23 @@ class SynthImage:
 
 
 @dataclass
-class SynthDataContainer:
-    """Combines documents in a database with items in a directory to form data container for generating synthetic bench images. Includes lists of dataclasses for cutouts, pots, and backgrounds.
-    """
+class SynthData:
+
     synthdir: str
-    background_dir: str = None
-    pot_dir: str = None
-    cutout_dir: str = None
+    background_dir: str
+    pot_dir: str
+    cutout_dir: str
+    cutout_csv: str
     cutouts: list[Cutout] = field(init=False, default=None)
     pots: list[Pot] = field(init=False, default=None)
     backgrounds: list[Background] = field(init=False, default=None)
 
     def __post_init__(self):
-        self.backgrounds = self.get_dcs("Backgrounds")
-        self.pots = self.get_dcs("Pots")
-        self.cutouts = self.get_dcs("Cutouts")
+        self.backgrounds = self.get_backgrounds()
+        self.pots = self.get_pots()
+        self.cutouts = self.get_cutouts()
 
-    def get_data_from_json(self, jsun):
+    def load_json(self, jsun):
         """ Open json and create dictionary
         """
         # Opening JSON file
@@ -938,63 +938,59 @@ class SynthDataContainer:
             data = json.load(json_file)
         return data
 
-    def get_jsons(self, collection):
-        """ Gets json files
-        """
-        datas = []
-        collection = collection.lower().rstrip(collection[-1])
-        collection_dir = collection + "_dir"
-        if collection == "cutout":
-            jsondir = Path(self.cutout_dir, getattr(self, collection_dir))
-            jsons = jsondir.glob("*.json")
-            jsons = [x for x in jsons]
-        else:
-            jsons = Path(self.synthdir, getattr(self,
-                                                collection_dir)).glob("*.json")
-        jsons = [x for x in jsons]
-        for jsun in jsons:
-            data = self.get_data_from_json(jsun)
-            datas.append(data)
-        return datas
-
-    def get_dcs(self, collection_str):
+    def get_pots(self):
         """Connnects documents in a database collection with items in a directory.
         Places connected items in a list of dataclasses.
         """
-        syn_datacls = {"cutout": Cutout, "pot": Pot, "background": Background}
-
-        cursor = self.get_jsons(collection_str)
-
-        if collection_str == "Cutouts":
-            docdir = Path(self.cutout_dir).parent
-        else:
-            docdir = Path(self.synthdir)
-
-        path_str_ws = collection_str.lower().replace("s", "")
-        path_str = f"{path_str_ws}_path"
-
         docs = []
-        for doc in cursor:
-            doc_path = docdir / doc[path_str]
-            doc[path_str] = str(doc_path)
+        meta_jsons = Path(self.pot_dir).glob("*.json")
 
-            assert Path(doc_path).exists(
-            ), f"Image with path {str(doc_path)} does not exist."
+        for meta in meta_jsons:
+            meta_dict = self.load_json(meta)
+            class_path = "pot" + "_path"
+            # change path to suit local directory
+            meta_dict[class_path] = str(
+                Path(self.pot_dir) / Path(meta_dict[class_path]).name)
+            dc = Pot(**meta_dict)
+            docs.append(dc)
+        return docs
 
-            # Clean up doc and json by removoing _id from db
-            if "_id" in doc:
-                doc.pop("_id")
-            if "cutout_id" in doc:
-                cut_id = doc["cutout_id"]
-                doc.pop("cutout_id")
+    def get_backgrounds(self):
+        docs = []
+        meta_jsons = Path(self.background_dir).glob("*.json")
 
-            data_cls = syn_datacls[path_str_ws]
-            dc = data_cls(**doc)
-            if hasattr(dc, "cutout_id"):
-                dc.cutout_id = cut_id
+        for meta in meta_jsons:
+            meta_dict = self.load_json(meta)
+            class_path = "background" + "_path"
+            # change path to suit local directory
+            meta_dict[class_path] = str(
+                Path(self.background_dir) / Path(meta_dict[class_path]).name)
+            dc = Background(**meta_dict)
+            docs.append(dc)
+        return docs
 
+    def get_cutouts(self):
+        docs = []
+
+        meta_jsons = Path(self.background_dir).glob("*.json")
+
+        df = pd.read_csv(self.cutout_csv)
+        df["temp_path"] = self.cutout_dir + "/" + df['cutout_path']
+
+        for _, meta in df.iterrows():
+            print(meta["temp_path"])
+            meta_path = meta["temp_path"].replace(".png", ".json")
+            meta_dict = self.load_json(meta_path)
+            class_path = "cutout" + "_path"
+            # change path to suit local directory
+            meta_dict[class_path] = str(
+                # Path(class_dir) / Path(meta_dict[class_path]).name)
+                Path(self.cutout_dir) / Path(meta_dict[class_path]).name)
+
+            dc = Cutout(**meta_dict)
             docs.append(dc)
 
+        # print(docs)
         return docs
 
 

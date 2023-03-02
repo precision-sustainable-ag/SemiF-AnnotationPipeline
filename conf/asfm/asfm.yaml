@@ -35,15 +35,15 @@ config_copy_path: ${data.logdir}/autosfm/config_${general.batch_id}.yml
 # Electives
 downscale:
   enabled: True
-  factor: .5 # between (0, 1]
+  factor: 1 # between (0, 1] 1 is higher accuracy
 
 align_photos:
-  downscale: 1 # Accuracy parameter, lower means higher accuracy
+  downscale: 1 # Accuracy parameter, lower means higher accuracy [1-4]
   autosave: True
 
 depth_map:
   enabled: True
-  downscale: 4
+  downscale: 1 # Depth map quality, lower means higher accuracy [1-4]
   autosave: True
 
 dense_cloud:

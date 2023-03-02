@@ -30,13 +30,14 @@ general:
   # Main working directory 
   workdir: ${hydra:runtime.cwd}  # where the code is executed
 
+# Select sections of pipeline to run
 pipeline:
-  download_data: True
+  download_data: False
   autosfm_pipeline: True
-  localize_plants: True
-  remap_labels: True
-  assign_species: True
-  segment_vegetation: True
+  localize_plants: False
+  remap_labels: False
+  assign_species: False
+  segment_vegetation: False
   upload_data: False 
 
 # Other job/naming options (currently not used)

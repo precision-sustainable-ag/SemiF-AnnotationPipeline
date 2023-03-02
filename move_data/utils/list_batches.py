@@ -19,6 +19,7 @@ class ListBatches:
     def __init__(self, cfg):
         self.pkeys = read_keys(cfg.pipeline_keys)
         self.temp_path = Path(cfg.movedata.find_missing.container_list)
+        print("temp path", self.temp_path)
 
         self.pkeys = read_keys(cfg.movedata.SAS_keys)
         # Required data directories to be considered "processed".
@@ -60,6 +61,7 @@ class ListBatches:
         
         with open(self.temp_path, 'r') as f:
             lines = [line.rstrip() for line in f]
+        print(lines)
         return lines
 
     def temp2df(self):
@@ -73,6 +75,7 @@ class ListBatches:
         lines = self.read_temp_results()
         res = pd.DataFrame(lines, columns=["result"])
         exp_df = res.result.str.split("/", expand=True).apply(pd.Series)
+        print(exp_df)
         exp_df.columns = ["batch", "child"]
         concat_df = pd.concat([res, exp_df], axis=1)
         df = concat_df[["batch", "child"]]

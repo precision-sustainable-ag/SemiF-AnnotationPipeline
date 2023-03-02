@@ -32,6 +32,7 @@ def main(cfg: DictConfig) -> None:
 
     if cfg.movedata.find_missing.find_missing:
         # Get missing dataframe
+        print(cfg.movedata.find_missing.container_list)
         try:
             log.info("Finding missing items.")
             df = lb.find_missing()

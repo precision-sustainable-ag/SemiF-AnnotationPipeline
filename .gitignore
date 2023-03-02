@@ -10,6 +10,7 @@ examples
 # Metashape license files
 **.lic
 
+azcopy
 # VS code stuff
 **.vscode
 **workspace.code-workspace
