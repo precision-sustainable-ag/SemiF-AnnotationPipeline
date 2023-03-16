@@ -21,13 +21,13 @@ log = logging.getLogger(__name__)
 def run_PIPELINE(cfg: DictConfig) -> None:
 
     cfg = OmegaConf.create(cfg)
-    # whoami = getpass.getuser()
+    whoami = getpass.getuser()
     # read batch from file
     # batches = cfg.batches
-        
+
     tasks = [k for k, v in cfg.pipeline.items() if v]
     for tsk in tasks:
-        # log.info(f"Starting {cfg.general.get(tsk)} as {whoami}")
+        log.info(f"Starting {cfg.general.get(tsk)} as {whoami}")
         try:
             task = get_method(f"{tsk}.main")
             task(cfg)

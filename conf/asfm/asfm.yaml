@@ -35,7 +35,7 @@ config_copy_path: ${data.logdir}/autosfm/config_${general.batch_id}.yml
 # Electives
 downscale:
   enabled: True
-  factor: 1 # between (0, 1] 1 is higher accuracy. By default 0.5
+  factor: 1 # between (0, 1] 1 is highest accuracy. By default 0.5
 
 align_photos:
   downscale: 1 # Accuracy parameter, lower means higher accuracy [1-4]. By default 1

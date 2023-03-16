@@ -32,14 +32,14 @@ general:
 
 # Select sections of pipeline to run
 pipeline:
-  download_data: False
+  download_data: True
   autosfm_pipeline: True
   localize_plants: False
   remap_labels: False
   assign_species: False
   segment_vegetation: False
-  upload_data: False 
-
+  upload_data: False
+  
 # Other job/naming options (currently not used)
 job:
   jobname: ${general.season}

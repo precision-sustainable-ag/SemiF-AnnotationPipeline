@@ -8,6 +8,7 @@ from move_data.utils.list_batches import ListBatches
 
 log = logging.getLogger(__name__)
 
+
 @hydra.main(version_base="1.2", config_path="conf", config_name="config")
 def main(cfg: DictConfig) -> None:
     lb = ListBatches(cfg)
@@ -32,7 +33,6 @@ def main(cfg: DictConfig) -> None:
 
     if cfg.movedata.find_missing.find_missing:
         # Get missing dataframe
-        print(cfg.movedata.find_missing.container_list)
         try:
             log.info("Finding missing items.")
             df = lb.find_missing()
@@ -50,6 +50,7 @@ def main(cfg: DictConfig) -> None:
         except Exception as e:
             log.exception(f"Failed to write missing items. Exiting.")
             exit(1)
+
 
 if __name__ == "__main__":
     main()

@@ -1,6 +1,26 @@
 
 # SemiField Annotation Pipeline
 
+## Find unprocessed batches
+
+1. Install azcopy
+2. Activate conda environment
+
+```
+python find_unprocessed.py general.batch_id=find_unprocessed
+```
+
+3. 2 files will be created
+
+| Path | Input | Output |
+| :---: |:--- | :--- | 
+`.batchlogs/container_list.txt` | Used in the pipeline as input for [`download_data.py`](./move_data/download_data.py#L14) to download the appropriate batch sub-directories (`images`, `masks`, `plant-detections`) | Created in [`find_unprocessed.py`](./find_unprocessed.py#L14) and lists container items in each batch directory in the Azure blob container | 
+`.batchlogs/unprocessed.txt` | Used as input for [`execute.sh`](./conf/asfm/asfm.yaml#L41) to loop through each listed batch to run the pipeline | Created in [`find_unprocessed.py`](./find_unprocessed.py) |
+
+**These 2 files must be compatible**
+
+If a batch is list in `unprocessed.py` It must also be in `container_list.py` with the appropriate batch sub-directories (`images`, `masks`, `plant-detections`) listed.
+
 ## Run the pipeline
 
 1. [Setup keys](./keys/README.md)

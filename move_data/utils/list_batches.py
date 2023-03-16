@@ -18,8 +18,9 @@ class ListBatches:
 
     def __init__(self, cfg):
         self.pkeys = read_keys(cfg.pipeline_keys)
-        self.temp_path = Path(cfg.movedata.find_missing.container_list)
-        print("temp path", self.temp_path)
+        self.container_list = Path(cfg.movedata.find_missing.container_list)
+        log.info(
+            f"Logging AZ blob container contents to {self.container_list}")
 
         self.pkeys = read_keys(cfg.movedata.SAS_keys)
         # Required data directories to be considered "processed".
@@ -34,34 +35,34 @@ class ListBatches:
         """
         n = 2
         # Create temporary file if it doesn't exist
-        self.temp_path.touch(exist_ok=True)
+        self.container_list.touch(exist_ok=True)
         # Developed image SAS key
         down_dev = self.pkeys.down_dev
         # Main command passed to os.system
-        os.system(f"azcopy ls " + f'"{down_dev}"' +
-                  f" | cut -d/ -f 1-{n} | awk '!a[$0]++' > {self.temp_path}")
+        os.system(
+            f"azcopy ls " + f'"{down_dev}"' +
+            f" | cut -d/ -f 1-{n} | awk '!a[$0]++' > {self.container_list}")
 
     def organize_temp(self):
         """Reads, cleans, and writes back the 'azcopy list' results back to its 
         temporary txt file location."""
         # Read temporary file
-        with open(self.temp_path, 'r') as f:
+        with open(self.container_list, 'r') as f:
             lines = [line.rstrip() for line in f]
             # Strip azcopy list results strings
             lines = [x.replace("INFO: ", "") for x in lines]
             lines = [x.split(";")[0] for x in lines]
             lines = sorted(lines)
         # Write back to temp file location
-        with open(self.temp_path, 'w') as f:
+        with open(self.container_list, 'w') as f:
             for line in lines:
                 f.write(f"{line}\n")
 
     def read_temp_results(self):
         """Reads temporary file created using 'azcopy list'"""
-        
-        with open(self.temp_path, 'r') as f:
+
+        with open(self.container_list, 'r') as f:
             lines = [line.rstrip() for line in f]
-        print(lines)
         return lines
 
     def temp2df(self):
@@ -75,7 +76,6 @@ class ListBatches:
         lines = self.read_temp_results()
         res = pd.DataFrame(lines, columns=["result"])
         exp_df = res.result.str.split("/", expand=True).apply(pd.Series)
-        print(exp_df)
         exp_df.columns = ["batch", "child"]
         concat_df = pd.concat([res, exp_df], axis=1)
         df = concat_df[["batch", "child"]]
