@@ -9,7 +9,7 @@ examples
 
 # Metashape license files
 **.lic
-
+test_permission
 azcopy
 # VS code stuff
 **.vscode
