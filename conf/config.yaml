@@ -32,12 +32,12 @@ general:
 
 # Select sections of pipeline to run
 pipeline:
-  download_data: True
-  autosfm_pipeline: True
-  localize_plants: False
-  remap_labels: False
-  assign_species: False
-  segment_vegetation: False
+  download_data: False
+  autosfm_pipeline: False
+  localize_plants: True
+  remap_labels: True
+  assign_species: True
+  segment_vegetation: True
   upload_data: False
   
 # Other job/naming options (currently not used)
@@ -68,7 +68,7 @@ data:
   species: ${data.utilsdir}/species_information/species_info.json
   species_poly: ${data.utilsdir}/autosfm/ShapeFiles/${general.season}/${general.season}.shp
   # Ground control points directory
-  gcp_dir: ${data.datadir}/${blob_names.utils}/autosfm/GroundControlPoints
+  gcp_dir: ${data.datadir}/${blob_names.utils}/autosfm/GroundControlPoints/${general.season}
   gcp_ref: None
 
 pipeline_keys: ${general.workdir}/keys/pipeline_keys.yaml
@@ -89,4 +89,3 @@ logs:
   logdir: ${general.workdir}/.batchlogs
   processed: ${logs.logdir}/processed.txt
   unprocessed: ${logs.logdir}/unprocessed.txt
-

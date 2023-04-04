@@ -182,13 +182,13 @@ class SfM:
         ms.app.gpu_mask = self.num_gpus
         self.doc.chunks[chunk].matchPhotos(
             downscale=self.cfg["asfm"]["align_photos"]["downscale"],
-            generic_preselection=True,
+            generic_preselection=False,
             reference_preselection=True,
             reference_preselection_mode=ms.ReferencePreselectionSource,
             filter_mask=self.cfg["asfm"]["use_masking"],
             mask_tiepoints=True,
             keypoint_limit=40000,
-            tiepoint_limit=4000,
+            tiepoint_limit=15000,
             keep_keypoints=False,
             cameras=self.doc.chunks[chunk].cameras,
             guided_matching=False,

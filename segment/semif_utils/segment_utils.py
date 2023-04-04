@@ -108,10 +108,10 @@ class GenCutoutProps:
             mask = self.mask[..., 0]
         else:
             mask = self.mask
-        labels, num = measure.label(mask,
-                                    background=0,
-                                    connectivity=2,
-                                    return_num=True)
+        _, num = measure.label(mask,
+                               background=0,
+                               connectivity=2,
+                               return_num=True)
         return num
 
     def calc_ch_means(self):
@@ -218,13 +218,13 @@ class GenCutoutProps:
         props = [measure.regionprops_table(labels, properties=CUTOUT_PROPS)]
         # Parse regionprops_table
         nprops = [parse_dict(d) for d in props][0]
-        nprops["is_green"] = self.is_green
+        # nprops["is_green"] = self.is_green
         nprops["green_sum"] = self.green_sum
-        nprops["exg_sum"] = self.exg_sum()
+        # nprops["exg_sum"] = self.exg_sum()
         nprops["blur_effect"] = self.get_blur_effect()
         nprops["num_components"] = self.num_connected_components()
-        nprops["color_distribution"] = self.color_distribution(
-            ignore_black=True)
+        # nprops["color_distribution"] = self.color_distribution(
+        #     ignore_black=True)
         nprops["cropout_descriptive_stats"] = self.descriptive_stats(self.img)
         nprops["cutout_descriptive_stats"] = self.descriptive_stats(
             self.cutout, ignore_zeros=True)

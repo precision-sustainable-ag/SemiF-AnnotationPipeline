@@ -11,7 +11,7 @@ import exifread
 import numpy as np
 from PIL import Image as PILImage
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "2.0"
 
 
 @dataclass
@@ -93,7 +93,7 @@ class BBox:
     bbox_id: str
     image_id: str
     cls: str
-    instance_id: List[int] = field(default=None)
+    instance_rgb_id: List[int] = field(default=None)
     local_coordinates: BoxCoordinates = field(init=True,
                                               default_factory=init_empty)
     global_coordinates: BoxCoordinates = field(init=True,
@@ -158,8 +158,8 @@ class BBox:
             self.is_primary,
             "cls":
             self.cls,
-            "instance_id":
-            self.instance_id,
+            "instance_rgb_id":
+            self.instance_rgb_id,
             "overlapping_bbox_ids":
             [box.bbox_id for box in self._overlapping_bboxes],
             "num_overlapping_bboxes":
@@ -385,7 +385,7 @@ class Box:
     global_coordinates: BoxCoordinates
     cls: str
     is_primary: bool
-    instance_id: List[int] = field(default=None)
+    instance_rgb_id: List[int] = field(default=None)
     overlapping_bbox_ids: List[BBox] = field(init=False,
                                              default_factory=lambda: [])
 
@@ -570,32 +570,11 @@ class ImageData(Image):
             raise e
         return True
 
-    def save_binary_mask(self, save_path, binary_mask):
-
-        fname = f"{self.image_id}.png"
-        mask_path = Path(self.blob_home, self.data_root, self.batch_id,
-                         "meta_masks", "binary_masks", fname)
-        cv2.imwrite(str(mask_path), binary_mask.astype(np.uint8))
-        return True
-
-    def save_semantic_mask(self, save_path, semantic_mask):
-
-        pil_mask = PILImage.fromarray(semantic_mask[..., 1])
-        fname = f"{self.image_id}.png"
-        # mask_path = Path(self.blob_home, self.data_root, self.batch_id,
-        #  "meta_masks", "semantic_masks", fname)
-        mask_path = Path(save_path, fname)
-        # cv2.imwrite(str(mask_path), semantic_mask.astype(np.uint8))
-        pil_mask = pil_mask.save(mask_path)
-        return True
-
-    def save_instance_mask(self, save_path, instance_mask):
-
+    def save_mask(self, save_path, semantic_mask):
         fname = f"{self.image_id}.png"
         mask_path = Path(save_path, fname)
-        pil_mask = PILImage.fromarray(instance_mask)
-        pil_mask = pil_mask.save(mask_path)
-        # cv2.imwrite(str(mask_path), instance_mask.astype(np.uint8))
+        cv2.imwrite(str(mask_path),
+                    cv2.cvtColor(semantic_mask, cv2.COLOR_RGB2BGR))
         return True
 
 
@@ -659,15 +638,15 @@ class CutoutProps:
     centroid0: Union[float, list]
     centroid1: Union[float, list]
     eccentricity: Union[float, list]
-    extent: float
+    # extent: float
     solidity: Union[float, list]
     perimeter: Union[float, list]
-    is_green: bool
+    # is_green: bool
     green_sum: int
-    exg_sum: float
+    # exg_sum: float
     blur_effect: float
     num_components: int
-    color_distribution: dict
+    # color_distribution: dict
     cropout_descriptive_stats: dict
     cutout_descriptive_stats: dict
 
@@ -706,6 +685,7 @@ class Cutout:
     cutout_num: int
     datetime: datetime.datetime  # Datetime of original image creation
     cutout_props: CutoutProps
+    shape: list
     # rgb_cropout_mean: List[float]
     # rgb_cutout_mean: List[float]
     # local_contours: List[float] = None
@@ -714,7 +694,7 @@ class Cutout:
     cls: str = None
     is_primary: bool = False
     extends_border: bool = False
-    cutout_version: str = "1.0"
+    cutout_version: str = "2.0"
     schema_version: str = SCHEMA_VERSION
     synth: bool = False
 
@@ -746,13 +726,13 @@ class Cutout:
             "cutout_num": self.cutout_num,
             "is_primary": self.is_primary,
             "datetime": self.datetime,
+            "shape": self.shape,
             "cutout_props": self.cutout_props,
             # "rgb_cropout_mean": self.rgb_cropout_mean,
             # "rgb_cutout_mean": self.rgb_cutout_mean,
             "extends_border": self.extends_border,
             "cutout_version": self.cutout_version,
             "schema_version": self.schema_version
-
             # "local_contours": self.local_contours
         }
 
@@ -1002,7 +982,7 @@ CUTOUT_PROPS = [
     "axis_minor_length",  # float The length of the minor axis of the ellipse that has the same normalized second central moments as the region.
     "centroid",  # array Centroid coordinate tuple (row, col).
     "eccentricity",  # float Eccentricity of the ellipse that has the same second-moments as the region. The eccentricity is the ratio of the focal distance (distance between focal points) over the major axis length. The value is in the interval [0, 1). When it is 0, the ellipse becomes a circle.
-    "extent",  # float Ratio of pixels in the region to pixels in the total bounding box. Computed as area / (rows * cols)
+    # "extent",  # float Ratio of pixels in the region to pixels in the total bounding box. Computed as area / (rows * cols)
     "solidity",  # float Ratio of pixels in the region to pixels of the convex hull image.
     # "label",  # int The label in the labeled input image.
     "perimeter",  # float Perimeter of object which approximates the contour as a line through the centers of border pixels using a 4-connectivity.

@@ -160,14 +160,14 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         cls = cutout["cls"]
 
         # Color distribution data
-        cd = cutout["cutout_props"]["color_distribution"]
-        nd = dict()
-        for idx, c in enumerate(cd):
-            nd["hex_" + str(idx)] = c["hex"]
-            nd["rgb_" + str(idx)] = c["rgb"]
-            nd["occurences_" + str(idx)] = int(c["occurence"])
+        # cd = cutout["cutout_props"]["color_distribution"]
+        # nd = dict()
+        # for idx, c in enumerate(cd):
+        #     nd["hex_" + str(idx)] = c["hex"]
+        #     nd["rgb_" + str(idx)] = c["rgb"]
+        #     nd["occurences_" + str(idx)] = int(c["occurence"])
         # exit(1)
-        cutout.update(nd)
+        # cutout.update(nd)
 
         # croput Descriptive stats
         ds = cutout["cutout_props"]["cropout_descriptive_stats"]
@@ -210,9 +210,10 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         # cutout.pop("local_contours")
         cutout.pop("cropout_descriptive_stats")
         cutout.pop("cutout_descriptive_stats")
-        cutout.pop("color_distribution")
+        # cutout.pop("color_distribution")
         # Create and append df
-        cutdf = pd.DataFrame(cutout, index=[0])
+
+        cutdf = pd.DataFrame(cutout)  #, index=[0])
         cutouts.append(cutdf)
     # Concat and reset index of main df
     cutouts_df = pd.concat(cutouts)
