@@ -85,7 +85,8 @@ class BoxCoordinates:
 def init_empty():
     empty_array = np.array([])
     # Initialize with an empty array
-    return BoxCoordinates(empty_array, empty_array, empty_array, empty_array)
+    return BoxCoordinates(empty_array, empty_array, empty_array, empty_array,
+                          empty_array)
 
 
 @dataclass
@@ -98,7 +99,7 @@ class BBox:
                                               default_factory=init_empty)
     global_coordinates: BoxCoordinates = field(init=True,
                                                default_factory=init_empty)
-    is_normalized: bool = field(init=True, default=True)
+    is_normalized: bool = field(init=True, default=False)
     local_centroid: np.ndarray = field(init=False,
                                        default_factory=lambda: np.array([]))
     global_centroid: np.ndarray = field(init=False,
@@ -782,7 +783,8 @@ class Cutout:
         fname = f"{self.image_id}_{self.cutout_num}_mask.png"
         # mask_path = Path(self.blob_home, self.data_root, self.batch_id, fname)
         mask_path = Path(save_dir, self.batch_id, fname)
-        cv2.imwrite(str(mask_path), cv2.cvtColor(mask, cv2.COLOR_RGB2BGR))
+        # cv2.imwrite(str(mask_path), cv2.cvtColor(mask, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(str(mask_path), mask)
         return True
 
 

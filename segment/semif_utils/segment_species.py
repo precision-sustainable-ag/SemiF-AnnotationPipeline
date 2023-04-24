@@ -129,9 +129,9 @@ class Segment:
     def grass_vegetative(self):
         pass
 
-    def get_extends_borders(self):
+    def get_extends_borders(self, mask):
         self.extends_border = False if np.array_equal(
-            self.mask, clear_border(self.mask)) else True
+            mask, clear_border(mask)) else True
         return self.extends_border
 
     def is_green(self, percent_thresh=.002):

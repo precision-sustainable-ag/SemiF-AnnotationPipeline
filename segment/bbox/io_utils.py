@@ -7,6 +7,7 @@ import pandas as pd
 
 
 class ParseXML:
+
     def __init__(self, image_path, label_path):
         self.image_path = image_path
         self.label_path = label_path
@@ -82,6 +83,7 @@ class ParseXML:
 
 
 class ParseYOLOCsv:
+
     def __init__(self,
                  image_path,
                  label_path,
@@ -130,6 +132,9 @@ class ParseYOLOCsv:
 
         for i, line in df.iterrows():
             cls = line["name"]
+            width = line["xmax"] - line["xmin"]
+            height = line["ymax"] - line["ymin"]
+
             top_left = line["xmin"], line["ymin"]
             top_right = line["xmax"], line["ymin"]
             bottom_left = line["xmin"], line["ymax"]

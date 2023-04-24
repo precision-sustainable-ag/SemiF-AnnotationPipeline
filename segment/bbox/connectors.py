@@ -104,6 +104,7 @@ class BBoxComponents:
     def get_fov(self, image_id):
         row = self.camera_reference[self.camera_reference["label"] ==
                                     image_id].reset_index(drop=True)
+
         top_left_x = float(row.loc[0, "top_left_x"])
         top_left_y = float(row.loc[0, "top_left_y"])
 
@@ -210,7 +211,7 @@ class BBoxComponents:
         if not self._images:
 
             if self.multiprocessing:
-                n_processes = cpu_count()
+                n_processes = int(cpu_count() / 2)
                 with Pool(processes=n_processes) as p:
                     _images = list(
                         tqdm(p.imap(self._fetch_image_metadata,

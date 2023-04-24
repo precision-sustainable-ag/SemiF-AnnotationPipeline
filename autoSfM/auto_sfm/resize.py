@@ -2,7 +2,7 @@ import glob
 import logging
 import os
 
-from multiprocessing import Pool
+from multiprocessing import Pool, cpu_count
 from pathlib import Path
 from math import ceil
 import piexif
@@ -82,7 +82,7 @@ def resize_photo_diretory(cfg):
 
     files = glob.glob(os.path.join(base_path, "*.jpg"))
     num_files = len(files)
-    pool = Pool()
+    pool = Pool(int(cpu_count() / 2))
     data = []
     log.info(f"Processing {num_files} files.")
     for i, src in enumerate(files):
@@ -107,7 +107,7 @@ def resize_masks(cfg):
 
     files = glob.glob(os.path.join(base_path, "*.png"))
     num_files = len(files)
-    pool = Pool()
+    pool = Pool(int(cpu_count() / 2))
     data = []
 
     for i, src in enumerate(files):

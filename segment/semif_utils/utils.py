@@ -61,7 +61,7 @@ def save_json(path, data):
 def create_dataclasses(metadir, cfg):
     labels = sorted([str(x) for x in (metadir).glob("*.json")])
     return_list = []
-    procs = cpu_count() - cfg.segment.cpus_left
+    procs = int(cpu_count() / 2)  # - cfg.segment.cpus_left
     with Pool(processes=procs) as pool:
         imap_unordered_it = pool.imap_unordered(get_image_meta, labels)
         for x in imap_unordered_it:
@@ -212,6 +212,9 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         cutout.pop("cutout_descriptive_stats")
         # cutout.pop("color_distribution")
         # Create and append df
+        if cutout["multi_species_USDA_symbol"] != None:
+            cutout["multi_species_USDA_symbol"] = ",".join(
+                cutout["multi_species_USDA_symbol"])
 
         cutdf = pd.DataFrame(cutout)  #, index=[0])
         cutouts.append(cutdf)

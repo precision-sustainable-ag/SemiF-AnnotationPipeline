@@ -247,8 +247,13 @@ class BBoxMapper():
                 top_right = np.array(mapped_coordinates[2])
                 bottom_left = np.array(mapped_coordinates[1])
                 bottom_right = np.array(mapped_coordinates[3])
+                width = top_right[0] - top_left[0]
+                height = top_left[1] - bottom_left[1]
+                center_x = top_left[0] + width / 2
+                center_y = top_left[1] + height / 2
+                xywh = np.array([center_x, center_y, width, height])
 
-                global_coordinates = BoxCoordinates(top_left, top_right,
+                global_coordinates = BoxCoordinates(xywh, top_left, top_right,
                                                     bottom_left, bottom_right)
                 bbox.update_global_coordinates(global_coordinates)
 

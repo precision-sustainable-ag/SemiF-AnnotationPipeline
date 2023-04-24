@@ -9,7 +9,6 @@ import cv2
 import numpy as np
 import pandas as pd
 from omegaconf import DictConfig
-from semif_utils.cutout_contours import mask_to_polygons
 from semif_utils.datasets import BatchMetadata, Cutout, SegmentData
 from semif_utils.segment_species import Segment
 from semif_utils.segment_utils import (GenCutoutProps, generate_new_color,
@@ -120,20 +119,26 @@ class SegmentVegetation:
 
         return instance_mask
 
-    def create_semantic_mask(self, semantic_mask, semantic_palette,
-                             box_instance_id):
+    def create_semantic_mask(self, semantic_mask, box_instance_id):
 
-        palette = np.array(semantic_palette).transpose()
+        # palette = np.array(semantic_palette).transpose()
 
         # all(2) force all channels to be equal
         # any(-1) matches any color
-        temp_mask = (semantic_mask[:, :, :, None] == palette).all(2).any(-1)
+        # temp_mask = (semantic_mask[:, :, :, None] == palette).all(2).any(-1)
+        # temp_mask = (semantic_mask[:, :, None] == palette).all(2).any(-1)
 
         # target color
-        rgb_arr = np.array(box_instance_id)
+        # rgb_arr = np.array(box_instance_id)
+        # print(temp_mask.shape)
+        # print(semantic_mask.shape)
+        # print(rgb_arr)
+        # print(rgb_arr.shape)
+        # semantic_mask = np.where(temp_mask[:, :,None], semantic_mask,
+        #  rgb_arr[None, None, :])
+        # semantic_mask = np.where(temp_mask[:, None], semantic_mask, rgb_arr)
 
-        semantic_mask = np.where(temp_mask[:, :, None], semantic_mask,
-                                 rgb_arr[None, None, :])
+        semantic_mask[semantic_mask == 255] = box_instance_id
 
         return semantic_mask
 
@@ -152,7 +157,7 @@ class SegmentVegetation:
         cutout_num = 0
         cutout_ids = []
 
-        semantic_mask_zeros = np.zeros(rgb_array.shape, dtype=np.float32)
+        semantic_mask_zeros = np.zeros(rgb_array.shape[:2], dtype=np.float32)
         instance_mask_zeros = np.zeros(rgb_array.shape, dtype=np.float32)
 
         log.info(
@@ -160,7 +165,7 @@ class SegmentVegetation:
         )
         instance_colors = [[0, 0, 0]]
         instance_palette = [[0, 0, 0]]
-        semantic_palette = [[0, 0, 0]]
+        semantic_palette = [[0]]
         for box in bboxes:
             # Scale the box that will be used for the cutout
             spec_cls = box.cls
@@ -239,11 +244,7 @@ class SegmentVegetation:
 
             # Create semantic mask
             log.info("Mapping colors to the semantic mask.")
-            seg.mask = np.where(seg.mask != 0, 255, 0)
-            # seg.mask = np.repeat(seg.mask[..., None], 3, axis=2)
-            # seg.mask = np.repeat(seg.mask[:, :, np.newaxis], 3, axis=2)
-
-            cutout_array = apply_mask(rgb_crop, seg.mask, "black")
+            # seg.mask = np.where(seg.mask != 0, 255, 0)
 
             # Get morphological properties
             log.info("Calculating cutout properties.")
@@ -267,17 +268,19 @@ class SegmentVegetation:
                             datetime=imgdata.exif_meta.DateTime,
                             cutout_props=asdict(seg.props),
                             is_primary=box.is_primary,
-                            shape=cutout_array.shape,
+                            shape=rgb_crop.shape,
                             cls=seg.species,
-                            extends_border=seg.get_extends_borders())
+                            extends_border=seg.get_extends_borders(seg.mask))
 
             cutout_dir = self.cutout_dir
+            cutout_array = apply_mask(rgb_crop, seg.mask, "black")
+            cutout_mask = np.zeros(seg.mask.shape[:2])
+            cutout_mask[seg.mask != 0] = box.cls["class_id"]
             log.info("Saving cutout data.")
             cutout.save_cutout(cutout_dir, cutout_array)
             cutout.save_config(cutout_dir)
             cutout.save_cropout(cutout_dir, rgb_crop)
-            cutout.save_cutout_mask(cutout_dir,
-                                    seg.mask.astype(np.uint8) * 255)
+            cutout.save_cutout_mask(cutout_dir, cutout_mask)
             cutout_ids.append(cutout.cutout_id)
             cutout_num += 1
 
@@ -286,20 +289,20 @@ class SegmentVegetation:
             if cm_name != "colorchecker":
                 # Create semantic mask
                 log.info("Mapping colors to the semantic mask.")
-                semantic_mask_zeros[y1:y2,
-                                    x1:x2][seg.mask == 255] = [255, 255, 255]
+                # semantic_mask_zeros[y1:y2, x1:x2][
+                # seg.mask == box.cls["class_id"]] = box.cls["class_id"]
+                semantic_mask_zeros[y1:y2, x1:x2] = cutout_mask
 
-                semantic_mask_zeros[y1:y2, x1:x2] = self.create_semantic_mask(
-                    semantic_mask_zeros[y1:y2, x1:x2], semantic_palette,
-                    box.cls["rgb"])
-                semantic_palette.append(box.cls["rgb"])
+                # semantic_mask_zeros[y1:y2, x1:x2] = self.create_semantic_mask(
+                #     semantic_mask_zeros[y1:y2, x1:x2], box.cls["class_id"])
+                semantic_palette.append(box.cls["class_id"])
 
                 # Create instance mask
                 log.info("Mapping colors to the instance mask.")
                 box.instance_rgb_id = generate_new_color(instance_colors,
                                                          pastel_factor=0.7)
                 instance_mask_zeros[y1:y2,
-                                    x1:x2][seg.mask == 255] = [255, 255, 255]
+                                    x1:x2][seg.mask != 0] = [255, 255, 255]
 
                 instance_mask_zeros[y1:y2, x1:x2] = self.create_instance_mask(
                     instance_mask_zeros[y1:y2, x1:x2], instance_palette,
@@ -357,7 +360,7 @@ def main(cfg: DictConfig) -> None:
             payloads.append(data)
 
         log.info(f"Multi-Processing image data for batch {batch_dir.name}.")
-        procs = cpu_count() - cfg.segment.cpus_left
+        procs = int(cpu_count() / 2)
         with Pool(processes=procs) as p:
             p.imap_unordered(svg.cutout_pipeline, payloads)
             p.close()

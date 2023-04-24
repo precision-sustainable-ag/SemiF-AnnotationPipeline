@@ -68,8 +68,10 @@ import random
 #     for imgn in rand_imgs:
 #         f.write(f"{imgn}\n")
 
+
 def check_for_preprocessed_batches():
     pass
+
 
 def check_processed_batches():
     path = "/home/psa_images/SemiF-AnnotationPipeline/.batchlogs/container_list.txt"
@@ -77,7 +79,8 @@ def check_processed_batches():
         lines = [line.rstrip() for line in f]
 
         images = sorted([line for line in lines if "images" in line])
-        images = sorted([image for image in images if "prediction" not in image])
+        images = sorted(
+            [image for image in images if "prediction" not in image])
         images = sorted([image for image in images if "_tmp" not in image])
         metamasks = sorted([line for line in lines if "meta_masks" in line])
         metadata = sorted([line for line in lines if "metadata" in line])
@@ -108,7 +111,9 @@ def check_processed_batches():
         error_statistics = f"{batch}/autosfm/reference/error_statistics.csv"
         gcp_reference = f"{batch}/autosfm/reference/gcp_reference.csv"
         # Concat
-        necessary_data = [images, meta_masks, metadata, logs, jsons, autosfm_dir]
+        necessary_data = [
+            images, meta_masks, metadata, logs, jsons, autosfm_dir
+        ]
         if set(necessary_data).issubset(dwnlad):
             batches_2_download.append(images)
             batches_2_download.append(meta_masks)
@@ -123,8 +128,9 @@ def check_processed_batches():
     # batches_2_download = [x for x in batches_2_download if "NC" not in x]
     save_path = "/home/psa_images/SemiF-AnnotationPipeline/.batchlogs/batch_download.txt"
     with open(save_path, 'w') as f:
-        for item in sorted(batches_2_download): 
+        for item in sorted(batches_2_download):
             f.write(f"{item}\n")
 
-if __name__=="__main__":
+
+if __name__ == "__main__":
     check_processed_batches()
