@@ -684,12 +684,10 @@ class Cutout:
     batch_id: str
     image_id: str
     cutout_num: int
+    bbox: list
     datetime: datetime.datetime  # Datetime of original image creation
     cutout_props: CutoutProps
     shape: list
-    # rgb_cropout_mean: List[float]
-    # rgb_cutout_mean: List[float]
-    # local_contours: List[float] = None
     cutout_id: str = None
     cutout_path: str = None
     cls: str = None
@@ -725,16 +723,14 @@ class Cutout:
             "cutout_path": self.cutout_path,
             "cls": self.cls,
             "cutout_num": self.cutout_num,
+            "bbox": self.bbox,
             "is_primary": self.is_primary,
             "datetime": self.datetime,
             "shape": self.shape,
             "cutout_props": self.cutout_props,
-            # "rgb_cropout_mean": self.rgb_cropout_mean,
-            # "rgb_cutout_mean": self.rgb_cutout_mean,
             "extends_border": self.extends_border,
             "cutout_version": self.cutout_version,
             "schema_version": self.schema_version
-            # "local_contours": self.local_contours
         }
 
         return _config

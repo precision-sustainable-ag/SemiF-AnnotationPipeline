@@ -90,8 +90,8 @@ AutoSfM | [depth_map.downscale](./conf/asfm/asfm.yaml#L46) |  Depth map quality,
 2. added `season` metadata field in `cutouts`
 3. added `cropout_mean`, `cutout_mean`, `cropout_std`, and `cropout_std` metadata for individual cutout images
 
-
 <br>
+
 
 -----
 

@@ -215,8 +215,8 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         if cutout["multi_species_USDA_symbol"] != None:
             cutout["multi_species_USDA_symbol"] = ",".join(
                 cutout["multi_species_USDA_symbol"])
-
-        cutdf = pd.DataFrame(cutout)  #, index=[0])
+        cutdf = pd.DataFrame.from_dict(cutout, orient='index').T
+        # cutdf = pd.DataFrame(cutout)  #, index=[0])
         cutouts.append(cutdf)
     # Concat and reset index of main df
     cutouts_df = pd.concat(cutouts)

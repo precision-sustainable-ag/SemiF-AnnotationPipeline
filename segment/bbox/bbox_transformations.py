@@ -230,9 +230,11 @@ class BBoxMapper():
                     ray_origin = camera.center  # camera.unproject(Metashape.Vector([x_coord, y_coord, 0]))
                     if ray_origin is None:
                         print(f"Ray origin is {ray_origin}")
+                        print(image_id)
+
                     ray_target = camera.unproject(
                         Metashape.Vector([x_coord, y_coord]))
-
+                    
                     point_internal = surface.pickPoint(ray_origin, ray_target)
 
                     if point_internal is None:

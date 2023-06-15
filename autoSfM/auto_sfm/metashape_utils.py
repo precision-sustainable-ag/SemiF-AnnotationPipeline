@@ -152,7 +152,6 @@ class SfM:
                          progress_callback: Callable = percentage_callback):
         """Function to optimize the cameras
         """
-        print(self.doc.chunk)
         self.doc.chunk.optimizeCameras(fit_f=True,
                                        fit_cx=True,
                                        fit_cy=True,
@@ -182,13 +181,13 @@ class SfM:
         ms.app.gpu_mask = self.num_gpus
         self.doc.chunks[chunk].matchPhotos(
             downscale=self.cfg["asfm"]["align_photos"]["downscale"],
-            generic_preselection=False,
+            generic_preselection=True,
             reference_preselection=True,
             reference_preselection_mode=ms.ReferencePreselectionSource,
             filter_mask=self.cfg["asfm"]["use_masking"],
             mask_tiepoints=True,
             keypoint_limit=40000,
-            tiepoint_limit=15000,
+            tiepoint_limit=4000,
             keep_keypoints=False,
             cameras=self.doc.chunks[chunk].cameras,
             guided_matching=False,

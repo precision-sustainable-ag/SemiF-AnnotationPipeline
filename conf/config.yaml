@@ -24,6 +24,7 @@ hydra:
 general:
   # season: summer_weeds_2022
   season: cool_season_covers_2022_2023
+  # season:
 #----------------------------------------------------
   metashape_key: ??? # Do not put key in the config since the file is committed to GitHub
   batch_id: ???
@@ -33,12 +34,11 @@ general:
 # Select sections of pipeline to run
 pipeline:
   download_data: False
-  autosfm_pipeline: False
+  autosfm_pipeline: True
   localize_plants: True
   remap_labels: True
   assign_species: True
   segment_vegetation: False
-  upload_data: False
   
 # Other job/naming options (currently not used)
 job:
