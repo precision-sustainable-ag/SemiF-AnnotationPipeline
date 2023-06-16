@@ -46,7 +46,7 @@ class SfM:
             log.info(
                 f"Metashape project already exisits. Opening project file.")
             # Metashape window
-            doc.open(project_path)
+            doc.open(project_path, read_only=False, ignore_lock=True)
         else:
             # Create a project and save
             log.info(f"Creating new Metashape project for {batch_id}")
@@ -86,7 +86,6 @@ class SfM:
                        progress_callback: Callable = percentage_callback):
         """Detects 12 bit circular markers
         """
-
         self.doc.chunks[chunk].detectMarkers(
             target_type=ms.CircularTarget12bit,
             tolerance=50,
@@ -103,7 +102,6 @@ class SfM:
     def import_reference(self, chunk: int = 0):
         """Imports reference points
         """
-
         self.doc.chunks[chunk].importReference(
             path=self.cfg["data"]["gcp_ref"],
             format=ms.ReferenceFormatCSV,
@@ -115,11 +113,12 @@ class SfM:
             create_markers=True,
             threshold=0.1,
             shutter_lag=0)
+        self.save_project()
 
     def export_camera_reference(self):
         """Exports the reference to a CSV file.
         """
-
+        # self.doc.chunk = self.doc.chunks[1]
         reference = []
         for camera in self.doc.chunk.cameras:
             stats = CameraStats(camera).to_dict()
@@ -136,7 +135,6 @@ class SfM:
         dataframe.to_csv(self.cfg["asfm"]["cam_ref"], header=True, index=False)
 
     def export_gcp_reference(self):
-
         reference = []
         for marker in self.doc.chunk.markers:
             stats = MarkerStats(marker).to_dict()
@@ -152,6 +150,11 @@ class SfM:
                          progress_callback: Callable = percentage_callback):
         """Function to optimize the cameras
         """
+        # Disable camera locations as reference if specified in YML
+        n_cameras = len(self.doc.chunk.cameras)
+        for i in range(0, n_cameras):
+            self.doc.chunk.cameras[i].reference.enabled = False
+
         self.doc.chunk.optimizeCameras(fit_f=True,
                                        fit_cx=True,
                                        fit_cy=True,
@@ -164,11 +167,23 @@ class SfM:
                                        fit_p1=True,
                                        fit_p2=True,
                                        fit_corrections=False,
-                                       adaptive_fitting=False,
+                                       adaptive_fitting=True,
                                        tiepoint_covariance=False,
                                        progress=progress_callback)
 
         self.save_project()
+
+    def reset_region(self):
+        '''
+        Reset the region and make it much larger than the points; necessary because if points go outside the region, they get clipped when saving
+        '''
+
+        self.doc.chunk.resetRegion()
+        region_dims = self.doc.chunk.region.size
+        region_dims[2] *= 3
+        self.doc.chunk.region.size = region_dims
+
+        return True
 
     def align_photos(self,
                      progress_callback: Callable = percentage_callback,
@@ -179,6 +194,8 @@ class SfM:
         self.save_project()
         ms.app.cpu_enable = False
         ms.app.gpu_mask = self.num_gpus
+        log.info("Matching photos.")
+
         self.doc.chunks[chunk].matchPhotos(
             downscale=self.cfg["asfm"]["align_photos"]["downscale"],
             generic_preselection=True,
@@ -191,19 +208,30 @@ class SfM:
             keep_keypoints=False,
             cameras=self.doc.chunks[chunk].cameras,
             guided_matching=False,
-            reset_matches=True,
-            subdivide_task=True,
+            reset_matches=False,
+            subdivide_task=False,
             workitem_size_cameras=20,
             workitem_size_pairs=80,
             max_workgroup_size=100,
             progress=progress_callback)
+
+        log.info("Aligning cameras.")
         self.doc.chunks[chunk].alignCameras(
             cameras=self.doc.chunks[chunk].cameras,
             min_image=2,
-            adaptive_fitting=False,
-            reset_alignment=True,
-            subdivide_task=True,
+            adaptive_fitting=True,  # adaptive_fitting=False,
+            reset_alignment=False,
+            subdivide_task=False,
             progress=progress_callback)
+
+        unaligned_cameras = [
+            camera for camera in self.doc.chunks[chunk].cameras
+            if camera.transform is None
+        ]
+
+        if len(unaligned_cameras) != 0:
+            log.warning(f"Found {len(unaligned_cameras)} unaligned cameras.")
+
         if ms.app.gpu_mask:
             ms.app.cpu_enable = True
         if self.cfg["asfm"]["align_photos"]["autosave"]:
@@ -211,46 +239,84 @@ class SfM:
 
         if correct:
             # Check if all the cameras were aligned
-            print("Correction enabled. Checking for unaligned cameras.")
-            unaligned_cameras = [
-                camera for camera in self.doc.chunks[chunk].cameras
-                if camera.transform is None
-            ]
-            print(f"Found {len(unaligned_cameras)} unaligned cameras.")
+            log.warning("Correction enabled. Checking for unaligned cameras.")
             if len(unaligned_cameras) < 1:
-                print("Not enough cameras to perform alignment, skipping.")
+                log.info(
+                    "Not enough unaligned cameras to perform alignment, skipping."
+                )
             if len(unaligned_cameras) > 1:
-                print("Attempting to align.")
+                log.info("Attempting to align unaligned cameras.")
                 # Add a chunk and try to process separately
                 self.doc.addChunk()
                 photos = [camera.photo.path for camera in unaligned_cameras]
                 self.doc.chunks[1].addPhotos(photos)
 
                 # Detect markers for the new chunk
+                log.info("Detecting markers.")
                 self.detect_markers(chunk=chunk + 1)
+
                 # Import reference for the new chunk
+                log.info("Importing reference.")
                 self.import_reference(chunk=chunk + 1)
+
                 # Align again
+                log.info("Aligning photos agains.")
                 self.align_photos(chunk=chunk + 1, correct=False)
 
                 # Merge the chunks
-                self.doc.mergeChunks(merge_markers=True, chunks=[0, 1])
+                log.info("Merging Chunks.")
+                c = [self.doc.chunks[-2], self.doc.chunks[-1]]
+                keys = [x.key for x in c]
+                self.doc.mergeChunks(merge_markers=True, chunks=keys)
 
                 # Set the active chunk
+                log.info("Setting active chunk.")
                 self.doc.chunk = self.doc.chunks[chunk + 2]
+                log.warning(len(self.doc.chunk.cameras))
+
 
                 # Remove duplicate unaligned cameras
                 camera_counts = Counter(
                     [camera.label for camera in self.doc.chunk.cameras])
+
                 for camera in self.doc.chunk.cameras:
                     if camera.transform is None and camera_counts[
                             camera.label] > 1:
                         self.doc.chunk.remove(camera)
 
+                # Check for unaligned cameras again
+                unaligned_cameras_chunk = [
+                    camera for camera in self.doc.chunks[chunk].cameras
+                    if camera.transform is None
+                ]
+                log.warning(
+                    f"Found {len(unaligned_cameras_chunk)} unaligned cameras.")
+
+                unaligned_cameras_chunk_plus_1 = [
+                    camera for camera in self.doc.chunks[chunk + 1].cameras
+                    if camera.transform is None
+                ]
+                log.warning(
+                    f"Found {len(unaligned_cameras_chunk_plus_1)} unaligned cameras (chunk + 1)."
+                )
+
+                unaligned_cameras_chunk_plus_2 = [
+                    camera for camera in self.doc.chunks[chunk + 2].cameras
+                    if camera.transform is None
+                ]
+                log.warning(
+                    f"Found {len(unaligned_cameras_chunk_plus_2)} unaligned cameras (chunk + 2)."
+                )
+
+                self.save_project()
+
     def build_depth_map(self,
                         progress_callback: Callable = percentage_callback):
         ms.app.cpu_enable = False
         ms.app.gpu_mask = self.num_gpus
+        log.info("Number of cameras in chunk at depth map: ",
+                 len(self.doc.chunk.cameras))
+
         self.doc.chunk.buildDepthMaps(
             downscale=self.cfg["asfm"]["depth_map"]["downscale"],
             filter_mode=ms.MildFiltering,

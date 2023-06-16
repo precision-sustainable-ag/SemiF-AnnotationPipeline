@@ -66,7 +66,6 @@ class BBoxComponents:
         self.batch_id = self.batch_dir.name
         self.batch_date = self.batch_id.split("_")[1]
 
-        dog = 10
         self.multiprocessing = multiprocessing
 
         self.camera_reference = camera_reference

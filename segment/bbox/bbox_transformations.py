@@ -6,6 +6,9 @@ from scipy.spatial.transform import Rotation
 from semif_utils.datasets import BBox, BoxCoordinates, ImageData
 
 from .bbox_utils import bb_iou, generate_hash
+import logging
+
+log = logging.getLogger(__name__)
 
 FOV_IOU_THRESH = 0.1
 BBOX_OVERLAP_THRESH = 0.3
@@ -192,7 +195,7 @@ class BBoxMapper():
 
             # Isolate the chunk
             camera_chunk = None
-            for chunk in self.doc.chunks:
+            for chunk in self.doc.chunks[2]:
                 cameras = [camera.label for camera in chunk.cameras]
                 if image_id in cameras:
                     camera_chunk = chunk
@@ -229,15 +232,19 @@ class BBoxMapper():
 
                     ray_origin = camera.center  # camera.unproject(Metashape.Vector([x_coord, y_coord, 0]))
                     if ray_origin is None:
-                        print(f"Ray origin is {ray_origin}")
-                        print(image_id)
+                        log.critical(
+                            f"Camera center is {ray_origin}. Image ID is {image_id}."
+                        )
 
                     ray_target = camera.unproject(
                         Metashape.Vector([x_coord, y_coord]))
-                    
+
                     point_internal = surface.pickPoint(ray_origin, ray_target)
 
                     if point_internal is None:
+                        log.critical(
+                            f"Point internal is {point_internal}. Image ID is {image_id}."
+                        )
                         raise TypeError()
 
                     # From https://www.agisoft.com/forum/index.php?topic=12781.0
@@ -249,13 +256,13 @@ class BBoxMapper():
                 top_right = np.array(mapped_coordinates[2])
                 bottom_left = np.array(mapped_coordinates[1])
                 bottom_right = np.array(mapped_coordinates[3])
-                width = top_right[0] - top_left[0]
-                height = top_left[1] - bottom_left[1]
-                center_x = top_left[0] + width / 2
-                center_y = top_left[1] + height / 2
-                xywh = np.array([center_x, center_y, width, height])
+                # width = top_right[0] - top_left[0]
+                # height = top_left[1] - bottom_left[1]
+                # center_x = top_left[0] + width / 2
+                # center_y = top_left[1] + height / 2
+                # xywh = np.array([center_x, center_y, width, height])
 
-                global_coordinates = BoxCoordinates(xywh, top_left, top_right,
+                global_coordinates = BoxCoordinates(top_left, top_right,
                                                     bottom_left, bottom_right)
                 bbox.update_global_coordinates(global_coordinates)
 

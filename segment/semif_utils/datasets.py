@@ -146,11 +146,14 @@ class BBox:
             "image_id":
             self.image_id,
             "local_centroid":
-            list(
-                self.norm_local_centroid),  # Always use normalized coordinates
+            list(self.norm_local_centroid),
+            # list(
+            # self.norm_local_centroid),  # Always use normalized coordinates
             "local_coordinates":
-            self.norm_local_coordinates.
-            config,  # Always use normalized coordinates
+            self.local_coordinates.config,
+            # self.norm_local_coordinates.
+            # config,
+            # Always use normalized coordinates
             "global_centroid":
             list(self.global_centroid),
             "global_coordinates":

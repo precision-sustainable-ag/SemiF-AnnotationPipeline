@@ -1,6 +1,6 @@
 workdir: autoSfM
 # Number of GPUs to use
-num_gpus: 3 # 8=255, 7=127, 6=63, 5=31, 4=15, 3=7, 2=3, 1=1; or use 'all' to use all available gpus
+num_gpus: 7 # 8=255, 7=127, 6=63, 5=31, 4=15, 3=7, 2=3, 1=1; or use 'all' to use all available gpus
 # Masks blue benchbot pixels if masks are present
 use_masking: True
 
@@ -31,11 +31,27 @@ dpi: 100
 config_save_path: ${autosfm.autosfm_volume}/config/config.yml
 config_copy_path: ${data.logdir}/autosfm/config_${general.batch_id}.yml
 
+# Pipeline settings
+check_for_asfm: False
+resize_photos: True
+add_photos_and_masks: True
+detect_markers: True
+import_references: True
+align: True
+optimize_cameras: True
+export_gcp_camref_err: True
+build_depth: True
+build_dense: True
+build_dem: True
+build_ortho: True
+export_fov: True
+preview_img: True
+
 ## Main processing settings
 # Electives
 downscale:
   enabled: True
-  factor: 1 # between (0, 1] 1 is highest accuracy. By default 0.5
+  factor: 0.5 # between (0, 1] 1 is highest accuracy. By default 0.5
 
 align_photos:
   downscale: 1 # Accuracy parameter, lower means higher accuracy [1-4]. By default 1
@@ -43,7 +59,7 @@ align_photos:
 
 depth_map:
   enabled: True
-  downscale: 1 # Depth map quality, lower means higher accuracy [1-4]. By default 4
+  downscale: 4 # Depth map quality, lower means higher accuracy [1-4]. By default 4
   autosave: True
 
 dense_cloud:
