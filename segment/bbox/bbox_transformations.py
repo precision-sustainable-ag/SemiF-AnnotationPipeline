@@ -195,7 +195,7 @@ class BBoxMapper():
 
             # Isolate the chunk
             camera_chunk = None
-            for chunk in self.doc.chunks[2]:
+            for chunk in [self.doc.chunks[1]]:
                 cameras = [camera.label for camera in chunk.cameras]
                 if image_id in cameras:
                     camera_chunk = chunk

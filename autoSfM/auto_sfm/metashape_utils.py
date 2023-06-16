@@ -271,9 +271,9 @@ class SfM:
 
                 # Set the active chunk
                 log.info("Setting active chunk.")
-                self.doc.chunk = self.doc.chunks[chunk + 2]
+                # self.doc.chunk = self.doc.chunks[chunk + 2]
+                self.doc.chunk = self.doc.chunks[chunk + 1]
                 log.warning(len(self.doc.chunk.cameras))
-
 
                 # Remove duplicate unaligned cameras
                 camera_counts = Counter(
