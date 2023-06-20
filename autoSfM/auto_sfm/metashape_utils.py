@@ -247,32 +247,37 @@ class SfM:
             if len(unaligned_cameras) > 1:
                 log.info("Attempting to align unaligned cameras.")
                 # Add a chunk and try to process separately
-                self.doc.addChunk()
+                # self.doc.addChunk()
                 photos = [camera.photo.path for camera in unaligned_cameras]
-                self.doc.chunks[1].addPhotos(photos)
+                # self.doc.chunks[1].addPhotos(photos)
+                self.doc.chunk.addPhotos(photos)
 
                 # Detect markers for the new chunk
                 log.info("Detecting markers.")
-                self.detect_markers(chunk=chunk + 1)
+                # self.detect_markers(chunk=chunk + 1)
+                self.detect_markers(chunk=chunk)
 
                 # Import reference for the new chunk
                 log.info("Importing reference.")
-                self.import_reference(chunk=chunk + 1)
+                # self.import_reference(chunk=chunk + 1)
+                self.import_reference(chunk=chunk)
 
                 # Align again
                 log.info("Aligning photos agains.")
-                self.align_photos(chunk=chunk + 1, correct=False)
+                # self.align_photos(chunk=chunk + 1, correct=False)
+                self.align_photos(chunk=chunk, correct=False)
 
                 # Merge the chunks
-                log.info("Merging Chunks.")
-                c = [self.doc.chunks[-2], self.doc.chunks[-1]]
-                keys = [x.key for x in c]
-                self.doc.mergeChunks(merge_markers=True, chunks=keys)
+                # log.info("Merging Chunks.")
+                # c = [self.doc.chunks[-2], self.doc.chunks[-1]]
+                # keys = [x.key for x in c]
+                # self.doc.mergeChunks(merge_markers=True, chunks=keys)
 
                 # Set the active chunk
                 log.info("Setting active chunk.")
                 # self.doc.chunk = self.doc.chunks[chunk + 2]
-                self.doc.chunk = self.doc.chunks[chunk + 1]
+                # self.doc.chunk = self.doc.chunks[chunk + 1]
+                self.doc.chunk = self.doc.chunks[chunk]
                 log.warning(len(self.doc.chunk.cameras))
 
                 # Remove duplicate unaligned cameras
@@ -292,21 +297,21 @@ class SfM:
                 log.warning(
                     f"Found {len(unaligned_cameras_chunk)} unaligned cameras.")
 
-                unaligned_cameras_chunk_plus_1 = [
-                    camera for camera in self.doc.chunks[chunk + 1].cameras
-                    if camera.transform is None
-                ]
-                log.warning(
-                    f"Found {len(unaligned_cameras_chunk_plus_1)} unaligned cameras (chunk + 1)."
-                )
+                # unaligned_cameras_chunk_plus_1 = [
+                #     camera for camera in self.doc.chunks[chunk + 1].cameras
+                #     if camera.transform is None
+                # ]
+                # log.warning(
+                #     f"Found {len(unaligned_cameras_chunk_plus_1)} unaligned cameras (chunk + 1)."
+                # )
 
-                unaligned_cameras_chunk_plus_2 = [
-                    camera for camera in self.doc.chunks[chunk + 2].cameras
-                    if camera.transform is None
-                ]
-                log.warning(
-                    f"Found {len(unaligned_cameras_chunk_plus_2)} unaligned cameras (chunk + 2)."
-                )
+                # unaligned_cameras_chunk_plus_2 = [
+                #     camera for camera in self.doc.chunks[chunk + 2].cameras
+                #     if camera.transform is None
+                # ]
+                # log.warning(
+                #     f"Found {len(unaligned_cameras_chunk_plus_2)} unaligned cameras (chunk + 2)."
+                # )
 
                 self.save_project()
 

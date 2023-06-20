@@ -34,7 +34,7 @@ general:
 # Select sections of pipeline to run
 pipeline:
   download_data: False
-  autosfm_pipeline: False
+  autosfm_pipeline: True
   localize_plants: True
   remap_labels: True
   assign_species: True
