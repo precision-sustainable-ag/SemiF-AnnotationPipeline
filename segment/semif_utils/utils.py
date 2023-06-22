@@ -219,20 +219,21 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         # cutdf = pd.DataFrame(cutout)  #, index=[0])
         cutouts.append(cutdf)
     # Concat and reset index of main df
-    cutouts_df = pd.concat(cutouts)
-    cutouts_df = cutouts_df.reset_index()
-    cutouts_df.drop(columns="index", inplace=True)
-    cutouts_df.sort_values(by=['image_id', 'cutout_num'],
-                           axis=0,
-                           ascending=[True, True],
-                           inplace=True,
-                           kind='quicksort',
-                           na_position='first',
-                           ignore_index=True,
-                           key=None)
-    if save_df:
-        cutouts_df.to_csv(csv_savepath, index=False)
-    return cutouts_df
+    if len(cutouts) > 0:
+        cutouts_df = pd.concat(cutouts)
+        cutouts_df = cutouts_df.reset_index()
+        cutouts_df.drop(columns="index", inplace=True)
+        cutouts_df.sort_values(by=['image_id', 'cutout_num'],
+                               axis=0,
+                               ascending=[True, True],
+                               inplace=True,
+                               kind='quicksort',
+                               na_position='first',
+                               ignore_index=True,
+                               key=None)
+        if save_df:
+            cutouts_df.to_csv(csv_savepath, index=False)
+        return cutouts_df
 
 
 def growth_stage(batch_date, plant_date_list):
