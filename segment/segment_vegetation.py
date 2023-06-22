@@ -264,7 +264,7 @@ class SegmentVegetation:
                             season=self.season,
                             batch_id=self.batch_id,
                             image_id=imgdata.image_id,
-                            bbox=[x1,y1,x2,y2],
+                            bbox=[x1, y1, x2, y2],
                             cutout_num=cutout_num,
                             datetime=imgdata.exif_meta.DateTime,
                             cutout_props=asdict(seg.props),
