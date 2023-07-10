@@ -247,25 +247,25 @@ class SfM:
             if len(unaligned_cameras) > 1:
                 log.info("Attempting to align unaligned cameras.")
                 # Add a chunk and try to process separately
-                # self.doc.addChunk()
+                self.doc.addChunk()
                 photos = [camera.photo.path for camera in unaligned_cameras]
-                # self.doc.chunks[1].addPhotos(photos)
-                self.doc.chunk.addPhotos(photos)
+                self.doc.chunks[1].addPhotos(photos)
+                # self.doc.chunk.addPhotos(photos)
 
                 # Detect markers for the new chunk
                 log.info("Detecting markers.")
-                # self.detect_markers(chunk=chunk + 1)
-                self.detect_markers(chunk=chunk)
+                self.detect_markers(chunk=chunk + 1)
+                # self.detect_markers(chunk=chunk)
 
                 # Import reference for the new chunk
                 log.info("Importing reference.")
-                # self.import_reference(chunk=chunk + 1)
-                self.import_reference(chunk=chunk)
+                self.import_reference(chunk=chunk + 1)
+                # self.import_reference(chunk=chunk)
 
                 # Align again
                 log.info("Aligning photos agains.")
                 # self.align_photos(chunk=chunk + 1, correct=False)
-                self.align_photos(chunk=chunk, correct=False)
+                self.align_photos(chunk=chunk + 1, correct=False)
 
                 # Merge the chunks
                 log.info("Merging Chunks.")
@@ -277,8 +277,9 @@ class SfM:
 
                 # Set the active chunk
                 log.info("Setting active chunk.")
-                self.doc.chunk = self.doc.chunks[chunk]
-                log.warning(len(self.doc.chunk.cameras))
+                # self.doc.chunk = self.doc.chunks[chunk]
+                self.doc.chunk = self.doc.chunks[chunk + 2]
+                # log.warning(len(self.doc.chunk.cameras))
 
                 # Remove duplicate unaligned cameras
                 camera_counts = Counter(
@@ -345,7 +346,7 @@ class SfM:
         if self.doc.chunk.depth_maps is None:
             self.build_depth_map()
 
-        self.doc.chunk.buildDenseCloud(point_colors=True,
+        self.doc.chunk.buildPointCloud(point_colors=True,
                                        point_confidence=False,
                                        keep_depth=True,
                                        max_neighbors=100,
@@ -360,10 +361,10 @@ class SfM:
 
     def build_dem(self, progress_callback: Callable = percentage_callback):
 
-        if self.doc.chunk.dense_cloud is None:
+        if self.doc.chunk.point_cloud is None:
             self.build_dense_cloud()
 
-        self.doc.chunk.buildDem(source_data=ms.DenseCloudData,
+        self.doc.chunk.buildDem(source_data=ms.PointCloudData,
                                 interpolation=ms.EnabledInterpolation,
                                 flip_x=False,
                                 flip_y=False,

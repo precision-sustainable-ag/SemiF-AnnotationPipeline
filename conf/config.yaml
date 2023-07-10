@@ -34,11 +34,11 @@ general:
 # Select sections of pipeline to run
 pipeline:
   download_data: False
-  autosfm_pipeline: False
-  localize_plants: True
-  remap_labels: True
-  assign_species: True
-  segment_vegetation: True
+  autosfm_pipeline: True
+  localize_plants: False
+  remap_labels: False
+  assign_species: False
+  segment_vegetation: False
   
 # Other job/naming options (currently not used)
 job:

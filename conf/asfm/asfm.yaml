@@ -32,7 +32,7 @@ config_save_path: ${autosfm.autosfm_volume}/config/config.yml
 config_copy_path: ${data.logdir}/autosfm/config_${general.batch_id}.yml
 
 # Pipeline settings
-check_for_asfm: False
+check_for_asfm: True
 resize_photos: True
 add_photos_and_masks: True
 detect_markers: True

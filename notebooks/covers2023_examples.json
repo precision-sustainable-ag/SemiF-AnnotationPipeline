@@ -1,0 +1,151 @@
+{
+    "blob_home": "data",
+    "data_root": "semifield-cutouts",
+    "season": "cool_season_covers_2022_2023",
+    "batch_id": "TX_2023-05-10",
+    "image_id": "TX_1683745588",
+    "cutout_id": "TX_1683745588_0",
+    "cutout_path": "TX_2023-05-10/TX_1683745588_0.png",
+    "cls": {
+        "class_id": 38,
+        "USDA_symbol": "AVSA",
+        "EPPO": "AVESA",
+        "group": "monocot",
+        "class": "Liliopsida",
+        "subclass": "Commelinidae",
+        "order": "Cyperales",
+        "family": "Poaceae",
+        "genus": "Avena",
+        "species": "sativa",
+        "common_name": "Oats",
+        "authority": "Linnaeus",
+        "growth_habit": "graminoid",
+        "duration": "annual",
+        "collection_location": "NC, TX",
+        "category": "cool season cover crop",
+        "collection_timing": "winter",
+        "multi_species_USDA_symbol": null,
+        "link": "https://plants.usda.gov/home/plantProfile?symbol=AVSA",
+        "note": null,
+        "hex": "#44975e",
+        "rgb": [
+            68,
+            151,
+            94
+        ]
+    },
+    "cutout_num": 0,
+    "bbox": [
+        9422,
+        2274,
+        9533,
+        2362
+    ],
+    "is_primary": false,
+    "datetime": "2023:05:10 13:03:17",
+    "shape": [
+        88,
+        111,
+        3
+    ],
+    "cutout_props": {
+        "area": 2559.0,
+        "area_bbox": 4253.0,
+        "area_convex": 2790.0,
+        "axis_major_length": 163.78261603130974,
+        "axis_minor_length": 85.61384031509957,
+        "centroid0": 203.99037190154337,
+        "centroid1": 233.22536699370232,
+        "eccentricity": 2.9500096319406763,
+        "solidity": 3.649215808224742,
+        "perimeter": 449.6173157302028,
+        "green_sum": 9,
+        "blur_effect": 0.33650609764101497,
+        "num_components": 4,
+        "cropout_descriptive_stats": {
+            "channel_r": {
+                "count": 9768.0,
+                "mean": 145.49088861588862,
+                "std": 43.911092064015094,
+                "min": 0.0,
+                "25%": 120.0,
+                "50%": 161.0,
+                "75%": 177.0,
+                "max": 240.0,
+                "variance": 1928.184006254409,
+                "skewness": -0.9256976823866578,
+                "kurtosis": 0.006767761620012358
+            },
+            "channel_g": {
+                "count": 9768.0,
+                "mean": 128.5621416871417,
+                "std": 43.84773149063441,
+                "min": 0.0,
+                "25%": 100.0,
+                "50%": 134.0,
+                "75%": 166.0,
+                "max": 216.0,
+                "variance": 1922.6235568747725,
+                "skewness": -0.49998315489266665,
+                "kurtosis": -0.5849537763625907
+            },
+            "channel_b": {
+                "count": 9768.0,
+                "mean": 100.14486076986077,
+                "std": 33.17741805974901,
+                "min": 0.0,
+                "25%": 82.0,
+                "50%": 107.0,
+                "75%": 125.0,
+                "max": 179.0,
+                "variance": 1100.7410691113596,
+                "skewness": -0.8088779930052077,
+                "kurtosis": 0.09956743340137297
+            }
+        },
+        "cutout_descriptive_stats": {
+            "channel_r": {
+                "count": 2559.0,
+                "mean": 177.85384915982806,
+                "std": 12.797871383824342,
+                "min": 77.0,
+                "25%": 172.0,
+                "50%": 178.0,
+                "75%": 184.0,
+                "max": 240.0,
+                "variance": 163.78551195690997,
+                "skewness": -0.6373321322862304,
+                "kurtosis": 6.710364250901119
+            },
+            "channel_g": {
+                "count": 2559.0,
+                "mean": 175.88472059398202,
+                "std": 14.336034640047266,
+                "min": 78.0,
+                "25%": 168.0,
+                "50%": 176.0,
+                "75%": 187.0,
+                "max": 216.0,
+                "variance": 205.52188920063514,
+                "skewness": -1.4762185690439105,
+                "kurtosis": 6.209415377842641
+            },
+            "channel_b": {
+                "count": 2557.0,
+                "mean": 117.19397731716856,
+                "std": 19.142511695449997,
+                "min": 1.0,
+                "25%": 107.0,
+                "50%": 118.0,
+                "75%": 130.0,
+                "max": 171.0,
+                "variance": 366.4357540104399,
+                "skewness": -1.4869930655189054,
+                "kurtosis": 5.229919518251574
+            }
+        }
+    },
+    "extends_border": true,
+    "cutout_version": "2.0",
+    "schema_version": "2.0"
+}
