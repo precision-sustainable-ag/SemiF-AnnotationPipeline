@@ -167,23 +167,11 @@ class SfM:
                                        fit_p1=True,
                                        fit_p2=True,
                                        fit_corrections=False,
-                                       adaptive_fitting=True,
+                                       adaptive_fitting=False,
                                        tiepoint_covariance=False,
                                        progress=progress_callback)
 
         self.save_project()
-
-    def reset_region(self):
-        '''
-        Reset the region and make it much larger than the points; necessary because if points go outside the region, they get clipped when saving
-        '''
-
-        self.doc.chunk.resetRegion()
-        region_dims = self.doc.chunk.region.size
-        region_dims[2] *= 3
-        self.doc.chunk.region.size = region_dims
-
-        return True
 
     def align_photos(self,
                      progress_callback: Callable = percentage_callback,
@@ -198,18 +186,20 @@ class SfM:
 
         self.doc.chunks[chunk].matchPhotos(
             downscale=self.cfg["asfm"]["align_photos"]["downscale"],
-            generic_preselection=True,
+            generic_preselection=True,  # usually True
             reference_preselection=True,
             reference_preselection_mode=ms.ReferencePreselectionSource,
             filter_mask=self.cfg["asfm"]["use_masking"],
-            mask_tiepoints=True,
+            mask_tiepoints=True,  #True
+            filter_stationary_points=True,
             keypoint_limit=40000,
+            keypoint_limit_per_mpx=1000,
             tiepoint_limit=4000,
             keep_keypoints=False,
             cameras=self.doc.chunks[chunk].cameras,
-            guided_matching=False,
-            reset_matches=False,
-            subdivide_task=False,
+            guided_matching=False,  # False
+            reset_matches=True,
+            subdivide_task=True,
             workitem_size_cameras=20,
             workitem_size_pairs=80,
             max_workgroup_size=100,
@@ -219,9 +209,9 @@ class SfM:
         self.doc.chunks[chunk].alignCameras(
             cameras=self.doc.chunks[chunk].cameras,
             min_image=2,
-            adaptive_fitting=True,  # adaptive_fitting=False,
-            reset_alignment=False,
-            subdivide_task=False,
+            adaptive_fitting=False,  # adaptive_fitting=False,
+            reset_alignment=True,
+            subdivide_task=True,
             progress=progress_callback)
 
         unaligned_cameras = [
@@ -250,12 +240,12 @@ class SfM:
                 self.doc.addChunk()
                 photos = [camera.photo.path for camera in unaligned_cameras]
                 self.doc.chunks[1].addPhotos(photos)
-                # self.doc.chunk.addPhotos(photos)
 
                 # Detect markers for the new chunk
-                log.info("Detecting markers.")
-                self.detect_markers(chunk=chunk + 1)
-                # self.detect_markers(chunk=chunk)
+                if self.cfg.asfm.detect_markers:
+                    log.info("Detecting markers.")
+                    self.detect_markers(chunk=chunk + 1)
+                    # self.detect_markers(chunk=chunk)
 
                 # Import reference for the new chunk
                 log.info("Importing reference.")
@@ -269,9 +259,6 @@ class SfM:
 
                 # Merge the chunks
                 log.info("Merging Chunks.")
-                # c = [self.doc.chunks[-2], self.doc.chunks[-1]]
-                # keys = [x.key for x in c]
-                # self.doc.mergeChunks(merge_markers=True, chunks=keys)
                 # Merge the chunks
                 self.doc.mergeChunks(merge_markers=True, chunks=[0, 1])
 
@@ -290,29 +277,15 @@ class SfM:
                             camera.label] > 1:
                         self.doc.chunk.remove(camera)
 
-                # Check for unaligned cameras again
-                # unaligned_cameras_chunk = [
-                #     camera for camera in self.doc.chunks[chunk].cameras
-                #     if camera.transform is None
-                # ]
-                # log.warning(
-                #     f"Found {len(unaligned_cameras_chunk)} unaligned cameras.")
+                unaligned_cameras_2 = [
+                    camera for camera in self.doc.chunks[chunk + 2].cameras
+                    if camera.transform is None
+                ]
 
-                # unaligned_cameras_chunk_plus_1 = [
-                #     camera for camera in self.doc.chunks[chunk + 1].cameras
-                #     if camera.transform is None
-                # ]
-                # log.warning(
-                #     f"Found {len(unaligned_cameras_chunk_plus_1)} unaligned cameras (chunk + 1)."
-                # )
-
-                # unaligned_cameras_chunk_plus_2 = [
-                #     camera for camera in self.doc.chunks[chunk + 2].cameras
-                #     if camera.transform is None
-                # ]
-                # log.warning(
-                #     f"Found {len(unaligned_cameras_chunk_plus_2)} unaligned cameras (chunk + 2)."
-                # )
+                if len(unaligned_cameras_2) != 0:
+                    log.warning(
+                        f"Found {len(unaligned_cameras_2)} unaligned cameras after second alignment. Moving on to depth map construction."
+                    )
 
                 self.save_project()
 
@@ -350,6 +323,7 @@ class SfM:
                                        point_confidence=False,
                                        keep_depth=True,
                                        max_neighbors=100,
+                                       uniform_sampling=True,
                                        subdivide_task=True,
                                        workitem_size_cameras=20,
                                        max_workgroup_size=100,
@@ -358,6 +332,33 @@ class SfM:
             ms.app.cpu_enable = True
         if self.cfg["asfm"]["dense_cloud"]["autosave"]:
             self.save_project()
+
+    def build_model(self, progress_callback: Callable = percentage_callback):
+
+        # self.doc.chunk.buildModel(source_data=ms.PointCloudData)
+
+        self.doc.chunk.buildModel(
+            surface_type=ms.Arbitrary,
+            interpolation=ms.Extrapolated,  #ms.Extrapolated
+            face_count=ms.HighFaceCount,
+            face_count_custom=200000,
+            source_data=ms.PointCloudData,
+            vertex_colors=True,
+            vertex_confidence=True,
+            volumetric_masks=False,
+            keep_depth=True,
+            trimming_radius=0,
+            subdivide_task=True,
+            workitem_size_cameras=20,
+            max_workgroup_size=100,
+            progress=progress_callback)
+        self.save_project()
+
+    def build_texture(self, progress_callback: Callable = percentage_callback):
+        self.doc.chunk.buildTexture(texture_size=4096,
+                                    ghosting_filter=True,
+                                    progress=progress_callback)
+        self.save_project()
 
     def build_dem(self, progress_callback: Callable = percentage_callback):
 

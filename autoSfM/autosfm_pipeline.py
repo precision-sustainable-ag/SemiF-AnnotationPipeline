@@ -154,6 +154,24 @@ def main(cfg: DictConfig) -> None:
             log.exception(f"Failed to buidl dense point cloud. Exiting")
             exit(1)
 
+    if cfg.asfm.build_model:
+        try:
+            if cfg["asfm"]["model"]["enabled"]:
+                log.info(f"Buidling model")
+                pipeline.build_model()
+        except Exception as e:
+            log.exception(f"Failed to model. Exiting")
+            exit(1)
+
+    if cfg.asfm.build_texture:
+        try:
+            if cfg["asfm"]["texture"]["enabled"]:
+                log.info(f"Buidling texture")
+                pipeline.build_texture()
+        except Exception as e:
+            log.exception(f"Failed to texture. Exiting")
+            exit(1)
+
     # Build DEM
     if cfg.asfm.build_dem:
         try:
