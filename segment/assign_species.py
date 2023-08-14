@@ -3,7 +3,6 @@ import logging
 import time
 from pathlib import Path
 
-import fiona
 import geopandas
 import matplotlib.path as mplPath
 import numpy as np
@@ -12,7 +11,7 @@ from dacite.core import from_dict
 from omegaconf import DictConfig
 from semif_utils.datasets import ImageData
 from semif_utils.segment_utils import load_speciesinfo
-from shapely.geometry import MultiPolygon, Point, shape
+from shapely.geometry import Point
 from tqdm import tqdm
 
 log = logging.getLogger(__name__)
@@ -28,9 +27,7 @@ def main(cfg: DictConfig) -> None:
     """
     start = time.time()
     # Config variables
-    batch_id = cfg.general.batch_id
     species_info = cfg.data.species
-    location = batch_id.split("_")[0]
     metadata_path = Path(cfg.data.batchdir, "metadata")
     spec_dict = load_speciesinfo(species_info)
     # Get Json metadata files
@@ -39,10 +36,8 @@ def main(cfg: DictConfig) -> None:
     # Load shp file twice
     shapefile_path = Path(cfg.data.species_poly)
     # Using Geopandas for poly contains point
-    polys = geopandas.GeoDataFrame.from_file(shapefile_path)
-    # Using fioana for check if point is in poly
-    Multi = MultiPolygon(
-        [shape(pol["geometry"]) for pol in fiona.open(shapefile_path)])
+    polys = geopandas.read_file(shapefile_path)
+    polygons_filtered = polys.dropna(subset=['species'])
 
     # Iterate over json files
     for file in tqdm(image_metadata_files, desc="Assigning labels"):
@@ -58,29 +53,45 @@ def main(cfg: DictConfig) -> None:
             x = bbox.global_centroid[0]
             y = bbox.global_centroid[1]
             bbox_cls = bbox.cls
-            
-            point = Point(x, y)
-            # Identify shp file polygon that contains bbox centroid point
-            for poly in polys.itertuples():
-                if bbox_cls == "colorchecker":
-                    spec_info = spec_dict["species"][bbox_cls]
-                    break
-                # Check if species polygon contains bbox centroid
-                if poly.geometry.contains(point):
-                    poly_cls = poly.species
-                    if poly_cls in spec_dict["species"].keys():
-                        spec_info = spec_dict["species"][poly_cls]
-                        break
-                if not point.within(Multi):
-                    # If centroid lies outside of any polygon
-                    spec_info = spec_dict["species"]["plant"]
-                    log.info(
-                        f"{bbox.bbox_id} centroid not within any potting group polygon for image {imgdata.image_id}. Assigning default class 'plant'"
+            if bbox_cls == "colorchecker":
+                spec_info = spec_dict["species"][bbox_cls]
+            else:
+                point = Point(x, y)
+
+                # Get polygons that contain point
+                contains_point = polygons_filtered['geometry'].apply(
+                    lambda polygon: polygon.contains(point))
+                containing_polygon = polygons_filtered[contains_point]
+
+                if len(containing_polygon) == 0:
+                    log.warning(
+                        f"Global centroid was not found in any polygons for bbox_id: {bbox.bbox_id}. Finding the closest polygon less than 1 meter away."
                     )
-                    break
-                # else:
-                #     print(bbox_cls)
-                #     print(poly)
+
+                    # Get the distances to each polygon
+                    distances = polygons_filtered['geometry'].apply(
+                        lambda polygon: polygon.distance(point))
+
+                    # Find the closest distance
+                    closest_polygon_index = distances.idxmin()
+                    closest_distance = distances[closest_polygon_index]
+                    if closest_distance < 2:
+                        closest_polygon = polygons_filtered.loc[
+                            closest_polygon_index]
+                        poly_cls = closest_polygon['species']
+                        log.warning(
+                            f"Global centroid found in the next closest polygon less than 1 meter away: {closest_polygon['comm_name']}"
+                        )
+
+                    else:
+                        log.warning(
+                            f"No polygon or closest polygon (< 1 meter) was found. Exiting."
+                        )
+                        exit(1)
+                else:
+                    poly_cls = containing_polygon['species'].values[0]
+                spec_info = spec_dict["species"][poly_cls]
+
             bbox.assign_species(spec_info)
         # Save
         imgdata.save_config(metadata_path)

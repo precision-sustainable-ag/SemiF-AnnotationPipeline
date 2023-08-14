@@ -1,12 +1,14 @@
+import logging
 from typing import Dict, List, Type
 
+import cv2
 import Metashape
 import numpy as np
 from scipy.spatial.transform import Rotation
 from semif_utils.datasets import BBox, BoxCoordinates, ImageData
+from tqdm import tqdm
 
 from .bbox_utils import bb_iou, generate_hash
-import logging
 
 log = logging.getLogger(__name__)
 
@@ -189,7 +191,7 @@ class BBoxMapper():
         Maps all the bounding boxes to a global coordinate space
         """
 
-        for image in self.images:
+        for image in tqdm(self.images, desc="Mapping: Projecting 2D to 3D"):
 
             image_id = image.image_id
 
@@ -208,11 +210,11 @@ class BBoxMapper():
             assert camera_chunk is not None
 
             # From: https://www.agisoft.com/forum/index.php?topic=13875.0
-            surface = camera_chunk.point_cloud
+            # surface = camera_chunk.point_cloud
+            surface = camera_chunk.model
 
             global_coordinates = dict()
             for bbox in image.bboxes:
-
                 top_left = bbox.local_coordinates.top_left
                 bottom_left = bbox.local_coordinates.bottom_left
                 top_right = bbox.local_coordinates.top_right
@@ -231,7 +233,7 @@ class BBoxMapper():
                     x_coord = coords[0]
                     y_coord = coords[1]
 
-                    ray_origin = camera.center  # camera.unproject(Metashape.Vector([x_coord, y_coord, 0]))
+                    ray_origin = camera.center
                     if ray_origin is None:
                         log.critical(
                             f"Camera center is {ray_origin}. Image ID is {image_id}."
@@ -244,10 +246,9 @@ class BBoxMapper():
 
                     if point_internal is None:
                         log.critical(
-                            f"Point internal is {point_internal}. Image ID is {image_id}."
+                            f"Point internal is {point_internal}. Image ID is {image_id}. Ray target is {ray_target}"
                         )
                         raise TypeError()
-
                     # From https://www.agisoft.com/forum/index.php?topic=12781.0
                     global_coord = camera_chunk.crs.project(
                         camera_chunk.transform.matrix.mulp(point_internal))[:2]
@@ -257,11 +258,6 @@ class BBoxMapper():
                 top_right = np.array(mapped_coordinates[2])
                 bottom_left = np.array(mapped_coordinates[1])
                 bottom_right = np.array(mapped_coordinates[3])
-                # width = top_right[0] - top_left[0]
-                # height = top_left[1] - bottom_left[1]
-                # center_x = top_left[0] + width / 2
-                # center_y = top_left[1] + height / 2
-                # xywh = np.array([center_x, center_y, width, height])
 
                 global_coordinates = BoxCoordinates(top_left, top_right,
                                                     bottom_left, bottom_right)

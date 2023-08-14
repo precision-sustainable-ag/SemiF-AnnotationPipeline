@@ -159,35 +159,35 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         row = cutout["cutout_props"]
         cls = cutout["cls"]
 
-        # Color distribution data
-        # cd = cutout["cutout_props"]["color_distribution"]
-        # nd = dict()
-        # for idx, c in enumerate(cd):
-        #     nd["hex_" + str(idx)] = c["hex"]
-        #     nd["rgb_" + str(idx)] = c["rgb"]
-        #     nd["occurences_" + str(idx)] = int(c["occurence"])
-        # exit(1)
-        # cutout.update(nd)
-
         # croput Descriptive stats
         ds = cutout["cutout_props"]["cropout_descriptive_stats"]
-        nd = dict()
-        for d in ds:
-            chan_suff = d.split("_")[-1]
-            for chan in ds[d]:
-
-                nd[chan_suff + "_" + chan] = ds[d][chan]
-        cutout.update(nd)
+        if ds is not None:
+            nd = dict()
+            for d in ds:
+                if type(ds[d]) != dict:
+                    nd["cropout_" + d] = ds[d]
+                elif type(ds[d]) == dict:
+                    chan_suff = d.split("_")[-1]
+                    for chan in ds[d]:
+                        nd["cropout_" + chan_suff + "_" + chan] = ds[d][chan]
+            cutout.update(nd)
+        else:
+            nd["cropout_descriptive_stats"] = None
 
         # croput Descriptive stats
         ds = cutout["cutout_props"]["cutout_descriptive_stats"]
-        nd = dict()
-        for d in ds:
-            chan_suff = d.split("_")[-1]
-            for chan in ds[d]:
-
-                nd[chan_suff + "_" + chan] = ds[d][chan]
-        cutout.update(nd)
+        if ds is not None:
+            nd = dict()
+            for d in ds:
+                if type(ds[d]) != dict:
+                    nd["cutout_" + d] = ds[d]
+                elif type(ds[d]) == dict:
+                    chan_suff = d.split("_")[-1]
+                    for chan in ds[d]:
+                        nd["cutout_" + chan_suff + "_" + chan] = ds[d][chan]
+            cutout.update(nd)
+        else:
+            nd["cutout_"] = None
 
         # Extend nested dicts to single column header
         for ro in row:
@@ -310,13 +310,14 @@ def is_mask_empty(mask):
 ######################################################
 
 
-def make_exg(img, normalize=False, thresh=0):
+def make_exg(rgb_image, normalize=False, thresh=0):
     # rgb_img: np array in [RGB] channel order
     # exr: single band vegetation index as np array
     # EXG = 2 * G - R - B
     np.seterr(divide='ignore', invalid='ignore')
-    img = img.astype(float)
-    r, g, b = img[:, :, 0], img[:, :, 1], img[:, :, 2]
+    rgb_image = rgb_image.astype(float)
+    r, g, b = cv2.split(rgb_image)
+
     if normalize:
         total = r + g + b
         exg = 2 * (g / total) - (r / total) - (b / total)
@@ -325,6 +326,19 @@ def make_exg(img, normalize=False, thresh=0):
     if thresh is not None and normalize == False:
         exg = np.where(exg < thresh, 0, exg)
         return exg.astype("uint8")
+
+
+def make_gli(rgb_image):
+    # Green Leaf Index (GLI) is another vegetation index that helps quantify the greenness of vegetation in an image.
+    # It is particularly useful for estimating chlorophyll content and assessing the health of vegetation.
+
+    # Split the image into individual channels
+    r, g, b = cv2.split(rgb_image)
+
+    # Calculate the Green Leaf Index
+    gli = (2 * g) - (r + b)
+
+    return gli
 
 
 def make_exr(rgb_img, thresh=0):
@@ -533,7 +547,7 @@ def make_kmeans(exg_mask):
     kmeans = KMeans(n_clusters=n_classes, random_state=3).fit(exg)
     mask = kmeans.labels_.reshape(rows, cols)
     mask = check_kmeans(mask)
-    return mask.astype("uint64")
+    return mask.astype("uint8")
 
 
 def otsu_thresh(mask, kernel_size=(3, 3)):
@@ -898,3 +912,5 @@ def exact_color(pilimg,
                         transparent=transparent)
         if return_colors:
             return colors_x
+
+

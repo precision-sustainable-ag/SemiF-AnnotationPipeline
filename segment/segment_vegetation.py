@@ -1,4 +1,6 @@
+import copy
 import logging
+import os
 import time
 from dataclasses import asdict
 from multiprocessing import Pool, cpu_count
@@ -105,38 +107,31 @@ class SegmentVegetation:
     def create_instance_mask(self, instance_mask, instance_palette,
                              box_instance_id):
 
-        palette = np.array(instance_palette).transpose()
+        color_mask = np.zeros(
+            (instance_mask.shape[0], instance_mask.shape[1], 3),
+            dtype=np.uint8)
+        # palette = np.array(instance_palette).transpose()
 
         # all(2) force all channels to be equal
         # any(-1) matches any color
-        temp_mask = (instance_mask[:, :, :, None] == palette).all(2).any(-1)
-
-        # target color
-        rgb_arr = np.array(box_instance_id)
-
-        instance_mask = np.where(temp_mask[:, :, None], instance_mask,
-                                 rgb_arr[None, None, :])
-
-        return instance_mask
-
-    def create_semantic_mask(self, semantic_mask, box_instance_id):
-
-        # palette = np.array(semantic_palette).transpose()
-
-        # all(2) force all channels to be equal
-        # any(-1) matches any color
-        # temp_mask = (semantic_mask[:, :, :, None] == palette).all(2).any(-1)
-        # temp_mask = (semantic_mask[:, :, None] == palette).all(2).any(-1)
+        # temp_mask = (instance_mask[:, :, :, None] == palette).all(2).any(-1)
+        for label_id in np.unique(instance_palette):
+            if label_id == 0:
+                continue  # Skip background
+            if label_id != box_instance_id:
+                print(box_instance_id)
+                print(instance_palette)
+                color_mask[instance_mask == label_id] = box_instance_id
 
         # target color
         # rgb_arr = np.array(box_instance_id)
-        # print(temp_mask.shape)
-        # print(semantic_mask.shape)
-        # print(rgb_arr)
-        # print(rgb_arr.shape)
-        # semantic_mask = np.where(temp_mask[:, :,None], semantic_mask,
+
+        # instance_mask = np.where(temp_mask[:, :, None], instance_mask,
         #  rgb_arr[None, None, :])
-        # semantic_mask = np.where(temp_mask[:, None], semantic_mask, rgb_arr)
+
+        return color_mask
+
+    def create_semantic_mask(self, semantic_mask, box_instance_id):
 
         semantic_mask[semantic_mask == 255] = box_instance_id
 
@@ -154,7 +149,7 @@ class SegmentVegetation:
         bboxes = imgdata.bboxes
 
         # Process on images by individual bbox detection
-        cutout_num = 0
+
         cutout_ids = []
 
         semantic_mask_zeros = np.zeros(rgb_array.shape[:2], dtype=np.float32)
@@ -170,10 +165,8 @@ class SegmentVegetation:
             # Scale the box that will be used for the cutout
             spec_cls = box.cls
             cm_name = spec_cls["common_name"]
-
             scale = [imgdata.fullres_width, imgdata.fullres_height]
             box, x1, y1, x2, y2 = prep_bbox(box, scale)
-
             rgb_crop = rgb_array[y1:y2, x1:x2]
 
             if rgb_crop.size <= 0:
@@ -194,17 +187,13 @@ class SegmentVegetation:
                     f"\n*******************\n Likely multiple plants in a single detection results. \n{imgdata.image_id} - {boxarea} \nPrimary status: {box.is_primary} \n*************\n"
                 )
 
-            # print("Box area: ", boxarea)
-            # print("Image crop area (using shape): ",rgb_crop.shape[0] * rgb_crop.shape[1])
-
             if boxarea < 25000:
                 log.info("Processing cotyldon.")
                 seg.mask = seg.cotlydon()
-                coty = True
 
             else:
                 # TODO: make multiple options for based on species
-                log.info("Processing vegetative plant.")
+                log.info(f"Processing vegetative plant of size {boxarea}.")
                 seg.mask = seg.general_seg(mode="cluster")
 
             if seg.is_mask_empty() and cm_name != "colorchecker":
@@ -213,15 +202,11 @@ class SegmentVegetation:
                 )
                 continue
 
-            # seg.props = GenCutoutProps(rgb_crop, seg.mask).to_dataclass()
-
             if boxarea > 200000:
-                # log.info("Round 2")
                 log.info("Processing Round 2 for large plant")
                 seg = Segment(apply_mask(rgb_crop, seg.mask, "black"), data)
                 # General segmentation
                 seg.mask = seg.general_seg(mode="cluster")
-
             # Identify hole filling sizes and kernel for leaf edge smoothing based on bbox area
             min_object_size, min_hole_size, median_kernel = self.config_from_bboxarea(
                 boxarea)
@@ -242,14 +227,9 @@ class SegmentVegetation:
                 )
                 continue
 
-            # Create semantic mask
-            log.info("Mapping colors to the semantic mask.")
-            # seg.mask = np.where(seg.mask != 0, 255, 0)
-
             # Get morphological properties
             log.info("Calculating cutout properties.")
             seg.props = GenCutoutProps(rgb_crop, seg.mask).to_dataclass()
-
             # Skip saving non-green cutouts unless its a colorchecker result
             if seg.props.green_sum < 5 and cm_name != "colorchecker":
                 log.warning(
@@ -257,22 +237,31 @@ class SegmentVegetation:
                 )
                 continue
 
+            # Prep box by removing some redundant records
+            is_primary = box.is_primary
+            box.instance_rgb_id = generate_new_color(instance_colors,
+                                                     pastel_factor=0.7)
+
+            box.cutout_exists = True
+            boxdict = asdict(box)
+            boxdict.pop("cls")
+            boxdict.pop("is_primary")
             # Create dataclass
             log.info("Creating cutout dataclass.")
-            cutout = Cutout(blob_home=self.data_name,
-                            data_root=self.cutout_dir.name,
+            cutout = Cutout(data_root=self.cutout_dir.name,
                             season=self.season,
                             batch_id=self.batch_id,
                             image_id=imgdata.image_id,
-                            bbox=[x1, y1, x2, y2],
-                            cutout_num=cutout_num,
+                            bbox=boxdict,
+                            cutout_id=box.bbox_id,
                             datetime=imgdata.exif_meta.DateTime,
                             cutout_props=asdict(seg.props),
-                            is_primary=box.is_primary,
-                            shape=rgb_crop.shape,
+                            is_primary=is_primary,
+                            hwc=rgb_crop.shape,
                             cls=seg.species,
+                            camera_info=imgdata.camera_info,
+                            exif_meta=imgdata.exif_meta,
                             extends_border=seg.get_extends_borders(seg.mask))
-
             cutout_dir = self.cutout_dir
             cutout_array = apply_mask(rgb_crop, seg.mask, "black")
             cutout_mask = np.zeros(seg.mask.shape[:2])
@@ -283,38 +272,37 @@ class SegmentVegetation:
             cutout.save_cropout(cutout_dir, rgb_crop)
             cutout.save_cutout_mask(cutout_dir, cutout_mask)
             cutout_ids.append(cutout.cutout_id)
-            cutout_num += 1
 
             ####################################
             ## Create masks
-            if cm_name != "colorchecker":
-                # Create semantic mask
-                log.info("Mapping colors to the semantic mask.")
-                # semantic_mask_zeros[y1:y2, x1:x2][
-                # seg.mask == box.cls["class_id"]] = box.cls["class_id"]
-                semantic_mask_zeros[y1:y2, x1:x2] = cutout_mask
 
-                # semantic_mask_zeros[y1:y2, x1:x2] = self.create_semantic_mask(
-                #     semantic_mask_zeros[y1:y2, x1:x2], box.cls["class_id"])
-                semantic_palette.append(box.cls["class_id"])
+            # Create semantic mask
+            log.info("Mapping colors to the semantic mask.")
+            semantic_mask_zeros[y1:y2, x1:x2] = cutout_mask
+            semantic_palette.append(box.cls["class_id"])
 
-                # Create instance mask
-                log.info("Mapping colors to the instance mask.")
-                box.instance_rgb_id = generate_new_color(instance_colors,
-                                                         pastel_factor=0.7)
-                instance_mask_zeros[y1:y2,
-                                    x1:x2][seg.mask != 0] = [255, 255, 255]
+            # Create instance mask
+            log.info("Mapping colors to the instance mask.")
+            # Assign unique colors to each labeled component
+            # Create a new mask for the new segment with the unique RGB value
 
-                instance_mask_zeros[y1:y2, x1:x2] = self.create_instance_mask(
-                    instance_mask_zeros[y1:y2, x1:x2], instance_palette,
-                    box.instance_rgb_id)
-                instance_colors.append(box.instance_rgb_id)
-                instance_palette.append(box.instance_rgb_id)
+            # new_segment_mask = np.zeros_like(existing_mask, dtype=np.uint8)
+            # new_segment_mask[new_segment_binary_mask > 0] = next_rgb
 
-            else:
-                log.info(
-                    "Colorchecker result. Skipping instance mask color mapping."
-                )
+            # Combine the new segment with the existing mask
+            # combined_mask = existing_mask.copy()
+            # instance_mask_zeros[seg.mask > 0] = box.instance_rgb_id
+
+            # instance_mask_zeros[y1:y2, x1:x2][seg.mask != 0] = [255, 255, 255]
+            instance_mask_zeros[y1:y2,
+                                x1:x2][seg.mask > 0] = box.instance_rgb_id
+
+            # instance_mask_zeros[y1:y2, x1:x2] = self.create_instance_mask(
+            # instance_mask_zeros[y1:y2, x1:x2], instance_palette,
+            # box.instance_rgb_id)
+            instance_colors.append(box.instance_rgb_id)
+            instance_palette.append(box.instance_rgb_id)
+
             ####################################
 
         log.info(
@@ -340,11 +328,11 @@ def main(cfg: DictConfig) -> None:
 
     # Create and save batchmetadata json
     img_list = [x.name for x in Path(cfg.batchdata.images).glob("*.jpg")]
-    bm = BatchMetadata(blob_home=data_dir.name,
-                       data_root=data_root.name,
-                       batch_id=batch_dir.name,
-                       upload_datetime=upload_datetime,
-                       image_list=img_list)
+    bm = BatchMetadata(  #blob_home=data_dir.name,
+        data_root=data_root.name,
+        batch_id=batch_dir.name,
+        upload_datetime=upload_datetime,
+        image_list=img_list)
     save_json(cfg.batchdata.batchmeta, asdict(bm))
 
     svg = SegmentVegetation(cfg)
@@ -361,11 +349,14 @@ def main(cfg: DictConfig) -> None:
             payloads.append(data)
 
         log.info(f"Multi-Processing image data for batch {batch_dir.name}.")
-        procs = int(cpu_count() / 2)
+        procs = int(len(os.sched_getaffinity(0)) / 2)
         with Pool(processes=procs) as p:
-            p.imap_unordered(svg.cutout_pipeline, payloads)
-            p.close()
-            p.join()
+            results = p.imap_unordered(svg.cutout_pipeline, payloads)
+            try:
+                for _ in results:
+                    pass
+            except TimeoutError:
+                print("A task took too long and was terminated.")
         log.info(f"Finished segmenting vegetation for batch {batch_dir.name}")
     else:
         # Single process

@@ -1,3 +1,5 @@
+import logging
+
 import cv2
 import numpy as np
 from scipy import ndimage as ndi
@@ -7,6 +9,8 @@ from skimage import filters
 from skimage.feature import peak_local_max
 from skimage.measure import label, regionprops
 from skimage.segmentation import watershed
+
+log = logging.getLogger(__name__)
 
 
 class Segment:
@@ -46,17 +50,25 @@ class Segment:
         return True if np.sum(hsv_mask) > thresh else False, np.sum(hsv_mask)
 
     def general_seg(self, mode="cluster"):
+        log.info("Making ExG")
         exg_vi = make_exg(self.img, thresh=True)
+        log.info("Thresholding Vi")
         th_vi = thresh_vi(exg_vi)
         if mode == "cluster":
+            log.info("Making Kmeans")
             temp_mask = make_kmeans(th_vi)
+            log.info("Checking green")
             chk_green, green_sum = self.check_green(temp_mask)
             if not chk_green:  # if false
                 # Reverse mask
+                log.info("Reversing mask")
                 temp_mask = np.where(temp_mask == 1, 0, 1)
+            log.info("Reducing holes")
             temp_mask = reduce_holes(temp_mask * 255) * 255
         elif mode == "threshold":
+            log.info("Making Otsu threshold")
             temp_mask = otsu_thresh(th_vi)
+            log.info("Reducing holes after Otsu")
             temp_mask = reduce_holes(temp_mask * 255) * 255
         self.mask = temp_mask.copy()
         return self.mask

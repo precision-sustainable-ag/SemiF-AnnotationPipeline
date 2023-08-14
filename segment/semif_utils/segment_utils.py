@@ -1,4 +1,5 @@
 import json
+import logging
 import random
 from difflib import get_close_matches
 from pathlib import Path
@@ -9,13 +10,16 @@ import numpy.ma as ma
 import pandas as pd
 from PIL import Image
 from scipy import stats
+from scipy.stats import kurtosis, skew
 from semif_utils.datasets import CUTOUT_PROPS, CutoutProps
 from semif_utils.utils import (apply_mask, exact_color, get_watershed,
                                make_exg, make_exg_minus_exr, make_exr,
-                               make_kmeans, make_ndi, multiple_otsu,
+                               make_gli, make_kmeans, make_ndi, multiple_otsu,
                                otsu_thresh, parse_dict, read_json,
                                reduce_holes, rescale_bbox)
 from skimage import measure
+
+log = logging.getLogger(__name__)
 
 ################################################################
 ########################## SETUP ###############################
@@ -77,7 +81,7 @@ class GenCutoutProps:
 
     def __init__(self, img, mask):
         """Generate cutout properties and returns them as a dataclass."""
-        self.img = img
+        self.img = img  # RGB
         self.mask = mask
         self.cutout = apply_mask(self.img, self.mask, "black")
         self.green_thresh = 100  # TODO change to normalized based on size of image
@@ -88,6 +92,8 @@ class GenCutoutProps:
     def get_blur_effect(self):
         # 0 for no blur, 1 for maximal blur
         blur_effect = measure.blur_effect(self.cutout, channel_axis=2)
+        if np.isnan(blur_effect):
+            blur_effect = None
         return blur_effect
 
     def exg_sum(self):
@@ -171,32 +177,121 @@ class GenCutoutProps:
 
         return desc_stats
 
-    # def descriptive_stats(self, img, ignore_zeros=False):
-    #     """ Ignores 0 mask values to calculate descriptive statistics of the cutout array"""
+    def analyze_image(self, rgb_image, ignore_zeros=False):
+        # Split the image into individual channels
+        r, g, b = cv2.split(rgb_image)
 
-    #     image_copy = img.copy()
-    #     if ignore_zeros:
-    #         # Mask out zero values for descriptive stats
-    #         black_pixels_mask = np.all(self.cutout == [0, 0, 0], axis=-1)
-    #         non_black_pixels_mask = ~black_pixels_mask
-    #         image_copy[black_pixels_mask] = [1, 1, 1]
-    #         image_copy[non_black_pixels_mask] = [0, 0, 0]
-    #         maimg = ma.array(self.cutout, mask=image_copy)
+        all_zeros = not np.any(rgb_image)
 
-    #     # Get descriptive stats for each channel
-    #     channels = ["r", "g", "b"]
-    #     desc_stats = dict()
-    #     for idx, c in enumerate(channels):
-    #         scipy_desc = stats.describe(maimg[..., idx].flatten())
-    #         rec_key = f"channel_{c}"
-    #         rec = pd.DataFrame(maimg[..., idx].flatten(),
-    #                            columns=[rec_key]).describe().to_dict()
-    #         rec[rec_key]["variance"] = scipy_desc.variance
-    #         rec[rec_key]["skewness"] = scipy_desc.skewness
-    #         rec[rec_key]["kurtosis"] = scipy_desc.kurtosis
-    #         desc_stats.update(rec)
+        # Create a mask to identify non-black pixels
+        mask = None
 
-    # return desc_stats
+        if ignore_zeros:
+            mask = cv2.bitwise_or(cv2.bitwise_or(b, g), r)
+            #     # Mask out zero values for descriptive stats
+        if all_zeros:
+            all_zero_result = self.all_zero_props()
+            return all_zero_result
+        else:
+            # Calculate the mean, count, standard deviation, minimum, and maximum values for each channel
+            b_mean, b_std = cv2.meanStdDev(b, mask=mask)
+            g_mean, g_std = cv2.meanStdDev(g, mask=mask)
+            r_mean, r_std = cv2.meanStdDev(r, mask=mask)
+
+            # skewness
+            b_skewness = skew(b[np.nonzero(b)]) if ignore_zeros else skew(
+                b.flatten())
+            g_skewness = skew(g[np.nonzero(g)]) if ignore_zeros else skew(
+                g.flatten())
+            r_skewness = skew(r[np.nonzero(r)]) if ignore_zeros else skew(
+                r.flatten())
+            # kurtosis
+            b_kurtosis = kurtosis(
+                b[np.nonzero(b)]) if ignore_zeros else kurtosis(b.flatten())
+            g_kurtosis = kurtosis(
+                g[np.nonzero(g)]) if ignore_zeros else kurtosis(g.flatten())
+            r_kurtosis = kurtosis(
+                r[np.nonzero(r)]) if ignore_zeros else kurtosis(r.flatten())
+            # variance
+            b_variance = np.var(b[np.nonzero(b)]) if ignore_zeros else np.var(
+                b.flatten())
+            g_variance = np.var(g[np.nonzero(g)]) if ignore_zeros else np.var(
+                g.flatten())
+            r_variance = np.var(r[np.nonzero(r)]) if ignore_zeros else np.var(
+                r.flatten())
+
+            # ExG and GLI
+            exg_image = make_exg(rgb_image)
+            gli_image = make_gli(rgb_image)
+            # Calculate ExG and GLI mean and standard deviation
+            exg_mean = np.mean(exg_image)
+            exg_std = np.std(exg_image)
+
+            gli_mean = np.mean(gli_image)
+            gli_std = np.std(gli_image)
+
+            del rgb_image
+            del b, g, r
+            del mask
+
+            # Return the results as a dictionary
+            result = {
+                'exg_mean': exg_mean,
+                'exg_std': exg_std,
+                'gli_mean': gli_mean,
+                'gli_std': gli_std,
+                'channel_r': {
+                    'mean': float(r_mean[0][0]),
+                    'std': float(r_std[0][0]),
+                    'skewness': float(r_skewness),
+                    'kurtosis': float(r_kurtosis),
+                    'variance': float(r_variance)
+                },
+                'channel_g': {
+                    'mean': float(g_mean[0][0]),
+                    'std': float(g_std[0][0]),
+                    'skewness': float(g_skewness),
+                    'kurtosis': float(g_kurtosis),
+                    'variance': float(g_variance)
+                },
+                'channel_b': {
+                    'mean': float(b_mean[0][0]),
+                    'std': float(b_std[0][0]),
+                    'skewness': float(b_skewness),
+                    'kurtosis': float(b_kurtosis),
+                    'variance': float(b_variance)
+                }
+            }
+            return result
+
+    def all_zero_props(self):
+        return {
+            'exg_mean': None,
+            'exg_std': None,
+            'gli_mean': None,
+            'gli_std': None,
+            'channel_r': {
+                'mean': None,
+                'std': None,
+                'skewness': None,
+                'kurtosis': None,
+                'variance': None
+            },
+            'channel_g': {
+                'mean': None,
+                'std': None,
+                'skewness': None,
+                'kurtosis': None,
+                'variance': None
+            },
+            'channel_b': {
+                'mean': None,
+                'std': None,
+                'skewness': None,
+                'kurtosis': None,
+                'variance': None
+            }
+        }
 
     def color_distribution(self, ignore_black=True):
         """ Ignores black (0) values and looks at the occurence of the top 12 most common RGB values."""
@@ -218,16 +313,17 @@ class GenCutoutProps:
         props = [measure.regionprops_table(labels, properties=CUTOUT_PROPS)]
         # Parse regionprops_table
         nprops = [parse_dict(d) for d in props][0]
-        # nprops["is_green"] = self.is_green
         nprops["green_sum"] = self.green_sum
-        # nprops["exg_sum"] = self.exg_sum()
         nprops["blur_effect"] = self.get_blur_effect()
         nprops["num_components"] = self.num_connected_components()
-        # nprops["color_distribution"] = self.color_distribution(
-        #     ignore_black=True)
-        nprops["cropout_descriptive_stats"] = self.descriptive_stats(self.img)
-        nprops["cutout_descriptive_stats"] = self.descriptive_stats(
+
+        nprops["cropout_descriptive_stats"] = self.analyze_image(self.img)
+        nprops["cutout_descriptive_stats"] = self.analyze_image(
             self.cutout, ignore_zeros=True)
+
+        # nprops["cropout_descriptive_stats"] = self.descriptive_stats(self.img)
+        # nprops["cutout_descriptive_stats"] = self.descriptive_stats(
+        #     self.cutout, ignore_zeros=True)
 
         return nprops
 
@@ -281,11 +377,12 @@ class VegetationIndex:
 
 
 def prep_bbox(box, scale, save_changes=True):
-    box = rescale_bbox(box, scale, save_changes=save_changes)
+    # box = rescale_bbox(box, scale, save_changes=save_changes)
+    w, h = scale
     x1, y1 = box.local_coordinates["top_left"]
     x2, y2 = box.local_coordinates["bottom_right"]
-    x1, y1 = int(x1), int(y1)
-    x2, y2 = int(x2), int(y2)
+    x1, y1 = int(x1 * w), int(y1 * h)
+    x2, y2 = int(x2 * w), int(y2 * h)
     return box, x1, y1, x2, y2
 
 

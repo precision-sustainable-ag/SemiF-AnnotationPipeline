@@ -9,6 +9,7 @@ from typing import List, Optional, Union
 import cv2
 import exifread
 import numpy as np
+import pandas as pd
 from PIL import Image as PILImage
 
 SCHEMA_VERSION = "2.0"
@@ -94,6 +95,7 @@ class BBox:
     bbox_id: str
     image_id: str
     cls: str
+    cutout_exists: Optional[bool] = field(default=False)
     instance_rgb_id: List[int] = field(default=None)
     local_coordinates: BoxCoordinates = field(init=True,
                                               default_factory=init_empty)
@@ -118,15 +120,15 @@ class BBox:
             )
         return local_area
 
-    @property
-    def norm_local_area(self):
-        if self.norm_local_coordinates:
-            norm_local_area = self.get_area(self.norm_local_coordinates)
-        else:
-            raise AttributeError(
-                "Normalized local coordinates have to be defined for local area to be calculated."
-            )
-        return norm_local_area
+    # @property
+    # def norm_local_area(self):
+    #     if self.norm_local_coordinates:
+    #         norm_local_area = self.get_area(self.norm_local_coordinates)
+    #     else:
+    #         raise AttributeError(
+    #             "Normalized local coordinates have to be defined for local area to be calculated."
+    #         )
+    #     return norm_local_area
 
     @property
     def global_area(self):
@@ -145,9 +147,14 @@ class BBox:
             self.bbox_id,
             "image_id":
             self.image_id,
+            "cutout_exists":
+            self.cutout_exists,
+            "is_primary":
+            self.is_primary,
             "local_centroid":
-            list(self.norm_local_centroid),  # Always use normalized coordinates
-            # list(self.norm_local_centroid),
+            # list(self.local_centroid),
+            list(self.norm_local_centroid
+                 ),  # Always use normalized coordinates
             "local_coordinates":
             # self.local_coordinates.config,
             self.norm_local_coordinates.config,
@@ -156,12 +163,10 @@ class BBox:
             list(self.global_centroid),
             "global_coordinates":
             self.global_coordinates.config,
-            "is_primary":
-            self.is_primary,
-            "cls":
-            self.cls,
             "instance_rgb_id":
             self.instance_rgb_id,
+            "cls":
+            self.cls,
             "overlapping_bbox_ids":
             [box.bbox_id for box in self._overlapping_bboxes],
             "num_overlapping_bboxes":
@@ -170,6 +175,9 @@ class BBox:
         return _config
 
     def __post_init__(self):
+        if not self.is_normalized:
+            x, y = self.local_coordinates.top_left
+            self.is_normalized = 0 <= x <= 1 and 0 <= y <= 1
 
         if self.local_coordinates:
             self.set_local_centroid()
@@ -289,6 +297,9 @@ class BBox:
         # return the intersection over union value
         return iou
 
+    def assign_species(self, species):
+        self.cls = species
+
 
 # Batch Metadata ---------------------------------------------------------------------------
 
@@ -296,12 +307,12 @@ class BBox:
 @dataclass
 class BatchMetadata:
     """ Batch metadata class for yaml loader"""
-    blob_home: str
+    # blob_home: str
     data_root: str
     batch_id: str
     upload_datetime: str
     image_list: List
-    schema_version: str = SCHEMA_VERSION
+    # schema_version: str = SCHEMA_VERSION
 
 
 # Image dataclasses ----------------------------------------------------------
@@ -381,13 +392,14 @@ class CameraInfo:
 class Box:
     bbox_id: str
     image_id: str
+    is_primary: Optional[bool]
+    cutout_exists: Optional[bool]  # = field(default=False)
     local_centroid: list
     local_coordinates: BoxCoordinates
     global_centroid: list
     global_coordinates: BoxCoordinates
-    cls: str
-    is_primary: bool
-    instance_rgb_id: List[int] = field(default=None)
+    cls: Optional[str]
+    instance_rgb_id: List[int]  #= field(default=None)
     overlapping_bbox_ids: List[BBox] = field(init=False,
                                              default_factory=lambda: [])
 
@@ -422,7 +434,7 @@ class Image:
 
     """
 
-    blob_home: str
+    # blob_home: str
     data_root: str
     batch_id: str
     image_path: str
@@ -445,17 +457,17 @@ class Image:
     @property
     def config(self):
         _config = {
-            "blob_home": self.blob_home,
+            # "blob_home": self.blob_home,
             "data_root": self.data_root,
             "batch_id": self.batch_id,
             "image_id": self.image_id,
             "image_path": self.image_path,
-            "width": self.width,
-            "height": self.height,
+            # "width": self.width,
+            # "height": self.height,
             "exif_meta": asdict(self.exif_meta),
             "camera_info": asdict(self.camera_info),
             "bboxes": [box.config for box in self.bboxes],
-            "schema_version": self.schema_version
+            # "schema_version": self.schema_version
         }
 
         return _config
@@ -477,16 +489,17 @@ class RemapImage(Image):
     bboxes: list[BBox]
     camera_info: CameraInfo
     fullres_path: str
-    width: int = field(init=False, default=-1)
-    height: int = field(init=False, default=-1)
+    width: int  #= field(init=False, default=-1)  #asfm scaled width
+    height: int  # = field(init=False, default=-1)  #asfm scaled height
     exif_meta: Optional[ImageMetadata] = field(init=False, default=None)
     fullres_height: Optional[int] = field(init=False, default=-1)
     fullres_width: Optional[int] = field(init=False, default=-1)
-    schema_version: str = SCHEMA_VERSION
+
+    # schema_version: str = SCHEMA_VERSION
 
     def __post_init__(self):
-        self.height, self.width = self.array.shape[:2]
-        self.set_fullres_dims(self.width, self.height)
+        # self.height, self.width = self.array.shape[:2]
+        # self.set_fullres_dims(self.width, self.height)
         self.exif_meta = self.get_exif()
 
     def set_fullres_dims(self, fullres_width, fullres_height):
@@ -525,15 +538,16 @@ class RemapImage(Image):
 class ImageData(Image):
     """ Dataclass for segmentation data generation"""
     rel_path: str
-    width: int
-    height: int
+    width: Optional[int]
+    height: Optional[int]
     exif_meta: ImageMetadata
     cutout_ids: List[str] = None
     camera_info: CameraInfo = None
     bboxes: list[Box] = None
     fullres_height: int = -1
     fullres_width: int = -1
-    schema_version: str = "1.0"
+
+    # schema_version: str = "1.0"
 
     def __post_init__(self):
         # Overload the post init of the super class
@@ -544,21 +558,22 @@ class ImageData(Image):
     @property
     def config(self):
         _config = {
-            "blob_home": self.blob_home,
+            # "blob_home": self.blob_home,
             "data_root": self.data_root,
             "batch_id": self.batch_id,
             "image_id": self.image_id,
             "image_path": self.image_path,
-            "width": self.width,
-            "height": self.height,
-            "exif_meta": asdict(self.exif_meta),
-            "camera_info": asdict(self.camera_info),
-            "cutout_ids": self.cutout_ids,
-            "bboxes": [asdict(x) for x in self.bboxes],
             "fullres_height": self.fullres_height,
             "fullres_width": self.fullres_width,
-            "rel_path": self.rel_path,
-            "schema_version": self.schema_version
+            # "width": self.width,
+            # "height": self.height,
+            "exif_meta": asdict(self.exif_meta),
+            "camera_info": asdict(self.camera_info),
+            "bboxes": [asdict(x) for x in self.bboxes],
+            # "bboxes": [x.config for x in self.bboxes],
+            "cutout_ids": self.cutout_ids,
+            "rel_path": self.rel_path
+            # "schema_version": self.schema_version
         }
 
         return _config
@@ -567,6 +582,7 @@ class ImageData(Image):
         try:
             save_image_path = Path(save_path, self.image_id + ".json")
             with open(save_image_path, "w") as f:
+                self.config.pop("rel_path")
                 json.dump(self.config, f, indent=4, default=str)
         except Exception as e:
             raise e
@@ -633,8 +649,8 @@ class CutoutProps:
     "descriptive stats", dict, calculates descriptives stats of individual channels while excluding 0 (black)
     """
     area: Union[float, list]
-    area_bbox: Union[float, list]
-    area_convex: Union[float, list]
+    # area_bbox: Union[float, list]
+    # area_convex: Union[float, list]
     axis_major_length: Union[float, list]
     axis_minor_length: Union[float, list]
     centroid0: Union[float, list]
@@ -679,27 +695,28 @@ class SegmentData:
 @dataclass
 class Cutout:
     """Per cutout. Goes to PlantCutouts"""
-    blob_home: str
     data_root: str
     season: str
     batch_id: str
     image_id: str
-    cutout_num: int
+
     bbox: list
     datetime: datetime.datetime  # Datetime of original image creation
     cutout_props: CutoutProps
-    shape: list
-    cutout_id: str = None
+    hwc: list
+    cutout_id: str
+    cutout_num: int = None
     cutout_path: str = None
+    exif_meta: dict = None
+    camera_info: dict = None
     cls: str = None
     is_primary: bool = False
     extends_border: bool = False
-    cutout_version: str = "2.0"
-    schema_version: str = SCHEMA_VERSION
+    # schema_version: str = SCHEMA_VERSION
     synth: bool = False
 
     def __post_init__(self):
-        self.cutout_id = self.image_id + "_" + str(self.cutout_num)
+        self.cutout_num = int(self.cutout_id.split("_")[-1])
         if not self.synth:
             self.cutout_path = str(Path(self.batch_id,
                                         self.cutout_id + ".png"))
@@ -715,23 +732,22 @@ class Cutout:
     @property
     def config(self):
         _config = {
-            "blob_home": self.blob_home,
             "data_root": self.data_root,
             "season": self.season,
+            "datetime": self.datetime,
             "batch_id": self.batch_id,
             "image_id": self.image_id,
             "cutout_id": self.cutout_id,
-            "cutout_path": self.cutout_path,
-            "cls": self.cls,
             "cutout_num": self.cutout_num,
-            "bbox": self.bbox,
+            "hwc": self.hwc,
             "is_primary": self.is_primary,
-            "datetime": self.datetime,
-            "shape": self.shape,
-            "cutout_props": self.cutout_props,
             "extends_border": self.extends_border,
-            "cutout_version": self.cutout_version,
-            "schema_version": self.schema_version
+            "cutout_path": self.cutout_path,
+            "exif_meta": asdict(self.exif_meta),
+            "camera_info": asdict(self.camera_info),
+            "bbox": self.bbox,
+            "cls": self.cls,
+            "cutout_props": self.cutout_props
         }
 
         return _config
@@ -749,7 +765,6 @@ class Cutout:
     def save_cutout(self, save_dir, cutout_array):
 
         fname = f"{self.image_id}_{self.cutout_num}.png"
-        # cutout_path = Path(self.blob_home, self.data_root, self.batch_id, fname)
         cutout_path = Path(save_dir, self.batch_id, fname)
         cv2.imwrite(str(cutout_path),
                     cv2.cvtColor(cutout_array, cv2.COLOR_RGB2BGRA))
@@ -758,19 +773,7 @@ class Cutout:
     def save_cropout(self, save_dir, img_array):
 
         fname = f"{self.image_id}_{self.cutout_num}.jpg"
-        # cutout_path = Path(self.blob_home, self.data_root, self.batch_id, fname)
         cutout_path = Path(save_dir, self.batch_id, fname)
-        cv2.imwrite(str(cutout_path), cv2.cvtColor(img_array,
-                                                   cv2.COLOR_RGB2BGR))
-        return True
-
-    def save_verysmall_cropout(self, img_array, boxarea):
-
-        fname = f"{self.image_id}_{self.cutout_num}_{boxarea}.jpg"
-        cutout_path = Path(self.blob_home, self.data_root,
-                           self.batch_id + "_very_small")
-        cutout_path.mkdir(parents=True, exist_ok=True)
-        cutout_path = Path(cutout_path, fname)
         cv2.imwrite(str(cutout_path), cv2.cvtColor(img_array,
                                                    cv2.COLOR_RGB2BGR))
         return True
@@ -778,9 +781,7 @@ class Cutout:
     def save_cutout_mask(self, save_dir, mask):
 
         fname = f"{self.image_id}_{self.cutout_num}_mask.png"
-        # mask_path = Path(self.blob_home, self.data_root, self.batch_id, fname)
         mask_path = Path(save_dir, self.batch_id, fname)
-        # cv2.imwrite(str(mask_path), cv2.cvtColor(mask, cv2.COLOR_RGB2BGR))
         cv2.imwrite(str(mask_path), mask)
         return True
 
@@ -957,7 +958,6 @@ class SynthData:
         df["temp_path"] = self.cutout_dir + "/" + df['cutout_path']
 
         for _, meta in df.iterrows():
-            print(meta["temp_path"])
             meta_path = meta["temp_path"].replace(".png", ".json")
             meta_dict = self.load_json(meta_path)
             class_path = "cutout" + "_path"
@@ -975,8 +975,8 @@ class SynthData:
 
 CUTOUT_PROPS = [
     "area",  # float Area of the region i.e. number of pixels of the region scaled by pixel-area.
-    "area_bbox",  # float Area of the bounding box i.e. number of pixels of bounding box scaled by pixel-area.
-    "area_convex",  # float Are of the convex hull image, which is the smallest convex polygon that encloses the region.
+    # "area_bbox",  # float Area of the bounding box i.e. number of pixels of bounding box scaled by pixel-area.
+    # "area_convex",  # float Are of the convex hull image, which is the smallest convex polygon that encloses the region.
     "axis_major_length",  # float The length of the major axis of the ellipse that has the same normalized second central moments as the region.
     "axis_minor_length",  # float The length of the minor axis of the ellipse that has the same normalized second central moments as the region.
     "centroid",  # array Centroid coordinate tuple (row, col).

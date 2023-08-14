@@ -80,7 +80,6 @@ class BBoxComponents:
         for image_id, bboxes in self.bounding_boxes.items():
             boxes = []
             for bbox in bboxes:
-
                 unique_box_id = "_".join([image_id, bbox["id"]])
 
                 # Convert the coordinates
@@ -168,6 +167,7 @@ class BBoxComponents:
 
         image_id = image["id"]
         path = image["path"]
+        height, width = cv2.imread(path).shape[:2]  # This is new
         fullres_path = image["fullres_path"]
         rel_path = Path(os.path.relpath(fullres_path)).parent
         fov = self.get_fov(image_id)
@@ -184,15 +184,18 @@ class BBoxComponents:
                               focal_length=focal_length,
                               fov=fov)
 
-        remap_image = RemapImage(rel_path=rel_path,
-                                 blob_home=self.data_dir.name,
-                                 data_root=self.developed_dir.name,
-                                 batch_id=self.batch_id,
-                                 image_path=path,
-                                 image_id=image_id,
-                                 bboxes=self.bboxes[image_id],
-                                 camera_info=cam_info,
-                                 fullres_path=fullres_path)
+        remap_image = RemapImage(
+            rel_path=rel_path,
+            #  blob_home=self.data_dir.name,
+            data_root=self.developed_dir.name,
+            batch_id=self.batch_id,
+            height=height,
+            width=width,
+            image_path=path,
+            image_id=image_id,
+            bboxes=self.bboxes[image_id],
+            camera_info=cam_info,
+            fullres_path=fullres_path)
         # Set the full resolution height and width
         if path != fullres_path:
             _image = cv2.imread(str(fullres_path))
@@ -200,9 +203,9 @@ class BBoxComponents:
             remap_image.set_fullres_dims(fullres_width, fullres_height)
         # Scale the boounding box coordinates to pixel space
         scale = np.array([remap_image.width, remap_image.height])
+
         for bbox in remap_image.bboxes:
             bbox.set_local_scale(scale)
-
         return remap_image
 
     @property
