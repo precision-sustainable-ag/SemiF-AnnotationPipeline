@@ -1152,6 +1152,34 @@
                 112,
                 24
             ]
+        },
+        "GOHI": {
+            "class_id": 41,
+            "USDA_symbol": "GOHI",
+            "EPPO": "GOSHI",
+            "group": "Dicot",
+            "class": "Magnoliopsida",
+            "subclass": "Dilleniidae",
+            "order": "Malvales",
+            "family": "Malvaceae",
+            "genus": "Gossypium",
+            "species": "hirsutum",
+            "common_name": "upland cotton",
+            "authority": " Linnaeus",
+            "growth_habit": "Shrub",
+            "duration": "annual",
+            "collection_location": "TX",
+            "category": "summer cash crop",
+            "collection_timing": "summer",
+            "multi_species_USDA_symbol": null,
+            "link": "https://plants.usda.gov/home/plantProfile?symbol=GOHI",
+            "note": null,
+            "hex": "#bd7ae4",
+            "rgb": [
+                189,
+                122,
+                228
+            ]
         }
     },
     "Notes": {
