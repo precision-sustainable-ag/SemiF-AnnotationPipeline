@@ -1,3 +1,5 @@
+import ast
+import os
 from pathlib import Path
 
 import cv2
@@ -81,3 +83,7 @@ def trans_cutout(img):
     result = cv2.cvtColor(result, cv2.COLOR_BGR2BGRA)
     result[:, :, 3] = mask
     return result
+
+
+def convert_to_dict(row):
+    return ast.literal_eval(row['bbox'])
