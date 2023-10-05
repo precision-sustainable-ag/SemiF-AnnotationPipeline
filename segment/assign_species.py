@@ -23,8 +23,7 @@ def inpolygon(point, polygon):
 
 
 def main(cfg: DictConfig) -> None:
-    """ Identifies species by comparing shapefile polygon and global bbox centroid point.
-    """
+    """Identifies species by comparing shapefile polygon and global bbox centroid point."""
     start = time.time()
     # Config variables
     species_info = cfg.data.species
@@ -37,16 +36,16 @@ def main(cfg: DictConfig) -> None:
     shapefile_path = Path(cfg.data.species_poly)
     # Using Geopandas for poly contains point
     polys = geopandas.read_file(shapefile_path)
-    polygons_filtered = polys.dropna(subset=['species'])
+    polygons_filtered = polys.dropna(subset=["species"])
 
     # Iterate over json files
     for file in tqdm(image_metadata_files, desc="Assigning labels"):
         # Read metadata and create ImageData dataclass
         with open(file) as f:
             j = json.load(f)
-            imgdata = from_dict(data_class=ImageData,
-                                data=j,
-                                config=Config(check_types=False))
+            imgdata = from_dict(
+                data_class=ImageData, data=j, config=Config(check_types=False)
+            )
         # Iterate over image bboxes
         for bbox in imgdata.bboxes:
             # print(bbox.cls)
@@ -54,13 +53,23 @@ def main(cfg: DictConfig) -> None:
             y = bbox.global_centroid[1]
             bbox_cls = bbox.cls
             if bbox_cls == "colorchecker":
-                spec_info = spec_dict["species"][bbox_cls]
+                # spec_info = spec_dict["species"][bbox_cls]
+                poly_cls = bbox_cls
+
+            elif "cash" in cfg.general.season and bbox_cls != "colorchecker":
+                if "NC" in cfg.general.batch_id:
+                    poly_cls = "GLMA4"
+                elif "MD" in cfg.general.batch_id:
+                    poly_cls = "ZEA"
+                elif "TX" in cfg.general.batch_id:
+                    poly_cls = "GOHI"
             else:
                 point = Point(x, y)
 
                 # Get polygons that contain point
-                contains_point = polygons_filtered['geometry'].apply(
-                    lambda polygon: polygon.contains(point))
+                contains_point = polygons_filtered["geometry"].apply(
+                    lambda polygon: polygon.contains(point)
+                )
                 containing_polygon = polygons_filtered[contains_point]
 
                 if len(containing_polygon) == 0:
@@ -69,16 +78,16 @@ def main(cfg: DictConfig) -> None:
                     )
 
                     # Get the distances to each polygon
-                    distances = polygons_filtered['geometry'].apply(
-                        lambda polygon: polygon.distance(point))
+                    distances = polygons_filtered["geometry"].apply(
+                        lambda polygon: polygon.distance(point)
+                    )
 
                     # Find the closest distance
                     closest_polygon_index = distances.idxmin()
                     closest_distance = distances[closest_polygon_index]
                     if closest_distance < 2:
-                        closest_polygon = polygons_filtered.loc[
-                            closest_polygon_index]
-                        poly_cls = closest_polygon['species']
+                        closest_polygon = polygons_filtered.loc[closest_polygon_index]
+                        poly_cls = closest_polygon["species"]
                         log.warning(
                             f"Global centroid found in the next closest polygon less than 1 meter away: {closest_polygon['comm_name']}"
                         )
@@ -89,8 +98,8 @@ def main(cfg: DictConfig) -> None:
                         )
                         exit(1)
                 else:
-                    poly_cls = containing_polygon['species'].values[0]
-                spec_info = spec_dict["species"][poly_cls]
+                    poly_cls = containing_polygon["species"].values[0]
+            spec_info = spec_dict["species"][poly_cls]
 
             bbox.assign_species(spec_info)
         # Save
