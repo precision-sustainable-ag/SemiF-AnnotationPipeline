@@ -1,7 +1,5 @@
 import logging
 import signal
-import sys
-import traceback
 
 from omegaconf import DictConfig
 
@@ -14,7 +12,6 @@ log = logging.getLogger(__name__)
 
 
 def main(cfg: DictConfig) -> None:
-
     def sigint_handler(signum, frame):
         print("\nPython SIGINT detected. Exiting.\n")
         exit(1)

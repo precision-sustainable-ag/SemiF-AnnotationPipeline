@@ -13,22 +13,22 @@ from PIL import Image
 
 from .callbacks import percentage_callback
 from .dataframe import DataFrame
-from .estimation import (CameraStats, MarkerStats, field_of_view,
-                         find_object_dimension)
+from .estimation import CameraStats, MarkerStats, field_of_view, find_object_dimension
 
 log = logging.getLogger(__name__)
 
 
 class SfM:
-
     def __init__(self, cfg):
-
         self.cfg = cfg
         self.metashape_key = cfg.general.metashape_key
         self.doc = self.load_or_create_project(cfg["asfm"]["proj_path"])
         self.metashape_key = cfg.general.metashape_key
-        self.num_gpus = cfg["asfm"]["num_gpus"] if cfg["asfm"][
-            "num_gpus"] != "all" else 2**len(ms.app.enumGPUDevices()) - 1
+        self.num_gpus = (
+            cfg["asfm"]["num_gpus"]
+            if cfg["asfm"]["num_gpus"] != "all"
+            else 2 ** len(ms.app.enumGPUDevices()) - 1
+        )
 
     def load_or_create_project(self, project_path: str) -> ms.Document:
         """Opens a project if it exists or creates and saves a project
@@ -43,8 +43,7 @@ class SfM:
         doc = ms.Document()
         batch_id = self.cfg["general"]["batch_id"]
         if os.path.exists(project_path):
-            log.info(
-                f"Metashape project already exisits. Opening project file.")
+            log.info(f"Metashape project already exisits. Opening project file.")
             # Metashape window
             doc.open(project_path, read_only=False, ignore_lock=True)
         else:
@@ -56,36 +55,32 @@ class SfM:
         return doc
 
     def save_project(self):
-        """Save the project
-        """
+        """Save the project"""
         project_path = self.cfg["asfm"]["proj_path"]
         assert project_path.split(".")[-1] == "psx"
         self.doc.save(project_path)
 
     def add_photos(self):
-        """Adds a directory to the project
-        """
-        photos = glob.glob(
-            os.path.join(self.cfg["asfm"]["down_photos"], "*.jpg"))
+        """Adds a directory to the project"""
+        photos = glob.glob(os.path.join(self.cfg["asfm"]["down_photos"], "*.jpg"))
 
         if self.doc.chunk is None:
             self.doc.addChunk()
         self.doc.chunk.addPhotos(photos)
 
     def add_masks(self):
-        """Adds masks to the cameras
-        """
+        """Adds masks to the cameras"""
         self.doc.chunk.generateMasks(
             path=self.cfg["asfm"]["down_masks"] + "/{filename}_mask.png",
             masking_mode=ms.MaskingMode.MaskingModeFile,
-            cameras=self.doc.chunk.cameras)
+            cameras=self.doc.chunk.cameras,
+        )
         self.save_project()
 
-    def detect_markers(self,
-                       chunk: int = 0,
-                       progress_callback: Callable = percentage_callback):
-        """Detects 12 bit circular markers
-        """
+    def detect_markers(
+        self, chunk: int = 0, progress_callback: Callable = percentage_callback
+    ):
+        """Detects 12 bit circular markers"""
         self.doc.chunks[chunk].detectMarkers(
             target_type=ms.CircularTarget12bit,
             tolerance=50,
@@ -96,12 +91,12 @@ class SfM:
             minimum_size=0,
             minimum_dist=5,
             cameras=self.doc.chunks[chunk].cameras,
-            progress=progress_callback)
+            progress=progress_callback,
+        )
         self.save_project()
 
     def import_reference(self, chunk: int = 0):
-        """Imports reference points
-        """
+        """Imports reference points"""
         self.doc.chunks[chunk].importReference(
             path=self.cfg["data"]["gcp_ref"],
             format=ms.ReferenceFormatCSV,
@@ -112,12 +107,12 @@ class SfM:
             ignore_labels=False,
             create_markers=True,
             threshold=0.1,
-            shutter_lag=0)
+            shutter_lag=0,
+        )
         self.save_project()
 
     def export_camera_reference(self):
-        """Exports the reference to a CSV file.
-        """
+        """Exports the reference to a CSV file."""
         # self.doc.chunk = self.doc.chunks[1]
         reference = []
         for camera in self.doc.chunk.cameras:
@@ -146,39 +141,40 @@ class SfM:
         self.gcp_reference = dataframe
         dataframe.to_csv(self.cfg["asfm"]["gcp_ref"], header=True, index=False)
 
-    def optimize_cameras(self,
-                         progress_callback: Callable = percentage_callback):
-        """Function to optimize the cameras
-        """
+    def optimize_cameras(self, progress_callback: Callable = percentage_callback):
+        """Function to optimize the cameras"""
         # Disable camera locations as reference if specified in YML
         n_cameras = len(self.doc.chunk.cameras)
         for i in range(0, n_cameras):
             self.doc.chunk.cameras[i].reference.enabled = False
 
-        self.doc.chunk.optimizeCameras(fit_f=True,
-                                       fit_cx=True,
-                                       fit_cy=True,
-                                       fit_b1=True,
-                                       fit_b2=True,
-                                       fit_k1=True,
-                                       fit_k2=True,
-                                       fit_k3=True,
-                                       fit_k4=True,
-                                       fit_p1=True,
-                                       fit_p2=True,
-                                       fit_corrections=False,
-                                       adaptive_fitting=False,
-                                       tiepoint_covariance=False,
-                                       progress=progress_callback)
+        self.doc.chunk.optimizeCameras(
+            fit_f=True,
+            fit_cx=True,
+            fit_cy=True,
+            fit_b1=True,
+            fit_b2=True,
+            fit_k1=True,
+            fit_k2=True,
+            fit_k3=True,
+            fit_k4=True,
+            fit_p1=True,
+            fit_p2=True,
+            fit_corrections=False,
+            adaptive_fitting=False,
+            tiepoint_covariance=False,
+            progress=progress_callback,
+        )
 
         self.save_project()
 
-    def align_photos(self,
-                     progress_callback: Callable = percentage_callback,
-                     chunk: int = 0,
-                     correct: bool = False):
-        """Align Photos
-        """
+    def align_photos(
+        self,
+        progress_callback: Callable = percentage_callback,
+        chunk: int = 0,
+        correct: bool = False,
+    ):
+        """Align Photos"""
         self.save_project()
         ms.app.cpu_enable = False
         ms.app.gpu_mask = self.num_gpus
@@ -190,7 +186,7 @@ class SfM:
             reference_preselection=True,
             reference_preselection_mode=ms.ReferencePreselectionSource,
             filter_mask=self.cfg["asfm"]["use_masking"],
-            mask_tiepoints=True,  #True
+            mask_tiepoints=True,  # True
             filter_stationary_points=True,
             keypoint_limit=40000,
             keypoint_limit_per_mpx=1000,
@@ -203,7 +199,8 @@ class SfM:
             workitem_size_cameras=20,
             workitem_size_pairs=80,
             max_workgroup_size=100,
-            progress=progress_callback)
+            progress=progress_callback,
+        )
 
         log.info("Aligning cameras.")
         self.doc.chunks[chunk].alignCameras(
@@ -212,10 +209,12 @@ class SfM:
             adaptive_fitting=False,  # adaptive_fitting=False,
             reset_alignment=True,
             subdivide_task=True,
-            progress=progress_callback)
+            progress=progress_callback,
+        )
 
         unaligned_cameras = [
-            camera for camera in self.doc.chunks[chunk].cameras
+            camera
+            for camera in self.doc.chunks[chunk].cameras
             if camera.transform is None
         ]
 
@@ -231,9 +230,7 @@ class SfM:
             # Check if all the cameras were aligned
             log.warning("Correction enabled. Checking for unaligned cameras.")
             if len(unaligned_cameras) < 1:
-                log.info(
-                    "Not enough unaligned cameras to perform alignment, skipping."
-                )
+                log.info("Not enough unaligned cameras to perform alignment, skipping.")
             if len(unaligned_cameras) > 1:
                 log.info("Attempting to align unaligned cameras.")
                 # Add a chunk and try to process separately
@@ -270,15 +267,16 @@ class SfM:
 
                 # Remove duplicate unaligned cameras
                 camera_counts = Counter(
-                    [camera.label for camera in self.doc.chunk.cameras])
+                    [camera.label for camera in self.doc.chunk.cameras]
+                )
 
                 for camera in self.doc.chunk.cameras:
-                    if camera.transform is None and camera_counts[
-                            camera.label] > 1:
+                    if camera.transform is None and camera_counts[camera.label] > 1:
                         self.doc.chunk.remove(camera)
 
                 unaligned_cameras_2 = [
-                    camera for camera in self.doc.chunks[chunk + 2].cameras
+                    camera
+                    for camera in self.doc.chunks[chunk + 2].cameras
                     if camera.transform is None
                 ]
 
@@ -286,15 +284,17 @@ class SfM:
                     log.warning(
                         f"Found {len(unaligned_cameras_2)} unaligned cameras after second alignment. Moving on to depth map construction."
                     )
+                else:
+                    log.info("Zero unaligned cameras after second alignment.")
 
                 self.save_project()
 
-    def build_depth_map(self,
-                        progress_callback: Callable = percentage_callback):
+    def build_depth_map(self, progress_callback: Callable = percentage_callback):
         ms.app.cpu_enable = False
         ms.app.gpu_mask = self.num_gpus
-        log.info("Number of cameras in chunk at depth map: ",
-                 len(self.doc.chunk.cameras))
+        log.info(
+            "Number of cameras in chunk at depth map: ", len(self.doc.chunk.cameras)
+        )
 
         self.doc.chunk.buildDepthMaps(
             downscale=self.cfg["asfm"]["depth_map"]["downscale"],
@@ -305,43 +305,41 @@ class SfM:
             subdivide_task=True,
             workitem_size_cameras=20,
             max_workgroup_size=100,
-            progress=progress_callback)
+            progress=progress_callback,
+        )
         if ms.app.gpu_mask:
             ms.app.cpu_enable = True
         if self.cfg["asfm"]["depth_map"]["autosave"]:
             self.save_project()
 
-    def build_dense_cloud(self,
-                          progress_callback: Callable = percentage_callback):
+    def build_dense_cloud(self, progress_callback: Callable = percentage_callback):
         ms.app.cpu_enable = False
         ms.app.gpu_mask = self.num_gpus
 
         if self.doc.chunk.depth_maps is None:
             self.build_depth_map()
 
-        self.doc.chunk.buildPointCloud(point_colors=True,
-                                       point_confidence=False,
-                                       keep_depth=True,
-                                       max_neighbors=100,
-                                       uniform_sampling=True,
-                                       subdivide_task=True,
-                                       workitem_size_cameras=20,
-                                       max_workgroup_size=100,
-                                       progress=progress_callback)
+        self.doc.chunk.buildPointCloud(
+            point_colors=True,
+            point_confidence=False,
+            keep_depth=True,
+            max_neighbors=100,
+            uniform_sampling=True,
+            subdivide_task=True,
+            workitem_size_cameras=20,
+            max_workgroup_size=100,
+            progress=progress_callback,
+        )
         if ms.app.gpu_mask:
             ms.app.cpu_enable = True
         if self.cfg["asfm"]["dense_cloud"]["autosave"]:
             self.save_project()
 
     def build_model(self, progress_callback: Callable = percentage_callback):
-
-        # self.doc.chunk.buildModel(source_data=ms.PointCloudData)
-
         self.doc.chunk.buildModel(
-            surface_type=ms.Arbitrary,
-            interpolation=ms.Extrapolated,  #ms.Extrapolated
-            face_count=ms.HighFaceCount,
-            face_count_custom=200000,
+            surface_type=ms.Arbitrary,  
+            interpolation=ms.Extrapolated,
+            face_count=ms.HighFaceCount,  
             source_data=ms.PointCloudData,
             vertex_colors=True,
             vertex_confidence=True,
@@ -351,30 +349,38 @@ class SfM:
             subdivide_task=True,
             workitem_size_cameras=20,
             max_workgroup_size=100,
-            progress=progress_callback)
+            progress=progress_callback,
+        )
         self.save_project()
 
     def build_texture(self, progress_callback: Callable = percentage_callback):
-        self.doc.chunk.buildTexture(texture_size=4096,
-                                    ghosting_filter=True,
-                                    progress=progress_callback)
+        self.doc.chunk.buildUV(
+            mapping_mode=ms.GenericMapping, progress=progress_callback
+        )
+
+        self.save_project()
+
+        self.doc.chunk.buildTexture(
+            texture_size=4096, ghosting_filter=True, progress=progress_callback
+        )
         self.save_project()
 
     def build_dem(self, progress_callback: Callable = percentage_callback):
-
         if self.doc.chunk.point_cloud is None:
             self.build_dense_cloud()
 
-        self.doc.chunk.buildDem(source_data=ms.PointCloudData,
-                                interpolation=ms.EnabledInterpolation,
-                                flip_x=False,
-                                flip_y=False,
-                                flip_z=False,
-                                resolution=0,
-                                subdivide_task=True,
-                                workitem_size_tiles=10,
-                                max_workgroup_size=100,
-                                progress=progress_callback)
+        self.doc.chunk.buildDem(
+            source_data=ms.PointCloudData,
+            interpolation=ms.EnabledInterpolation,
+            flip_x=False,
+            flip_y=False,
+            flip_z=False,
+            resolution=0,
+            subdivide_task=True,
+            workitem_size_tiles=10,
+            max_workgroup_size=100,
+            progress=progress_callback,
+        )
         if self.cfg["asfm"]["dem"]["autosave"]:
             self.save_project()
 
@@ -383,48 +389,50 @@ class SfM:
             image_compression.tiff_big = True
             kwargs = {"image_compression": image_compression}
 
-            self.doc.chunk.exportRaster(path=self.cfg["asfm"]["dem_path"],
-                                        image_format=ms.ImageFormatTIFF,
-                                        source_data=ms.ElevationData,
-                                        progress=progress_callback,
-                                        **kwargs)
+            self.doc.chunk.exportRaster(
+                path=self.cfg["asfm"]["dem_path"],
+                image_format=ms.ImageFormatTIFF,
+                source_data=ms.ElevationData,
+                progress=progress_callback,
+                **kwargs,
+            )
 
-    def build_ortomosaic(self,
-                         progress_callback: Callable = percentage_callback):
-
-        self.doc.chunk.buildOrthomosaic(surface_data=ms.ElevationData,
-                                        blending_mode=ms.MosaicBlending,
-                                        fill_holes=True,
-                                        ghosting_filter=False,
-                                        cull_faces=False,
-                                        refine_seamlines=False,
-                                        resolution=0,
-                                        resolution_x=0,
-                                        resolution_y=0,
-                                        flip_x=False,
-                                        flip_y=False,
-                                        flip_z=False,
-                                        subdivide_task=True,
-                                        workitem_size_cameras=20,
-                                        workitem_size_tiles=10,
-                                        max_workgroup_size=100,
-                                        progress=progress_callback)
+    def build_ortomosaic(self, progress_callback: Callable = percentage_callback):
+        self.doc.chunk.buildOrthomosaic(
+            surface_data=ms.ElevationData,
+            blending_mode=ms.MosaicBlending,
+            fill_holes=True,
+            ghosting_filter=False,
+            cull_faces=False,
+            refine_seamlines=False,
+            resolution=0,
+            resolution_x=0,
+            resolution_y=0,
+            flip_x=False,
+            flip_y=False,
+            flip_z=False,
+            subdivide_task=True,
+            workitem_size_cameras=20,
+            workitem_size_tiles=10,
+            max_workgroup_size=100,
+            progress=progress_callback,
+        )
         if self.cfg["asfm"]["orthomosaic"]["autosave"]:
             self.save_project()
 
         if self.cfg["asfm"]["orthomosaic"]["export"]["enabled"]:
-
             image_compression = ms.ImageCompression()
             image_compression.tiff_big = True
 
-            self.doc.chunk.exportRaster(path=self.cfg["asfm"]["ortho_path"],
-                                        image_format=ms.ImageFormatTIFF,
-                                        source_data=ms.OrthomosaicData,
-                                        progress=progress_callback,
-                                        image_compression=image_compression)
+            self.doc.chunk.exportRaster(
+                path=self.cfg["asfm"]["ortho_path"],
+                image_format=ms.ImageFormatTIFF,
+                source_data=ms.OrthomosaicData,
+                progress=progress_callback,
+                image_compression=image_compression,
+            )
 
     def camera_paramters(self, camera):
-
         row = dict()
         row["f"] = camera.calibration.f  # Focal length in pixels
         row["cx"] = camera.calibration.cx
@@ -443,7 +451,6 @@ class SfM:
         return row
 
     def export_stats(self):
-
         # Percentage of aligned images
         total_cameras = len(self.doc.chunk.cameras)
         aligned_cameras = 0
@@ -459,19 +466,22 @@ class SfM:
         percentage_detected_gcps = detected_gcps / total_gcps
 
         dataframe = DataFrame(
-            [{
-                "Total_Cameras": total_cameras,
-                "Aligned_Cameras": aligned_cameras,
-                "Percentage_Aligned_Cameras": percentage_aligned_cameras,
-                "Total_GCPs": total_gcps,
-                "Detected_GCPs": detected_gcps,
-                "Percentage_Detected_GCPs": percentage_detected_gcps
-            }], "Total_Cameras")
+            [
+                {
+                    "Total_Cameras": total_cameras,
+                    "Aligned_Cameras": aligned_cameras,
+                    "Percentage_Aligned_Cameras": percentage_aligned_cameras,
+                    "Total_GCPs": total_gcps,
+                    "Detected_GCPs": detected_gcps,
+                    "Percentage_Detected_GCPs": percentage_detected_gcps,
+                }
+            ],
+            "Total_Cameras",
+        )
         self.error_statistics = dataframe
         dataframe.to_csv(self.cfg["asfm"]["err_ref"], header=True, index=False)
 
     def camera_fov(self):
-
         rows = []
         row_template = {
             "label": "",
@@ -484,11 +494,10 @@ class SfM:
             "top_right_x": "",
             "top_right_y": "",
             "height": "",
-            "width": ""
+            "width": "",
         }
 
         for camera in self.doc.chunk.cameras:
-
             row = deepcopy(row_template)
             calculate_fov = True
 
@@ -524,9 +533,7 @@ class SfM:
 
             f = camera.calibration.f
             if f is None:
-                print(
-                    f"f missing for camera {camera.label}, skipping FOV calculation."
-                )
+                print(f"f missing for camera {camera.label}, skipping FOV calculation.")
                 calculate_fov = False
 
             if calculate_fov:
@@ -539,43 +546,56 @@ class SfM:
 
                 # Find the actual object height and width
                 camera_height = self.camera_reference.retrieve(
-                    camera.label, "Estimated_Z")
+                    camera.label, "Estimated_Z"
+                )
 
                 if not camera_height:
                     continue
                 object_half_height = find_object_dimension(
-                    f_height, image_height / 2, camera_height)
+                    f_height, image_height / 2, camera_height
+                )
                 object_half_width = find_object_dimension(
-                    f_width, image_width / 2, camera_height)
+                    f_width, image_width / 2, camera_height
+                )
 
-                row["height"] = 2. * object_half_height
-                row["width"] = 2. * object_half_width
+                row["height"] = 2.0 * object_half_height
+                row["width"] = 2.0 * object_half_width
 
                 # Find the field of view coordinates in the rotated
                 yaw_angle = self.camera_reference.retrieve(
-                    camera.label, "Estimated_Yaw")
+                    camera.label, "Estimated_Yaw"
+                )
 
-                center_x = self.camera_reference.retrieve(
-                    camera.label, "Estimated_X")
-                center_y = self.camera_reference.retrieve(
-                    camera.label, "Estimated_Y")
+                center_x = self.camera_reference.retrieve(camera.label, "Estimated_X")
+                center_y = self.camera_reference.retrieve(camera.label, "Estimated_Y")
                 if not yaw_angle or not center_x or not center_y:
                     continue
 
                 center_coords = [center_x, center_y]
 
-                top_left_x, top_left_y, \
-                bottom_left_x, bottom_left_y, \
-                bottom_right_x, bottom_right_y, \
-                top_right_x, top_right_y = field_of_view(center_coords, object_half_width, object_half_height, yaw_angle)
+                (
+                    top_left_x,
+                    top_left_y,
+                    bottom_left_x,
+                    bottom_left_y,
+                    bottom_right_x,
+                    bottom_right_y,
+                    top_right_x,
+                    top_right_y,
+                ) = field_of_view(
+                    center_coords, object_half_width, object_half_height, yaw_angle
+                )
 
                 row["top_left_x"], row["top_left_y"] = top_left_x, top_left_y
-                row["bottom_left_x"], row[
-                    "bottom_left_y"] = bottom_left_x, bottom_left_y
-                row["bottom_right_x"], row[
-                    "bottom_right_y"] = bottom_right_x, bottom_right_y
-                row["top_right_x"], row[
-                    "top_right_y"] = top_right_x, top_right_y
+                row["bottom_left_x"], row["bottom_left_y"] = (
+                    bottom_left_x,
+                    bottom_left_y,
+                )
+                row["bottom_right_x"], row["bottom_right_y"] = (
+                    bottom_right_x,
+                    bottom_right_y,
+                )
+                row["top_right_x"], row["top_right_y"] = top_right_x, top_right_y
 
             rows.append(row)
 

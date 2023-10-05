@@ -1,8 +1,8 @@
 workdir: autoSfM
 # Number of GPUs to use
-num_gpus: 7 # 8=255, 7=127, 6=63, 5=31, 4=15, 3=7, 2=3, 1=1; or use 'all' to use all available gpus
+num_gpus: 3 # 8=255, 7=127, 6=63, 5=31, 4=15, 3=7, 2=3, 1=1; or use 'all' to use all available gpus
 # Masks blue benchbot pixels if masks are present
-use_masking: True
+use_masking: False
 
 ## Defines output directory and file paths for the various data products
 # Main project driectory
@@ -26,7 +26,7 @@ dem_path: ${asfm.demdir}/dem.tif
 # Preview image setttings and output
 preview: ${batchdata.autosfm}/${general.batch_id}_preview.png
 max_wid: 2500
-dpi: 100 
+dpi: 100
 # Config save paths (depricated, not used)
 config_save_path: ${autosfm.autosfm_volume}/config/config.yml
 config_copy_path: ${data.logdir}/autosfm/config_${general.batch_id}.yml
@@ -42,6 +42,8 @@ optimize_cameras: True
 export_gcp_camref_err: True
 build_depth: True
 build_dense: True
+build_model: True
+build_texture: True
 build_dem: True
 build_ortho: True
 export_fov: True
@@ -66,6 +68,14 @@ dense_cloud:
   enabled: True
   autosave: True
 
+model:
+  enabled: True
+  autosave: True
+
+texture: 
+  enabled: True
+  autosave: True
+  
 dem: 
   enabled: True
   autosave: True
