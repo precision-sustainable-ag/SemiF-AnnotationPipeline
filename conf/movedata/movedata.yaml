@@ -4,6 +4,7 @@ azure_batch_contents: ${logs.logdir}/container_list.txt
 error_data: ${data.batchdir}/error_data
 list_data: ${movedata.workdir}/scripts/ListData.sh
 miss_azure_log: ${logs.logdir}/missing_azure_data.txt
+unprocessed_and_processed_batches: ${logs.logdir}/unprocessed_and_processed_batches.txt
 
 SAS_keys: ${general.workdir}/keys/pipeline_keys.yaml
 

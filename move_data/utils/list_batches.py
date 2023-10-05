@@ -19,8 +19,7 @@ class ListBatches:
     def __init__(self, cfg):
         self.pkeys = read_keys(cfg.pipeline_keys)
         self.container_list = Path(cfg.movedata.find_missing.container_list)
-        log.info(
-            f"Logging AZ blob container contents to {self.container_list}")
+        log.info(f"Logging AZ blob container contents to {self.container_list}")
 
         self.pkeys = read_keys(cfg.movedata.SAS_keys)
         # Required data directories to be considered "processed".
@@ -40,28 +39,30 @@ class ListBatches:
         down_dev = self.pkeys.down_dev
         # Main command passed to os.system
         os.system(
-            f"azcopy ls " + f'"{down_dev}"' +
-            f" | cut -d/ -f 1-{n} | awk '!a[$0]++' > {self.container_list}")
+            f"azcopy ls "
+            + f'"{down_dev}"'
+            + f" | cut -d/ -f 1-{n} | awk '!a[$0]++' > {self.container_list}"
+        )
 
     def organize_temp(self):
-        """Reads, cleans, and writes back the 'azcopy list' results back to its 
+        """Reads, cleans, and writes back the 'azcopy list' results back to its
         temporary txt file location."""
         # Read temporary file
-        with open(self.container_list, 'r') as f:
+        with open(self.container_list, "r") as f:
             lines = [line.rstrip() for line in f]
             # Strip azcopy list results strings
             lines = [x.replace("INFO: ", "") for x in lines]
             lines = [x.split(";")[0] for x in lines]
             lines = sorted(lines)
         # Write back to temp file location
-        with open(self.container_list, 'w') as f:
+        with open(self.container_list, "w") as f:
             for line in lines:
                 f.write(f"{line}\n")
 
     def read_temp_results(self):
         """Reads temporary file created using 'azcopy list'"""
 
-        with open(self.container_list, 'r') as f:
+        with open(self.container_list, "r") as f:
             lines = [line.rstrip() for line in f]
         return lines
 
@@ -83,7 +84,7 @@ class ListBatches:
         return df
 
     def find_missing(self):
-        """Compares batch data directories in azure with a list of required batch directories. 
+        """Compares batch data directories in azure with a list of required batch directories.
         Returns a dataframe of batches and their missing data products in Azure blob container.
 
         Returns:
@@ -114,3 +115,127 @@ class ListBatches:
 
         df = pd.concat(dfs).reset_index(drop=True)
         return df
+
+
+class BatchProcessor:
+    def __init__(self, container_list):
+        """Summarizes the processed and unprocessed batches by filtering the contents of container_contents.txt
+
+        Args:
+            container_list (str): file path to container_list.txt
+        """
+        self.folders = self.read_container_list(container_list)
+        # Sub-folders that must be present to be considered "processed"
+        self.necessary_subfolders = ["autosfm", "meta_masks", "metadata"]
+        self.results = {}
+        # Extract unique batches and states
+        self.batches = set(folder.split("/")[0] for folder in self.folders if folder)
+        self.states = set(batch.split("_")[0] for batch in self.batches if "_" in batch)
+        # Date ranges for each "season" by state
+        self.date_ranges = {
+            "MD": {
+                "weeds 2022": ("2022-03-04", "2022-10-01"),
+                "cover crops 2022/2023": ("2022-10-20", "2023-04-25"),
+                "cash crops 2023": ("2023-05-12", "2023-07-07"),
+                "weeds 2023": ("2023-07-17", "2023-10-25"),
+            },
+            "NC": {
+                "weeds 2022": ("2022-03-04", "2022-10-01"),
+                "cover crops 2022/2023": ("2022-10-11", "2023-03-30"),
+                "cash crops 2023": ("2023-06-06", "2023-07-25"),
+                "weeds 2023": ("2023-08-21", "2023-12-25"),
+            },
+            "TX": {
+                "weeds 2022": ("2022-03-04", "2022-10-01"),
+                "cover crops 2022/2023": ("2022-10-25", "2023-04-04"),
+                "cash crops 2023": ("2023-05-08", "2023-08-01"),
+                "weeds 2023": ("2023-08-04", "2023-12-25"),
+            },
+        }
+
+    def read_container_list(self, path):
+        with open(path) as f:
+            folders = [line.rstrip("\n") for line in f]
+        return folders
+
+    def determine_status(self):
+        for state, categories in self.date_ranges.items():
+            self.results[state] = {}
+            # Build a dictionary of dates for each state
+            dates_by_state = {
+                state: sorted(
+                    [
+                        batch.split("_")[1]
+                        for batch in self.batches
+                        if batch.startswith(state)
+                    ]
+                )
+                for state in self.states
+            }
+            for category, (start_date, end_date) in categories.items():
+                self.results[state][category] = {
+                    "Processed": [],
+                    "Not Processed": [],
+                }
+                # for batch_date in dates_by_state:
+                for batch_date in dates_by_state[state]:
+                    batch_name = f"{state}_{batch_date}"
+                    if start_date <= batch_date <= end_date:
+                        is_processed = all(
+                            f"{batch_name}/{subfolder}" in self.folders
+                            for subfolder in self.necessary_subfolders
+                        )
+                        status = "Processed" if is_processed else "Not Processed"
+                        self.results[state][category][status].append(batch_name)
+
+    def print_results(self):
+        for state, categories in self.results.items():
+            print(f"\n-----------------------------")
+            print(f"State: {state}")
+            print(f"-----------------------------")
+            for category, status_data in categories.items():
+                print(f"\n{category.title()}")
+
+                # Processed
+                print("\nProcessed:")
+                for batch in status_data["Processed"]:
+                    print(f"  - {batch}")
+
+                # Not Processed
+                print("\nNot Processed:")
+                for batch in status_data["Not Processed"]:
+                    print(f"  - {batch}")
+
+    def save_to_file(self, filename):
+        with open(filename, "w") as file:
+            for state, categories in self.results.items():
+                file.write(f"\n-----------------------------\n")
+                file.write(f"State: {state}\n")
+                file.write(f"-----------------------------\n")
+                for category, status_data in categories.items():
+                    file.write(f"\n{category.title()}\n")
+
+                    # Processed
+                    file.write("\nProcessed:\n")
+                    for batch in status_data["Processed"]:
+                        file.write(f"  - {batch}\n")
+
+                    # Not Processed
+                    file.write("\nNot Processed:\n")
+                    for batch in status_data["Not Processed"]:
+                        file.write(f"  - {batch}\n")
+
+    def write_summary(self, filename):
+        with open(filename, "a") as file:
+            file.write("\n\n===============================\n")
+            file.write("Summary:\n")
+            file.write("===============================\n")
+            for state, categories in self.results.items():
+                file.write(f"State: {state}\n")
+                for category, status_data in categories.items():
+                    processed_count = len(status_data["Processed"])
+                    not_processed_count = len(status_data["Not Processed"])
+                    file.write(
+                        f"Category: {category} - Processed: {processed_count}, Not Processed: {not_processed_count}\n"
+                    )
+                file.write("-----------------------------\n")

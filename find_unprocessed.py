@@ -4,7 +4,7 @@ import hydra
 from omegaconf import DictConfig
 
 # sys.path.append("move_data")
-from move_data.utils.list_batches import ListBatches
+from move_data.utils.list_batches import BatchProcessor, ListBatches
 
 log = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ def main(cfg: DictConfig) -> None:
             log.info("Creating a list of the blob container items.")
             lb.az_list()
         except Exception as e:
-            log.exception(f"Failed to create container item list. Exiting.")
+            log.exception("Failed to create container item list. Exiting.")
             exit(1)
 
     if cfg.movedata.find_missing.organize_temp:
@@ -44,11 +44,21 @@ def main(cfg: DictConfig) -> None:
         # Write back to missing batch file location
         try:
             log.info(f"Writing missing items to {cfg.logs.unprocessed}.")
-            with open(cfg.logs.unprocessed, 'w') as f:
+            with open(cfg.logs.unprocessed, "w") as f:
                 for _, row in df.iterrows():
                     f.write(f"{row.batch}: {', '.join(sorted(row.missing))}\n")
         except Exception as e:
             log.exception(f"Failed to write missing items. Exiting.")
+            exit(1)
+
+        try:
+            log.info("Procssing to find processed and not processed batches.")
+            bp = BatchProcessor(cfg.movedata.find_missing.container_list)
+            bp.determine_status()
+            bp.save_to_file(cfg.movedata.unprocessed_and_processed_batches)
+            bp.write_summary(cfg.movedata.unprocessed_and_processed_batches)
+        except Exception as e:
+            log.exception(f"Failed to write unprocessed and processed items. Exiting.")
             exit(1)
 
 
