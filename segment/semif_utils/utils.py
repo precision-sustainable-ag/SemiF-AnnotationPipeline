@@ -71,10 +71,10 @@ def create_dataclasses(metadir, cfg):
 
 
 def get_bbox_info(csv_path):
-
     df = pd.read_csv(csv_path).drop(columns=["Unnamed: 0"])
-    bbox_dict = df.groupby(
-        by="imgname", sort=True).apply(lambda x: x.to_dict(orient="records"))
+    bbox_dict = df.groupby(by="imgname", sort=True).apply(
+        lambda x: x.to_dict(orient="records")
+    )
     img_list = list(bbox_dict.keys())
     return bbox_dict, img_list
 
@@ -105,15 +105,13 @@ def creation_date(path_to_file):
 
 
 def get_upload_datetime(imagedir):
-
     creation_dt = creation_date(imagedir)
-    creation_dt = datetime.fromtimestamp(creation_dt).strftime(
-        "%Y-%m-%d_%H:%M:%S")
+    creation_dt = datetime.fromtimestamp(creation_dt).strftime("%Y-%m-%d_%H:%M:%S")
     return creation_dt
 
 
 def parse_dict(props_tabl):
-    """ 
+    """
     Used to parse regionprops table dictionary.
     Sums region props if multiple exists in one
     mask.
@@ -134,18 +132,16 @@ def parse_dict(props_tabl):
 def get_image_meta(path):
     with open(path) as f:
         j = json.load(f)
-        imgdata = from_dict(data_class=ImageData,
-                            data=j,
-                            config=Config(check_types=False))
+        imgdata = from_dict(
+            data_class=ImageData, data=j, config=Config(check_types=False)
+        )
     return imgdata
 
 
 def get_cutout_meta(path):
     with open(path) as f:
         j = json.load(f)
-        cutout = from_dict(data_class=Cutout,
-                           data=j,
-                           config=Config(check_types=False))
+        cutout = from_dict(data_class=Cutout, data=j, config=Config(check_types=False))
     return cutout
 
 
@@ -214,8 +210,9 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         # Create and append df
         if cutout["multi_species_USDA_symbol"] != None:
             cutout["multi_species_USDA_symbol"] = ",".join(
-                cutout["multi_species_USDA_symbol"])
-        cutdf = pd.DataFrame.from_dict(cutout, orient='index').T
+                cutout["multi_species_USDA_symbol"]
+            )
+        cutdf = pd.DataFrame.from_dict(cutout, orient="index").T
         # cutdf = pd.DataFrame(cutout)  #, index=[0])
         cutouts.append(cutdf)
     # Concat and reset index of main df
@@ -223,50 +220,50 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         cutouts_df = pd.concat(cutouts)
         cutouts_df = cutouts_df.reset_index()
         cutouts_df.drop(columns="index", inplace=True)
-        cutouts_df.sort_values(by=['image_id', 'cutout_num'],
-                               axis=0,
-                               ascending=[True, True],
-                               inplace=True,
-                               kind='quicksort',
-                               na_position='first',
-                               ignore_index=True,
-                               key=None)
+        cutouts_df.sort_values(
+            by=["image_id", "cutout_num"],
+            axis=0,
+            ascending=[True, True],
+            inplace=True,
+            kind="quicksort",
+            na_position="first",
+            ignore_index=True,
+            key=None,
+        )
         if save_df:
             cutouts_df.to_csv(csv_savepath, index=False)
         return cutouts_df
 
 
 def growth_stage(batch_date, plant_date_list):
-    """ Gets rough approximation of growth stage by comparing the batch upload date
-        with a list of "planting dates" in config.planting. Uses a threshold value,
-        "coty_thresh" to differentiate between cotyledon and vegetative. 
-        Returns growth stage and planting date.
-        "" Classifies growth stage and approximates planting date by comparing the 
-        batch upload date with a list of "planting dates" in config.planting.
+    """Gets rough approximation of growth stage by comparing the batch upload date
+    with a list of "planting dates" in config.planting. Uses a threshold value,
+    "coty_thresh" to differentiate between cotyledon and vegetative.
+    Returns growth stage and planting date.
+    "" Classifies growth stage and approximates planting date by comparing the
+    batch upload date with a list of "planting dates" in config.planting.
 
-        Input:
-        batch_date(str)      -  Gathered from cfg.general.batch_id.strip("_)[0] (ex. 2022-06-28)
-        plant_date_list(list)-  List of dates, by location, taken from cfg.planting that 
-                                represent all planting dates by locations
-        
-        Returns:
-        pl_dt(int)           -  Planting date in config that is closest to, but not more recent than,
-                                the batch date. Planting dates before the batch date are excluded. 
-        g_stage(str)         -  Growth stage classification based on numbers of days after planting date
-                                (subject to change).
-        """
+    Input:
+    batch_date(str)      -  Gathered from cfg.general.batch_id.strip("_)[0] (ex. 2022-06-28)
+    plant_date_list(list)-  List of dates, by location, taken from cfg.planting that
+                            represent all planting dates by locations
+
+    Returns:
+    pl_dt(int)           -  Planting date in config that is closest to, but not more recent than,
+                            the batch date. Planting dates before the batch date are excluded.
+    g_stage(str)         -  Growth stage classification based on numbers of days after planting date
+                            (subject to change).
+    """
 
     batch_date = datetime.strptime(batch_date, "%Y-%m-%d")
-    plant_date_list = [
-        datetime.strptime(x, "%Y-%m-%d") for x in plant_date_list
-    ]
+    plant_date_list = [datetime.strptime(x, "%Y-%m-%d") for x in plant_date_list]
     # Remove plant dates that are newer than batch date
     plant_date_list = [x for x in plant_date_list if x <= batch_date]
     # Difference and get indices
     deltas = [abs(ti - batch_date) for ti in plant_date_list]
     min_index, min_delta = min(enumerate(deltas), key=operator.itemgetter(1))
 
-    pl_dt = plant_date_list[min_index].strftime('%Y-%m-%d')
+    pl_dt = plant_date_list[min_index].strftime("%Y-%m-%d")
     days_after_planting = min_delta.days
     if days_after_planting < 2:
         g_stage = "seed"
@@ -279,13 +276,15 @@ def growth_stage(batch_date, plant_date_list):
     return g_stage, pl_dt, days_after_planting
 
 
-def is_green(green_sum, image_shape, percent_thresh=.2):
-    """ Returns true if number of green pixels is 
-        above certain threshold percentage based on
-        total number of pixels.
+def is_green(green_sum, image_shape, percent_thresh=0.2):
+    """Returns true if number of green pixels is
+    above certain threshold percentage based on
+    total number of pixels.
     """
     # check threshold value
-    assert percent_thresh <= 1, "green sum percent threshold is greater than 1. Must be less than or equal to 1."
+    assert (
+        percent_thresh <= 1
+    ), "green sum percent threshold is greater than 1. Must be less than or equal to 1."
     total_pixels = image_shape[0] * image_shape[1]
     green_percent = green_sum / total_pixels
     is_green = True if green_percent > percent_thresh else False
@@ -293,8 +292,8 @@ def is_green(green_sum, image_shape, percent_thresh=.2):
 
 
 def is_mask_empty(mask):
-    """ Returns true if mask is empty along
-        with a logging message
+    """Returns true if mask is empty along
+    with a logging message
     """
     if mask.max() == 0:
         result = True
@@ -314,7 +313,7 @@ def make_exg(rgb_image, normalize=False, thresh=0):
     # rgb_img: np array in [RGB] channel order
     # exr: single band vegetation index as np array
     # EXG = 2 * G - R - B
-    np.seterr(divide='ignore', invalid='ignore')
+    np.seterr(divide="ignore", invalid="ignore")
     rgb_image = rgb_image.astype(float)
     r, g, b = cv2.split(rgb_image)
 
@@ -353,8 +352,7 @@ def make_exr(rgb_img, thresh=0):
 
     exr = 1.4 * red - green
     if thresh is not None:
-        exr = np.where(exr < thresh, 0,
-                       exr)  # Thresholding removes low negative values
+        exr = np.where(exr < thresh, 0, exr)  # Thresholding removes low negative values
     return exr.astype("uint8")
 
 
@@ -380,10 +378,7 @@ def make_ndi(rgb_img, thresh=0):
     red = img[:, :, 0]
     gminr = green - red
     gplusr = green + red
-    gdivr = np.true_divide(gminr,
-                           gplusr,
-                           out=np.zeros_like(gminr),
-                           where=gplusr != 0)
+    gdivr = np.true_divide(gminr, gplusr, out=np.zeros_like(gminr), where=gplusr != 0)
     ndi = 128 * (gdivr + 1)
     # print("Max ndi: ", ndi.max())
     # print("Min ndi: ", ndi.min())
@@ -401,8 +396,9 @@ def thresh_vi(vi, low=20, upper=100, sigma=2):
                                 "low" and "upper". Defaults to 2.
     """
     thresh_vi = np.where(vi <= 0, 0, vi)
-    thresh_vi = np.where((thresh_vi > low) & (thresh_vi < upper),
-                         thresh_vi * sigma, thresh_vi)
+    thresh_vi = np.where(
+        (thresh_vi > low) & (thresh_vi < upper), thresh_vi * sigma, thresh_vi
+    )
     return thresh_vi
 
 
@@ -427,24 +423,24 @@ def rescale_bbox(box, scale, save_changes):
 
     box.local_coordinates = replace(
         box.local_coordinates,
-        top_left=[
-            c * s for c, s in zip(box.local_coordinates["top_left"], scale)
-        ])
+        top_left=[c * s for c, s in zip(box.local_coordinates["top_left"], scale)],
+    )
     box.local_coordinates = replace(
         box.local_coordinates,
-        top_right=[
-            c * s for c, s in zip(box.local_coordinates["top_right"], scale)
-        ])
+        top_right=[c * s for c, s in zip(box.local_coordinates["top_right"], scale)],
+    )
     box.local_coordinates = replace(
         box.local_coordinates,
         bottom_left=[
             c * s for c, s in zip(box.local_coordinates["bottom_left"], scale)
-        ])
+        ],
+    )
     box.local_coordinates = replace(
         box.local_coordinates,
         bottom_right=[
             c * s for c, s in zip(box.local_coordinates["bottom_right"], scale)
-        ])
+        ],
+    )
 
     return box
 
@@ -473,11 +469,7 @@ def clean_mask(mask, kernel_size=3, iterations=1, dilation=True):
     return mask
 
 
-def dilate_erode(mask,
-                 kernel_size=3,
-                 dil_iters=5,
-                 eros_iters=3,
-                 hole_fill=True):
+def dilate_erode(mask, kernel_size=3, dil_iters=5, eros_iters=3, hole_fill=True):
     mask = mask.astype(np.float32)
 
     if int(kernel_size):
@@ -500,11 +492,11 @@ def clear_border(mask):
 
 
 def reduce_holes(mask, min_object_size=1000, min_hole_size=1000):
-
     mask = mask.astype(np.bool8)
     # mask = measure.label(mask, connectivity=2)
     mask = morphology.remove_small_holes(
-        morphology.remove_small_objects(mask, min_hole_size), min_object_size)
+        morphology.remove_small_objects(mask, min_hole_size), min_object_size
+    )
     # mask = morphology.opening(mask, morphology.disk(3))
     return mask
 
@@ -515,8 +507,7 @@ def seperate_components(mask):
     """
     # Store individual plant components in a list
     mask = mask.astype(np.uint8)
-    nb_components, output, _, _ = cv2.connectedComponentsWithStats(
-        mask, connectivity=8)
+    nb_components, output, _, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
     # Remove background component
     nb_components = nb_components - 1
     list_filtered_masks = []
@@ -541,19 +532,28 @@ def check_kmeans(mask):
 
 
 def make_kmeans(exg_mask):
-    rows, cols = exg_mask.shape
+    # Use kmeans and find the cluster that
+    # is the highest (or greenest) to have consistent labels
     n_classes = 2
-    exg = exg_mask.reshape(rows * cols, 1)
-    kmeans = KMeans(n_clusters=n_classes, random_state=3).fit(exg)
-    mask = kmeans.labels_.reshape(rows, cols)
-    mask = check_kmeans(mask)
-    return mask.astype("uint8")
+    # Reshape the data to a 2D array of pixels
+    pixels = exg_mask.reshape((-1, 1))
+    # Apply KMeans clustering
+    kmeans = KMeans(n_clusters=n_classes, random_state=3)
+    labels = kmeans.fit_predict(pixels)
+    # Identify which cluster corresponds to the green plant material
+    green_cluster_index = np.argmax(kmeans.cluster_centers_)
+    # Create a binary mask based on the cluster labels
+    binary_mask = labels == green_cluster_index
+    # Reshape the binary mask to have the same shape as the original image
+    reshaped_mask = binary_mask.reshape(exg_mask.shape)
+    return reshaped_mask.astype(np.uint8)
 
 
 def otsu_thresh(mask, kernel_size=(3, 3)):
     mask_blur = cv2.GaussianBlur(mask, kernel_size, 0).astype("uint16")
-    ret3, mask_th3 = cv2.threshold(mask_blur, 0, 255,
-                                   cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    ret3, mask_th3 = cv2.threshold(
+        mask_blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
     return mask_th3
 
 
@@ -581,8 +581,9 @@ def multiple_otsu(vi, classes=3):
 def contour_mask(img, mode="biggest"):
     # For using find_contours
     # get most significant contours
-    contours_mask, hierachy = cv2.findContours(img, cv2.RETR_EXTERNAL,
-                                               cv2.CHAIN_APPROX_NONE)
+    contours_mask, hierachy = cv2.findContours(
+        img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
+    )
     mask = np.zeros(img.shape, np.uint8)
     # find the biggest countour (c) by the area
     if mode == "biggest":
@@ -622,7 +623,7 @@ def apply_mask(img, mask, mask_color):
 
 
 def trans_cutout(img):
-    """ Get transparent cutout from cutout image with black background. Requires RGB image"""
+    """Get transparent cutout from cutout image with black background. Requires RGB image"""
 
     # img = cv2.cvtColor(cv2.imread(imgpath), cv2.COLOR_BGR2RGB)
     # threshold on black to make a mask
@@ -649,12 +650,14 @@ def crop_cutouts(img, add_padding=False):
     pil_crop_frground = foreground.crop(foreground.getbbox())
     array = np.array(pil_crop_frground)
     if add_padding:
-        pil_crop_frground = foreground.crop((
-            foreground.getbbox()[0] - 2,
-            foreground.getbbox()[1] - 2,
-            foreground.getbbox()[2] + 2,
-            foreground.getbbox()[3] + 2,
-        ))
+        pil_crop_frground = foreground.crop(
+            (
+                foreground.getbbox()[0] - 2,
+                foreground.getbbox()[1] - 2,
+                foreground.getbbox()[2] + 2,
+                foreground.getbbox()[3] + 2,
+            )
+        )
     return array
 
 
@@ -685,9 +688,9 @@ def transform_position(points, imgshape, spread_factor):
     """Applies random jitter factor to points and transforms them to top left image coordinates."""
     y, x = points
 
-    x, y = x + random.randint(
-        -spread_factor, spread_factor), y + random.randint(
-            -int(spread_factor / 3), int(spread_factor / 3))
+    x, y = x + random.randint(-spread_factor, spread_factor), y + random.randint(
+        -int(spread_factor / 3), int(spread_factor / 3)
+    )
 
     x, y = center2topleft(x, y, imgshape)
 
@@ -711,14 +714,12 @@ def img2RGBA(img):
 
 
 class Point(object):
-
     def __init__(self, x, y):
         self.x = x
         self.y = y
 
 
 class Rect(object):
-
     def __init__(self, p1, p2):
         """Store the top, bottom, left and right values for points
         p1 and p2 are the (corners) in either order
@@ -731,9 +732,9 @@ class Rect(object):
 
 def overlap(r1, r2):
     """Overlapping rectangles overlap both horizontally & vertically"""
-    return range_overlap(r1.left, r1.right,
-                         r2.left, r2.right) and range_overlap(
-                             r1.bottom, r1.top, r2.bottom, r2.top)
+    return range_overlap(r1.left, r1.right, r2.left, r2.right) and range_overlap(
+        r1.bottom, r1.top, r2.bottom, r2.top
+    )
 
 
 def range_overlap(a_min, a_max, b_min, b_max):
@@ -755,14 +756,14 @@ def clean_data(data):
     stored in json and db.
     """
     data["background"]["background_path"] = "/".join(
-        Path(data["background"]["background_path"]).parts[-2:])
+        Path(data["background"]["background_path"]).parts[-2:]
+    )
     pots = data["pots"]
     for pot in pots:
         pot["pot_path"] = "/".join(Path(pot["pot_path"]).parts[-2:])
 
     for cutout in data["cutouts"]:
-        cutout["cutout_path"] = "/".join(
-            Path(cutout["cutout_path"]).parts[-2:])
+        cutout["cutout_path"] = "/".join(Path(cutout["cutout_path"]).parts[-2:])
 
     return data
 
@@ -786,57 +787,60 @@ def get_cutout_dir(batch_dir, cutout_dir):
 
 def color_to_df(input, ignore_black=False):
     if ignore_black:
-        colors_pre_list = str(input).replace('[(', '').split(', (')[0:-1]
+        colors_pre_list = str(input).replace("[(", "").split(", (")[0:-1]
     else:
-        colors_pre_list = str(input).replace('([(', '').split(', (')[0:-1]
-    df_rgb = [i.split('), ')[0] + ')' for i in colors_pre_list]
-    df_percent = [i.split('), ')[1].replace(')', '') for i in colors_pre_list]
+        colors_pre_list = str(input).replace("([(", "").split(", (")[0:-1]
+    df_rgb = [i.split("), ")[0] + ")" for i in colors_pre_list]
+    df_percent = [i.split("), ")[1].replace(")", "") for i in colors_pre_list]
 
-    #convert RGB to HEX code
+    # convert RGB to HEX code
     df_color_up = [
-        rgb2hex(int(i.split(", ")[0].replace("(", "")), int(i.split(", ")[1]),
-                int(i.split(", ")[2].replace(")", ""))) for i in df_rgb
+        rgb2hex(
+            int(i.split(", ")[0].replace("(", "")),
+            int(i.split(", ")[1]),
+            int(i.split(", ")[2].replace(")", "")),
+        )
+        for i in df_rgb
     ]
 
-    df = pd.DataFrame(zip(df_color_up, df_rgb, df_percent),
-                      columns=['hex', 'rgb', 'occurence'])
+    df = pd.DataFrame(
+        zip(df_color_up, df_rgb, df_percent), columns=["hex", "rgb", "occurence"]
+    )
     return df
 
 
-def exact_color(pilimg,
-                resize,
-                tolerance,
-                zoom,
-                save=False,
-                show=False,
-                ignore_black=False,
-                return_colors=False,
-                transparent=True):
-
-    colors_x = extcolors.extract_from_image(pilimg,
-                                            tolerance=tolerance,
-                                            limit=13)
+def exact_color(
+    pilimg,
+    resize,
+    tolerance,
+    zoom,
+    save=False,
+    show=False,
+    ignore_black=False,
+    return_colors=False,
+    transparent=True,
+):
+    colors_x = extcolors.extract_from_image(pilimg, tolerance=tolerance, limit=13)
     if ignore_black:
-        colors_x = [(colo, num) for colo, num in colors_x[0]
-                    if colo != (0, 0, 0)]
-    #crate dataframe
+        colors_x = [(colo, num) for colo, num in colors_x[0] if colo != (0, 0, 0)]
+    # crate dataframe
 
     df_color = color_to_df(colors_x, ignore_black=True)
     if return_colors and not save and not show:
         return df_color
     # Plotting and saving
     if show or save:
-        #background
-        bg = 'bg.png'
+        # background
+        bg = "bg.png"
         fig, ax = plt.subplots(figsize=(192, 108), dpi=10)
         if not transparent:
-            fig.set_facecolor('white')
+            fig.set_facecolor("white")
         plt.savefig(bg, transparent=transparent)
         plt.close(fig)
-        #resize
+        # resize
         output_width = resize
         img = Image.open(input_image)
-        wpercent = (output_width / float(img.size[0]))
+        wpercent = output_width / float(img.size[0])
         hsize = int((float(img.size[1]) * float(wpercent)))
         img = img.resize((output_width, hsize), Image.Resampling.LANCZOS)
         # Change transparency of image in donut
@@ -844,73 +848,67 @@ def exact_color(pilimg,
             datas = img.getdata()
             newData = []
             for item in datas:
-                if item[0] == 0 and item[1] == 0 and item[
-                        2] == 0:  # finding black colour by its RGB value
+                if (
+                    item[0] == 0 and item[1] == 0 and item[2] == 0
+                ):  # finding black colour by its RGB value
                     # storing a transparent value when we find a black colour
                     newData.append((255, 255, 255, 0))
                 else:
                     newData.append(item)  # other colours remain unchanged
             img.putdata(newData)
 
-        #annotate text
-        list_color = list(df_color['hex'])
-        list_precent = [int(i) for i in list(df_color['occurence'])]
+        # annotate text
+        list_color = list(df_color["hex"])
+        list_precent = [int(i) for i in list(df_color["occurence"])]
         text_c = [
-            c + ' ' + str(round(p * 100 / sum(list_precent), 1)) + '%'
+            c + " " + str(round(p * 100 / sum(list_precent), 1)) + "%"
             for c, p in zip(list_color, list_precent)
         ]
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(160, 120), dpi=10)
-        #donut plot
-        wedges, text = ax1.pie(list_precent,
-                               labels=text_c,
-                               labeldistance=1.05,
-                               colors=list_color,
-                               textprops={
-                                   'fontsize': 150,
-                                   'color': 'black'
-                               })
+        # donut plot
+        wedges, text = ax1.pie(
+            list_precent,
+            labels=text_c,
+            labeldistance=1.05,
+            colors=list_color,
+            textprops={"fontsize": 150, "color": "black"},
+        )
         plt.setp(wedges, width=0.3)
-        #add image in the center of donut plot
+        # add image in the center of donut plot
         imagebox = OffsetImage(img, zoom=zoom)
-        ab = AnnotationBbox(imagebox, (0, 0), xycoords='data', frameon=False)
+        ab = AnnotationBbox(imagebox, (0, 0), xycoords="data", frameon=False)
         ax1.add_artist(ab)
-        #color palette
+        # color palette
         x_posi, y_posi, y_posi2 = 160, -170, -170
         for c in list_color:
             if list_color.index(c) <= 5:
                 y_posi += 180
-                rect = patches.Rectangle((x_posi, y_posi),
-                                         360,
-                                         160,
-                                         facecolor=c)
+                rect = patches.Rectangle((x_posi, y_posi), 360, 160, facecolor=c)
                 ax2.add_patch(rect)
-                ax2.text(x=x_posi + 400,
-                         y=y_posi + 100,
-                         s=c,
-                         fontdict={'fontsize': 190})
+                ax2.text(
+                    x=x_posi + 400, y=y_posi + 100, s=c, fontdict={"fontsize": 190}
+                )
             else:
                 y_posi2 += 180
-                rect = patches.Rectangle((x_posi + 1000, y_posi2),
-                                         360,
-                                         160,
-                                         facecolor=c)
+                rect = patches.Rectangle(
+                    (x_posi + 1000, y_posi2), 360, 160, facecolor=c
+                )
                 ax2.add_artist(rect)
-                ax2.text(x=x_posi + 1400,
-                         y=y_posi2 + 100,
-                         s=c,
-                         fontdict={'fontsize': 190})
+                ax2.text(
+                    x=x_posi + 1400, y=y_posi2 + 100, s=c, fontdict={"fontsize": 190}
+                )
         if not transparent:
-            fig.set_facecolor('white')
-        ax2.axis('off')
-        bg = plt.imread('bg.png')
+            fig.set_facecolor("white")
+        ax2.axis("off")
+        bg = plt.imread("bg.png")
         plt.imshow(bg)
         plt.tight_layout()
         if save:
-            plt.savefig(Path(input_image).name,
-                        dpi=100,
-                        bbox_inches="tight",
-                        transparent=transparent)
+            plt.savefig(
+                Path(input_image).name,
+                dpi=100,
+                bbox_inches="tight",
+                transparent=transparent,
+            )
         if return_colors:
             return colors_x
-
-

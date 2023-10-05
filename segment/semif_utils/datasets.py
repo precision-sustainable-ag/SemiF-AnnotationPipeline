@@ -25,12 +25,17 @@ class BoxCoordinates:
 
     def __bool__(self):
         # The bool function is to check if the coordinates are populated or not
-        return all([
-            len(coord) == 2 for coord in [
-                self.top_left, self.top_right, self.bottom_left,
-                self.bottom_right
+        return all(
+            [
+                len(coord) == 2
+                for coord in [
+                    self.top_left,
+                    self.top_right,
+                    self.bottom_left,
+                    self.bottom_right,
+                ]
             ]
-        ])
+        )
 
     @property
     def config(self):
@@ -49,16 +54,14 @@ class BoxCoordinates:
             "top_left": _top_left,
             "top_right": _top_right,
             "bottom_left": _bottom_left,
-            "bottom_right": _bottom_right
+            "bottom_right": _bottom_right,
         }
 
         return _config
 
     def set_scale(self, new_scale: np.ndarray):
-
         if not self.is_scaleable:
-            raise ValueError(
-                "is_scalable set to False, coordinates cannot be scaled.")
+            raise ValueError("is_scalable set to False, coordinates cannot be scaled.")
         self.scale = new_scale
 
         self.top_left = self.top_left * self.scale
@@ -67,18 +70,17 @@ class BoxCoordinates:
         self.bottom_right = self.bottom_right * self.scale
 
     def copy(self):
-
-        return self.__class__(top_left=self.top_left.copy(),
-                              top_right=self.top_right.copy(),
-                              bottom_left=self.bottom_left.copy(),
-                              bottom_right=self.bottom_right.copy(),
-                              is_scaleable=self.is_scaleable)
+        return self.__class__(
+            top_left=self.top_left.copy(),
+            top_right=self.top_right.copy(),
+            bottom_left=self.bottom_left.copy(),
+            bottom_right=self.bottom_right.copy(),
+            is_scaleable=self.is_scaleable,
+        )
 
     def __getitem__(self, key):
-
         if not hasattr(self, key):
-            raise AttributeError(
-                f"{self.__class__.__name__} has not attribute {key}")
+            raise AttributeError(f"{self.__class__.__name__} has not attribute {key}")
 
         return getattr(self, key)
 
@@ -86,8 +88,9 @@ class BoxCoordinates:
 def init_empty():
     empty_array = np.array([])
     # Initialize with an empty array
-    return BoxCoordinates(empty_array, empty_array, empty_array, empty_array,
-                          empty_array)
+    return BoxCoordinates(
+        empty_array, empty_array, empty_array, empty_array, empty_array
+    )
 
 
 @dataclass
@@ -97,18 +100,17 @@ class BBox:
     cls: str
     cutout_exists: Optional[bool] = field(default=False)
     instance_rgb_id: List[int] = field(default=None)
-    local_coordinates: BoxCoordinates = field(init=True,
-                                              default_factory=init_empty)
-    global_coordinates: BoxCoordinates = field(init=True,
-                                               default_factory=init_empty)
+    local_coordinates: BoxCoordinates = field(init=True, default_factory=init_empty)
+    global_coordinates: BoxCoordinates = field(init=True, default_factory=init_empty)
     is_normalized: bool = field(init=True, default=False)
-    local_centroid: np.ndarray = field(init=False,
-                                       default_factory=lambda: np.array([]))
-    global_centroid: np.ndarray = field(init=False,
-                                        default_factory=lambda: np.array([]))
+    local_centroid: np.ndarray = field(init=False, default_factory=lambda: np.array([]))
+    global_centroid: np.ndarray = field(
+        init=False, default_factory=lambda: np.array([])
+    )
     is_primary: bool = field(init=False, default=False)
-    norm_local_coordinates: BoxCoordinates = field(init=False,
-                                                   default_factory=init_empty)
+    norm_local_coordinates: BoxCoordinates = field(
+        init=False, default_factory=init_empty
+    )
 
     @property
     def local_area(self):
@@ -143,34 +145,23 @@ class BBox:
     @property
     def config(self):
         _config = {
-            "bbox_id":
-            self.bbox_id,
-            "image_id":
-            self.image_id,
-            "cutout_exists":
-            self.cutout_exists,
-            "is_primary":
-            self.is_primary,
+            "bbox_id": self.bbox_id,
+            "image_id": self.image_id,
+            "cutout_exists": self.cutout_exists,
+            "is_primary": self.is_primary,
             "local_centroid":
             # list(self.local_centroid),
-            list(self.norm_local_centroid
-                 ),  # Always use normalized coordinates
+            list(self.norm_local_centroid),  # Always use normalized coordinates
             "local_coordinates":
             # self.local_coordinates.config,
             self.norm_local_coordinates.config,
             # Always use normalized coordinates
-            "global_centroid":
-            list(self.global_centroid),
-            "global_coordinates":
-            self.global_coordinates.config,
-            "instance_rgb_id":
-            self.instance_rgb_id,
-            "cls":
-            self.cls,
-            "overlapping_bbox_ids":
-            [box.bbox_id for box in self._overlapping_bboxes],
-            "num_overlapping_bboxes":
-            len(self._overlapping_bboxes)
+            "global_centroid": list(self.global_centroid),
+            "global_coordinates": self.global_coordinates.config,
+            "instance_rgb_id": self.instance_rgb_id,
+            "cls": self.cls,
+            "overlapping_bbox_ids": [box.bbox_id for box in self._overlapping_bboxes],
+            "num_overlapping_bboxes": len(self._overlapping_bboxes),
         }
         return _config
 
@@ -209,8 +200,8 @@ class BBox:
         Returns:
             np.ndarray: Centroid
         """
-        centroid_x = (coords.bottom_right[0] + coords.bottom_left[0]) / 2.
-        centroid_y = (coords.bottom_left[1] + coords.top_left[1]) / 2.
+        centroid_x = (coords.bottom_right[0] + coords.bottom_left[0]) / 2.0
+        centroid_y = (coords.bottom_left[1] + coords.top_left[1]) / 2.0
         centroid = np.array([centroid_x, centroid_y])
 
         return centroid
@@ -224,8 +215,7 @@ class BBox:
         self.local_centroid = self.get_centroid(self.local_coordinates)
 
     def set_norm_local_centroid(self):
-        self.norm_local_centroid = self.get_centroid(
-            self.norm_local_coordinates)
+        self.norm_local_centroid = self.get_centroid(self.norm_local_coordinates)
 
     def set_global_centroid(self):
         self.global_centroid = self.get_centroid(self.global_coordinates)
@@ -266,12 +256,16 @@ class BBox:
             raise ValueError(f"Type {type} not supported.")
 
         boxA = [
-            _boxA.top_left[0], -_boxA.top_left[1], _boxA.bottom_right[0],
-            -_boxA.bottom_right[1]
+            _boxA.top_left[0],
+            -_boxA.top_left[1],
+            _boxA.bottom_right[0],
+            -_boxA.bottom_right[1],
         ]
         boxB = [
-            _boxB.top_left[0], -_boxB.top_left[1], _boxB.bottom_right[0],
-            -_boxB.bottom_right[1]
+            _boxB.top_left[0],
+            -_boxB.top_left[1],
+            _boxB.bottom_right[0],
+            -_boxB.bottom_right[1],
         ]
 
         # determine the (x, y)-coordinates of the intersection rectangle
@@ -306,7 +300,8 @@ class BBox:
 
 @dataclass
 class BatchMetadata:
-    """ Batch metadata class for yaml loader"""
+    """Batch metadata class for yaml loader"""
+
     # blob_home: str
     data_root: str
     batch_id: str
@@ -376,8 +371,8 @@ class ImageMetadata:
 
 @dataclass
 class CameraInfo:
-    """ 
-    """
+    """ """
+
     camera_location: np.ndarray
     pixel_width: float
     pixel_height: float
@@ -399,9 +394,8 @@ class Box:
     global_centroid: list
     global_coordinates: BoxCoordinates
     cls: Optional[str]
-    instance_rgb_id: List[int]  #= field(default=None)
-    overlapping_bbox_ids: List[BBox] = field(init=False,
-                                             default_factory=lambda: [])
+    instance_rgb_id: Optional[List[int]]  # = field(default=None)
+    overlapping_bbox_ids: List[BBox] = field(init=False, default_factory=lambda: [])
 
     def assign_species(self, species):
         self.cls = species
@@ -430,9 +424,7 @@ class BBoxMetadata:
 
 @dataclass
 class Image:
-    """Parent class for RemapImage and ImageData.
-
-    """
+    """Parent class for RemapImage and ImageData."""
 
     # blob_home: str
     data_root: str
@@ -448,10 +440,10 @@ class Image:
     @property
     def array(self):
         # Read the image from the file and return the numpy array
-        img_path = Path(self.rel_path, self.image_id + ".jpg")
+        img_path = Path("/home/psa_images/SemiF-AnnotationPipeline/", self.rel_path, self.image_id + ".jpg")
+        print(img_path)
         img_array = cv2.imread(str(img_path))
-        img_array = np.ascontiguousarray(
-            cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB))
+        img_array = np.ascontiguousarray(cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB))
         return img_array
 
     @property
@@ -484,12 +476,13 @@ class Image:
 
 @dataclass
 class RemapImage(Image):
-    """ For remapping labels (remap_labels) """
+    """For remapping labels (remap_labels)"""
+
     rel_path: str
     bboxes: list[BBox]
     camera_info: CameraInfo
     fullres_path: str
-    width: int  #= field(init=False, default=-1)  #asfm scaled width
+    width: int  # = field(init=False, default=-1)  #asfm scaled width
     height: int  # = field(init=False, default=-1)  #asfm scaled height
     exif_meta: Optional[ImageMetadata] = field(init=False, default=None)
     fullres_height: Optional[int] = field(init=False, default=-1)
@@ -507,17 +500,19 @@ class RemapImage(Image):
         self.fullres_height = fullres_height
 
     def get_exif(self):
-        """Creates a dataclass by reading exif metadata, creating a dictionary, and creating dataclass form that dictionary
-        """
+        """Creates a dataclass by reading exif metadata, creating a dictionary, and creating dataclass form that dictionary"""
         # Open image file for reading (must be in binary mode)
-        f = open(self.image_path, 'rb')
+        f = open(self.image_path, "rb")
         # Return Exif tags
         tags = exifread.process_file(f, details=False)
         f.close()
         meta = {}
         for x, y in tags.items():
-            newval = y.values[0] if type(y.values) == list and len(
-                y.values) == 1 else y.values
+            newval = (
+                y.values[0]
+                if type(y.values) == list and len(y.values) == 1
+                else y.values
+            )
             if type(newval) == exifread.utils.Ratio:
                 newval = str(newval)
             meta[x.rsplit(" ")[1]] = newval
@@ -536,7 +531,8 @@ class RemapImage(Image):
 
 @dataclass
 class ImageData(Image):
-    """ Dataclass for segmentation data generation"""
+    """Dataclass for segmentation data generation"""
+
     rel_path: str
     width: Optional[int]
     height: Optional[int]
@@ -591,8 +587,7 @@ class ImageData(Image):
     def save_mask(self, save_path, semantic_mask):
         fname = f"{self.image_id}.png"
         mask_path = Path(save_path, fname)
-        cv2.imwrite(str(mask_path),
-                    cv2.cvtColor(semantic_mask, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(str(mask_path), cv2.cvtColor(semantic_mask, cv2.COLOR_RGB2BGR))
         return True
 
 
@@ -608,8 +603,7 @@ class Mask:
     def array(self):
         # Read the image from the file and return the numpy array
         mask_array = cv2.imread(self.mask_path)
-        mask_array = np.ascontiguousarray(
-            cv2.cvtColor(mask_array, cv2.COLOR_BGR2RGB))
+        mask_array = np.ascontiguousarray(cv2.cvtColor(mask_array, cv2.COLOR_BGR2RGB))
         return mask_array
 
     def __post_init__(self):
@@ -642,12 +636,13 @@ class CutoutProps:
     "eccentricity",  # float Eccentricity of the ellipse that has the same second-moments as the region. The eccentricity is the ratio of the focal distance (distance between focal points) over the major axis length. The value is in the interval [0, 1). When it is 0, the ellipse becomes a circle.
     "extent",  # float Ratio of pixels in the region to pixels in the total bounding box. Computed as area / (rows * cols)
     "solidity",  # float Ratio of pixels in the region to pixels of the convex hull image.
-    "perimeter",  # float Perimeter of object which approximates the contour as a line 
+    "perimeter",  # float Perimeter of object which approximates the contour as a line
     "blur_effect", float, Compute a metric that indicates the strength of blur in an image (0 for no blur, 1 for maximal blur)
     "num_components", int number of connected mask components
     "color_distribution", dict (hex number, rgb, and occurnce) of top 12 most common colors. Excludes zero (black)
     "descriptive stats", dict, calculates descriptives stats of individual channels while excluding 0 (black)
     """
+
     area: Union[float, list]
     # area_bbox: Union[float, list]
     # area_convex: Union[float, list]
@@ -674,7 +669,6 @@ class CutoutProps:
 
 @dataclass
 class Color:
-
     species: str
     hex: str = field(init=False)
     rgb: List[int] = field(init=False)
@@ -695,6 +689,7 @@ class SegmentData:
 @dataclass
 class Cutout:
     """Per cutout. Goes to PlantCutouts"""
+
     data_root: str
     season: str
     batch_id: str
@@ -718,15 +713,13 @@ class Cutout:
     def __post_init__(self):
         self.cutout_num = int(self.cutout_id.split("_")[-1])
         if not self.synth:
-            self.cutout_path = str(Path(self.batch_id,
-                                        self.cutout_id + ".png"))
+            self.cutout_path = str(Path(self.batch_id, self.cutout_id + ".png"))
 
     @property
     def array(self):
         # Read the image from the file and return the numpy array
         cut_array = cv2.imread(self.cutout_path)
-        cut_array = np.ascontiguousarray(
-            cv2.cvtColor(cut_array, cv2.COLOR_BGR2RGB))
+        cut_array = np.ascontiguousarray(cv2.cvtColor(cut_array, cv2.COLOR_BGR2RGB))
         return cut_array
 
     @property
@@ -747,15 +740,14 @@ class Cutout:
             "camera_info": asdict(self.camera_info),
             "bbox": self.bbox,
             "cls": self.cls,
-            "cutout_props": self.cutout_props
+            "cutout_props": self.cutout_props,
         }
 
         return _config
 
     def save_config(self, save_dir):
         try:
-            save_cutout_path = Path(save_dir, self.batch_id,
-                                    self.cutout_id + ".json")
+            save_cutout_path = Path(save_dir, self.batch_id, self.cutout_id + ".json")
             with open(save_cutout_path, "w") as f:
                 json.dump(self.config, f, indent=4, default=str)
         except Exception as e:
@@ -763,23 +755,18 @@ class Cutout:
         return True
 
     def save_cutout(self, save_dir, cutout_array):
-
         fname = f"{self.image_id}_{self.cutout_num}.png"
         cutout_path = Path(save_dir, self.batch_id, fname)
-        cv2.imwrite(str(cutout_path),
-                    cv2.cvtColor(cutout_array, cv2.COLOR_RGB2BGRA))
+        cv2.imwrite(str(cutout_path), cv2.cvtColor(cutout_array, cv2.COLOR_RGB2BGRA))
         return True
 
     def save_cropout(self, save_dir, img_array):
-
         fname = f"{self.image_id}_{self.cutout_num}.jpg"
         cutout_path = Path(save_dir, self.batch_id, fname)
-        cv2.imwrite(str(cutout_path), cv2.cvtColor(img_array,
-                                                   cv2.COLOR_RGB2BGR))
+        cv2.imwrite(str(cutout_path), cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR))
         return True
 
     def save_cutout_mask(self, save_dir, mask):
-
         fname = f"{self.image_id}_{self.cutout_num}_mask.png"
         mask_path = Path(save_dir, self.batch_id, fname)
         cv2.imwrite(str(mask_path), mask)
@@ -799,8 +786,7 @@ class Pot:
     def array(self):
         # Read the image from the file and return the numpy array
         pot_array = cv2.imread(self.pot_path, cv2.IMREAD_UNCHANGED)
-        pot_array = np.ascontiguousarray(
-            cv2.cvtColor(pot_array, cv2.COLOR_BGR2RGBA))
+        pot_array = np.ascontiguousarray(cv2.cvtColor(pot_array, cv2.COLOR_BGR2RGBA))
         return pot_array
 
     @property
@@ -834,7 +820,8 @@ class Background:
         # Read the image from the file and return the numpy array
         background_array = cv2.imread(self.background_path)
         background_array = np.ascontiguousarray(
-            cv2.cvtColor(background_array, cv2.COLOR_BGR2RGB))
+            cv2.cvtColor(background_array, cv2.COLOR_BGR2RGB)
+        )
         return background_array
 
     @property
@@ -879,7 +866,7 @@ class SynthImage:
             "pots": self.pots,
             "background": self.background,
             "cutouts": self.cutouts,
-            "synth_id": self.synth_id
+            "synth_id": self.synth_id,
         }
         return _config
 
@@ -895,7 +882,6 @@ class SynthImage:
 
 @dataclass
 class SynthData:
-
     synthdir: str
     background_dir: str
     pot_dir: str
@@ -911,8 +897,7 @@ class SynthData:
         self.cutouts = self.get_cutouts()
 
     def load_json(self, jsun):
-        """ Open json and create dictionary
-        """
+        """Open json and create dictionary"""
         # Opening JSON file
         with open(jsun) as json_file:
             data = json.load(json_file)
@@ -930,7 +915,8 @@ class SynthData:
             class_path = "pot" + "_path"
             # change path to suit local directory
             meta_dict[class_path] = str(
-                Path(self.pot_dir) / Path(meta_dict[class_path]).name)
+                Path(self.pot_dir) / Path(meta_dict[class_path]).name
+            )
             dc = Pot(**meta_dict)
             docs.append(dc)
         return docs
@@ -944,7 +930,8 @@ class SynthData:
             class_path = "background" + "_path"
             # change path to suit local directory
             meta_dict[class_path] = str(
-                Path(self.background_dir) / Path(meta_dict[class_path]).name)
+                Path(self.background_dir) / Path(meta_dict[class_path]).name
+            )
             dc = Background(**meta_dict)
             docs.append(dc)
         return docs
@@ -955,7 +942,7 @@ class SynthData:
         meta_jsons = Path(self.background_dir).glob("*.json")
 
         df = pd.read_csv(self.cutout_csv)
-        df["temp_path"] = self.cutout_dir + "/" + df['cutout_path']
+        df["temp_path"] = self.cutout_dir + "/" + df["cutout_path"]
 
         for _, meta in df.iterrows():
             meta_path = meta["temp_path"].replace(".png", ".json")
@@ -964,7 +951,9 @@ class SynthData:
             # change path to suit local directory
             meta_dict[class_path] = str(
                 # Path(class_dir) / Path(meta_dict[class_path]).name)
-                Path(self.cutout_dir) / Path(meta_dict[class_path]).name)
+                Path(self.cutout_dir)
+                / Path(meta_dict[class_path]).name
+            )
 
             dc = Cutout(**meta_dict)
             docs.append(dc)
