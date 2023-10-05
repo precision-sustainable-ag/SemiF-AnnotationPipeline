@@ -3,8 +3,15 @@ import logging
 import cv2
 import numpy as np
 from scipy import ndimage as ndi
-from semif_utils.utils import (apply_mask, clear_border, make_exg, make_kmeans,
-                               otsu_thresh, reduce_holes, thresh_vi)
+from semif_utils.utils import (
+    apply_mask,
+    clear_border,
+    make_exg,
+    make_kmeans,
+    otsu_thresh,
+    reduce_holes,
+    thresh_vi,
+)
 from skimage import filters
 from skimage.feature import peak_local_max
 from skimage.measure import label, regionprops
@@ -14,7 +21,6 @@ log = logging.getLogger(__name__)
 
 
 class Segment:
-
     def __init__(self, img, data) -> None:
         self.species = data.species
         self.bbox_size_th = data.bbox_size_th
@@ -24,17 +30,15 @@ class Segment:
         self.props = None
         self.green_per = None
         self.extends_border = None
-        self.rgb, self.hex = self.species['rgb'], self.species['hex']
-        self.class_id = self.species['class_id']
+        self.rgb, self.hex = self.species["rgb"], self.species["hex"]
+        self.class_id = self.species["class_id"]
 
     def remove_blue(self, mask, thresh=20000):
         """Returns True if "green" False if not"""
         cutout = apply_mask(self.img, mask, "black")
         hsv = cv2.cvtColor(cutout, cv2.COLOR_RGB2HSV)
-        lower = np.array([(160 * 180) / 360, (30 * 255) / 100,
-                          (20 * 255) / 100])
-        upper = np.array([(290 * 180) / 360, (100 * 255) / 100,
-                          (90 * 255) / 100])
+        lower = np.array([(160 * 180) / 360, (30 * 255) / 100, (20 * 255) / 100])
+        upper = np.array([(290 * 180) / 360, (100 * 255) / 100, (90 * 255) / 100])
         hsv_mask = cv2.inRange(hsv, lower, upper)
         diff = np.where(hsv_mask == 1, 0, 1)
         return diff, np.sum(hsv_mask)
@@ -57,12 +61,6 @@ class Segment:
         if mode == "cluster":
             log.info("Making Kmeans")
             temp_mask = make_kmeans(th_vi)
-            log.info("Checking green")
-            chk_green, green_sum = self.check_green(temp_mask)
-            if not chk_green:  # if false
-                # Reverse mask
-                log.info("Reversing mask")
-                temp_mask = np.where(temp_mask == 1, 0, 1)
             log.info("Reducing holes")
             temp_mask = reduce_holes(temp_mask * 255) * 255
         elif mode == "threshold":
@@ -90,9 +88,7 @@ class Segment:
             img = thresh_vi(exg_vi)
 
         distance = ndi.distance_transform_edt(img)
-        coords = peak_local_max(distance,
-                                footprint=np.ones(kernel),
-                                labels=img)
+        coords = peak_local_max(distance, footprint=np.ones(kernel), labels=img)
         mask_zeros = np.zeros(distance.shape, dtype=bool)
         mask_zeros[tuple(coords.T)] = True
         markers, _ = ndi.label(mask_zeros)
@@ -114,17 +110,11 @@ class Segment:
         if cotlydon:
             up_dev = 250
         else:
-            props = np.array([
-                x.area
-                for x in regionprops(label_img, thresh_vi(make_exg(self.img)))
-            ])
-            up_dev = [
-                props.mean() - 3 * props.std(),
-                props.mean() + 3 * props.std()
-            ][1]
-        holed = reduce_holes(label_img,
-                             min_object_size=up_dev,
-                             min_hole_size=up_dev)
+            props = np.array(
+                [x.area for x in regionprops(label_img, thresh_vi(make_exg(self.img)))]
+            )
+            up_dev = [props.mean() - 3 * props.std(), props.mean() + 3 * props.std()][1]
+        holed = reduce_holes(label_img, min_object_size=up_dev, min_hole_size=up_dev)
         med = cv2.medianBlur(holed.astype(np.uint8), 1)
         self.mask = np.where(med > 0, 1, 0)
         return self.mask
@@ -142,18 +132,21 @@ class Segment:
         pass
 
     def get_extends_borders(self, mask):
-        self.extends_border = False if np.array_equal(
-            mask, clear_border(mask)) else True
+        self.extends_border = (
+            False if np.array_equal(mask, clear_border(mask)) else True
+        )
         return self.extends_border
 
-    def is_green(self, percent_thresh=.002):
+    def is_green(self, percent_thresh=0.002):
         # def is_green(green_sum, image_shape, percent_thresh=.2):
-        """ Returns true if number of green pixels is 
-            above certain threshold percentage based on
-            total number of pixels.
+        """Returns true if number of green pixels is
+        above certain threshold percentage based on
+        total number of pixels.
         """
         # check threshold value
-        assert percent_thresh <= 1, "green sum percent threshold is greater than 1. Must be less than or equal to 1."
+        assert (
+            percent_thresh <= 1
+        ), "green sum percent threshold is greater than 1. Must be less than or equal to 1."
         if self.mask.max() == 0:
             return False
         else:
@@ -182,7 +175,7 @@ class Segment:
         # Calculate number of hsv pixels
         total_pixs = hsvmask.shape[0] * hsvmask.shape[1]
         blue_prop = hsvmask.sum() / total_pixs
-        if blue_prop > .2:
+        if blue_prop > 0.2:
             hsvmask = np.where(hsvmask > 0, 1, 0)
             self.mask = np.where(hsvmask != 0, 0, self.mask).astype(np.uint8)
             return True
@@ -206,17 +199,15 @@ class Segment:
         return True if area < self.bbox_size_th else False
 
     def is_rgb_empty(self):
-        """ Returns true if rgb crop is empty
-        """
+        """Returns true if rgb crop is empty"""
         return True if self.img.max() == 0 else False
 
     def is_mask_empty(self):
-        """ Returns true if mask is empty
-        """
+        """Returns true if mask is empty"""
         return True if self.mask.max() == 0 else False
 
     def is_below_pot(self):
-        """ 
+        """
         Returns True if segment is below pot elevation and thus noise
         """
         pass
