@@ -7,9 +7,6 @@ developed
 # Example results
 examples
 
-# Admin scripts
-*scripts
-
 # Metashape license files
 **.lic
 test_permission
