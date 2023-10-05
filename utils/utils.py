@@ -1,5 +1,7 @@
 import ast
 import os
+import re
+from datetime import datetime
 from pathlib import Path
 
 import cv2
@@ -10,25 +12,66 @@ import yaml
 from utils.data import PipelineKeys
 
 
-def read_keys(keypath):
-    with open(keypath, 'r') as file:
-        pipe_keys = yaml.safe_load(file)
-        sas = pipe_keys['SAS']
-        up_cut = sas['cutouts']['upload']
-        down_cut = sas['cutouts']['download']
+def filter_and_select_dates(
+    dates_list, start_date_str, end_date_str, state_abbreviation, num_dates=None
+):
+    # Compile regex pattern for validation
+    pattern = re.compile(r"^[A-Z]{2}_\d{4}-\d{2}-\d{2}$")
 
-        up_dev = sas['developed']['upload']
-        down_dev = sas['developed']['download']
-        keys = PipelineKeys(down_dev=down_dev,
-                            up_dev=up_dev,
-                            down_cut=down_cut,
-                            up_cut=up_cut,
-                            ms_lic=pipe_keys['metashape']['lic'])
+    # Convert string dates to datetime.date objects
+    start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    end_date = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+
+    # Filter valid patterns and dates within the range and by state abbreviation
+    filtered_dates = [
+        date_str
+        for date_str in dates_list
+        if pattern.match(date_str)
+        and date_str.startswith(state_abbreviation)
+        and start_date
+        <= datetime.strptime(date_str.split("_")[1], "%Y-%m-%d").date()
+        <= end_date
+    ]
+
+    # Logic to select dates based on num_dates
+    if num_dates == "all":
+        return filtered_dates
+    elif num_dates is None or len(filtered_dates) < 3:
+        # If there are less than 3 dates or num_dates is not provided, return default behavior
+        if len(filtered_dates) >= 3:
+            return [
+                filtered_dates[0],
+                filtered_dates[len(filtered_dates) // 2],
+                filtered_dates[-1],
+            ]
+        else:
+            return filtered_dates
+    else:
+        step = max(len(filtered_dates) // num_dates, 1)
+        return filtered_dates[::step][:num_dates]
+
+
+def read_keys(keypath):
+    with open(keypath, "r") as file:
+        pipe_keys = yaml.safe_load(file)
+        sas = pipe_keys["SAS"]
+        up_cut = sas["cutouts"]["upload"]
+        down_cut = sas["cutouts"]["download"]
+
+        up_dev = sas["developed"]["upload"]
+        down_dev = sas["developed"]["download"]
+        keys = PipelineKeys(
+            down_dev=down_dev,
+            up_dev=up_dev,
+            down_cut=down_cut,
+            up_cut=up_cut,
+            ms_lic=pipe_keys["metashape"]["lic"],
+        )
     return keys
 
 
 def read_yaml(keypath):
-    with open(keypath, 'r') as file:
+    with open(keypath, "r") as file:
         cfg = yaml.safe_load(file)
 
         temp_path = Path(cfg["find_missing"]["container_list"])
@@ -50,7 +93,7 @@ def remove_batch(cfg, batch):
 
 
 def write_batch(cfg, batch):
-    with open(cfg.logs.processed, 'a') as f:
+    with open(cfg.logs.processed, "a") as f:
         f.write(f"{batch}\n")
 
 
@@ -71,7 +114,7 @@ def cutout_csvs2df(cutout_dir):
 
 
 def trans_cutout(img):
-    """ Get transparent cutout from cutout image with black background. Requires RGB image"""
+    """Get transparent cutout from cutout image with black background. Requires RGB image"""
 
     # img = cv2.cvtColor(cv2.imread(imgpath), cv2.COLOR_BGR2RGB)
     # threshold on black to make a mask
@@ -86,4 +129,4 @@ def trans_cutout(img):
 
 
 def convert_to_dict(row):
-    return ast.literal_eval(row['bbox'])
+    return ast.literal_eval(row["bbox"])
