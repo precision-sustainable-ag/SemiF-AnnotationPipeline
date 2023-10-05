@@ -17,7 +17,6 @@ BBOX_OVERLAP_THRESH = 0.3
 
 
 class BBoxFilter:
-
     def __init__(self, images: List[ImageData]):
         self.images = images
         self.image_map = {image.image_id: image for image in images}
@@ -27,7 +26,7 @@ class BBoxFilter:
 
     def deduplicate_bboxes(self):
         """Calculates the ideal bounding box and the associated image from all the
-           bounding boxes
+        bounding boxes
         """
         comparisons = self.filter_images()
         self.filter_bounding_boxes(comparisons)
@@ -49,8 +48,7 @@ class BBoxFilter:
             for j in range(i + 1, len(image_ids)):
                 compare_image_id = image_ids[j]
                 compare_image = self.image_map[compare_image_id]
-                fov_iou = bb_iou(image.camera_info.fov,
-                                 compare_image.camera_info.fov)
+                fov_iou = bb_iou(image.camera_info.fov, compare_image.camera_info.fov)
                 if fov_iou > FOV_IOU_THRESH:
                     comparisons[image_id].append(compare_image_id)
 
@@ -81,7 +79,6 @@ class BBoxFilter:
                     boxes = self.image_map[compare_image_id].bboxes
                     # And each of its bounding box
                     for _box in boxes:
-
                         if _box.bbox_id not in visited_bboxes:
                             visited_bboxes.add(_box.bbox_id)
                             areas.append(_box.local_area)
@@ -119,13 +116,14 @@ class BBoxFilter:
                 box_hashes = [generate_hash(_box) for _box in all_boxes]
                 visited = visited.union(set(box_hashes))
                 # Find the best bounding box
-                centers = np.array([
-                    self.image_map[_box.image_id].camera_info.camera_location
-                    for _box in all_boxes
-                ])
-                centroids = np.array(
-                    [_box.global_centroid for _box in all_boxes])
-                distances = ((centroids - centers[:, :2])**2).sum(axis=-1)
+                centers = np.array(
+                    [
+                        self.image_map[_box.image_id].camera_info.camera_location
+                        for _box in all_boxes
+                    ]
+                )
+                centroids = np.array([_box.global_centroid for _box in all_boxes])
+                distances = ((centroids - centers[:, :2]) ** 2).sum(axis=-1)
                 min_idx = np.argmin(distances)
                 all_boxes[min_idx].is_primary = True
                 if all_boxes[min_idx].bbox_id not in self.primary_box_ids:
@@ -133,17 +131,17 @@ class BBoxFilter:
                     self.primary_box_ids.add(all_boxes[min_idx].bbox_id)
 
     def cleanup_primary_boxes(self):
-
         _primary_boxes = []
         for i, box in enumerate(self.primary_boxes):
             image_width = self.image_map[box.image_id].width
             image_height = self.image_map[box.image_id].height
 
-            if box.local_centroid[0] < image_width // 4 or \
-               box.local_centroid[0] > 3 * image_width // 4 or \
-               box.local_centroid[1] < image_height // 4 or \
-               box.local_centroid[1] > 3 * image_height // 4:
-
+            if (
+                box.local_centroid[0] < image_width // 4
+                or box.local_centroid[0] > 3 * image_width // 4
+                or box.local_centroid[1] < image_height // 4
+                or box.local_centroid[1] > 3 * image_height // 4
+            ):
                 box.is_primary = False
                 # del self.primary_boxes[i]
             else:
@@ -154,21 +152,26 @@ class BBoxFilter:
         for i in range(len(_primary_boxes)):
             box1 = _primary_boxes[i]
             camera_location1 = self.image_map[
-                box1.
-                image_id].camera_info.camera_location[:2]  # get just x and y
+                box1.image_id
+            ].camera_info.camera_location[
+                :2
+            ]  # get just x and y
             for j in range(i + 1, len(_primary_boxes)):
                 box2 = _primary_boxes[j]
                 camera_location2 = self.image_map[
-                    box2.
-                    image_id].camera_info.camera_location[:
-                                                          2]  # get just x and y
+                    box2.image_id
+                ].camera_info.camera_location[
+                    :2
+                ]  # get just x and y
                 iou = box1.bb_iou(box2)
                 if iou > BBOX_OVERLAP_THRESH:
                     # De-duplicate
-                    distance1 = ((box1.global_centroid -
-                                  camera_location1)**2).sum(axis=-1)
-                    distance2 = ((box2.global_centroid -
-                                  camera_location2)**2).sum(axis=-1)
+                    distance1 = ((box1.global_centroid - camera_location1) ** 2).sum(
+                        axis=-1
+                    )
+                    distance2 = ((box2.global_centroid - camera_location2) ** 2).sum(
+                        axis=-1
+                    )
 
                     if distance1 < distance2:
                         box2.is_primary = False
@@ -176,11 +179,10 @@ class BBoxFilter:
                         box1.is_primary = False
 
 
-class BBoxMapper():
-
+class BBoxMapper:
     def __init__(self, project_path: str, images: List[ImageData]):
         """Class to map bounding box coordinates from image cordinates
-           to global coordinates
+        to global coordinates
         """
         self.images = images
         self.doc = Metashape.Document()
@@ -192,7 +194,6 @@ class BBoxMapper():
         """
 
         for image in tqdm(self.images, desc="Mapping: Projecting 2D to 3D"):
-
             image_id = image.image_id
 
             # Isolate the chunk
@@ -202,9 +203,7 @@ class BBoxMapper():
                 cameras = [camera.label for camera in chunk.cameras]
                 if image_id in cameras:
                     camera_chunk = chunk
-                    camera = [
-                        cam for cam in chunk.cameras if cam.label == image_id
-                    ][0]
+                    camera = [cam for cam in chunk.cameras if cam.label == image_id][0]
                     break
 
             assert camera_chunk is not None
@@ -222,36 +221,46 @@ class BBoxMapper():
 
                 mapped_coordinates = []
 
-                co_type = [
-                    "top_left", "bottom_left", "top_right", "bottom_right"
-                ]
+                co_type = ["top_left", "bottom_left", "top_right", "bottom_right"]
 
                 for co, coords in zip(
-                        co_type,
-                    [top_left, bottom_left, top_right, bottom_right]):
-
+                    co_type, [top_left, bottom_left, top_right, bottom_right]
+                ):
                     x_coord = coords[0]
                     y_coord = coords[1]
+                    # print(x_coord, y_coord)
+                    changed = False
+                    if x_coord < 0:
+                        changed = True
+                        x_coord == 0
+                    if y_coord < 0:
+                        y_coord == 0
 
                     ray_origin = camera.center
                     if ray_origin is None:
                         log.critical(
                             f"Camera center is {ray_origin}. Image ID is {image_id}."
                         )
+                    coords_2D = Metashape.Vector([x_coord, y_coord])
 
-                    ray_target = camera.unproject(
-                        Metashape.Vector([x_coord, y_coord]))
-
+                    ray_target = camera.unproject(coords_2D)
                     point_internal = surface.pickPoint(ray_origin, ray_target)
 
                     if point_internal is None:
                         log.critical(
                             f"Point internal is {point_internal}. Image ID is {image_id}. Ray target is {ray_target}"
                         )
-                        raise TypeError()
-                    # From https://www.agisoft.com/forum/index.php?topic=12781.0
-                    global_coord = camera_chunk.crs.project(
-                        camera_chunk.transform.matrix.mulp(point_internal))[:2]
+                        print(changed)
+                        print(x_coord, y_coord)
+                        print(coords_2D)
+                        # continue
+                        # raise TypeError()
+                        global_coord = Metashape.Vector([0, 0, 0])
+                    else:
+                        # From https://www.agisoft.com/forum/index.php?topic=12781.0
+                        global_coord = camera_chunk.crs.project(
+                            camera_chunk.transform.matrix.mulp(point_internal)
+                        )[:2]
                     mapped_coordinates.append(global_coord)
 
                 top_left = np.array(mapped_coordinates[0])
@@ -259,30 +268,30 @@ class BBoxMapper():
                 bottom_left = np.array(mapped_coordinates[1])
                 bottom_right = np.array(mapped_coordinates[3])
 
-                global_coordinates = BoxCoordinates(top_left, top_right,
-                                                    bottom_left, bottom_right)
+                global_coordinates = BoxCoordinates(
+                    top_left, top_right, bottom_left, bottom_right
+                )
                 bbox.update_global_coordinates(global_coordinates)
 
 
 class GlobalToLocalMaper:
-
     def __init__(self, project_path: str, images: List[ImageData]):
         """Class to map bounding box coordinates from global cordinates
-           to image coordinates
+        to image coordinates
         """
         self.images = images
         self.doc = Metashape.Document()
         self.doc.open(str(project_path))
 
     def map(self, global_box_coordinates: BBox, map_to: str):
-
         local_coordinates = self.bbox_to_local(global_box_coordinates, map_to)
         return local_coordinates
 
     def bbox_to_local(self, global_bbox: BBox, map_to_image: ImageData):
-
-        assert not global_bbox.local_coordinates, "The global box contains existing local coordinates"\
-                                                  "Mapping operation will overwrite them."
+        assert not global_bbox.local_coordinates, (
+            "The global box contains existing local coordinates"
+            "Mapping operation will overwrite them."
+        )
 
         image_id = map_to_image.image_id
 
@@ -292,9 +301,7 @@ class GlobalToLocalMaper:
             cameras = [camera.label for camera in chunk.cameras]
             if image_id in cameras:
                 camera_chunk = chunk
-                camera = [
-                    cam for cam in chunk.cameras if cam.label == image_id
-                ][0]
+                camera = [cam for cam in chunk.cameras if cam.label == image_id][0]
                 break
 
         assert camera_chunk is not None
@@ -315,15 +322,15 @@ class GlobalToLocalMaper:
         scale = np.array([map_to_image.width, map_to_image.height])
 
         for co, coords in zip(
-                co_type, [top_left, bottom_left, top_right, bottom_right]):
-
+            co_type, [top_left, bottom_left, top_right, bottom_right]
+        ):
             x_coord = coords[0]
             y_coord = coords[1]
-            z_coord = 0.  # Assuming 0 height. This could be tuned further
+            z_coord = 0.0  # Assuming 0 height. This could be tuned further
 
             point = Metashape.Vector(
-                [x_coord, y_coord,
-                 z_coord])  # point of interest in geographic coord
+                [x_coord, y_coord, z_coord]
+            )  # point of interest in geographic coord
             point_internal = T.inv().mulp(crs.unproject(point))
             coords_2D = camera.project(point_internal)
             # Normalize
@@ -333,6 +340,7 @@ class GlobalToLocalMaper:
             top_left=mapped_coordinates["top_left"],
             top_right=mapped_coordinates["top_right"],
             bottom_left=mapped_coordinates["bottom_left"],
-            bottom_right=mapped_coordinates["bottom_right"])
+            bottom_right=mapped_coordinates["bottom_right"],
+        )
 
         return box_coordinates
