@@ -440,8 +440,7 @@ class Image:
     @property
     def array(self):
         # Read the image from the file and return the numpy array
-        img_path = Path("/home/psa_images/SemiF-AnnotationPipeline/", self.rel_path, self.image_id + ".jpg")
-        print(img_path)
+        img_path = Path(self.data_root, self.rel_path, self.image_id + ".jpg")
         img_array = cv2.imread(str(img_path))
         img_array = np.ascontiguousarray(cv2.cvtColor(img_array, cv2.COLOR_BGR2RGB))
         return img_array
@@ -763,7 +762,12 @@ class Cutout:
     def save_cropout(self, save_dir, img_array):
         fname = f"{self.image_id}_{self.cutout_num}.jpg"
         cutout_path = Path(save_dir, self.batch_id, fname)
-        cv2.imwrite(str(cutout_path), cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR))
+        cv2.imwrite(
+            str(cutout_path),
+            cv2.cvtColor(img_array, cv2.COLOR_RGB2BGR),
+            [cv2.IMWRITE_JPEG_QUALITY, 100],
+        )
+
         return True
 
     def save_cutout_mask(self, save_dir, mask):

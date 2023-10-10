@@ -2,8 +2,10 @@ import logging
 import os
 import shutil
 from pathlib import Path
-from utils.utils import read_keys
+
 from omegaconf import DictConfig
+
+from utils.utils import read_keys
 
 log = logging.getLogger(__name__)
 
