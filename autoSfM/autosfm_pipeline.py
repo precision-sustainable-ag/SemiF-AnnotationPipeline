@@ -88,7 +88,16 @@ def main(cfg: DictConfig) -> None:
             log.exception(f"Failed to import reference. Exiting")
             exit(1)
 
-    # Match and align photos
+    # Match photos
+    if cfg.asfm.match:
+        try:
+            log.info(f"Matching photos")
+            pipeline.match_photos()
+        except Exception as e:
+            log.exception(f"Failed to match photos. Exiting")
+            exit(1)
+
+    # Align photos
     if cfg.asfm.align:
         try:
             log.info(f"Aligning photos")

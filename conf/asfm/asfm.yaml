@@ -1,6 +1,6 @@
 workdir: autoSfM
 # Number of GPUs to use
-num_gpus: 3 # 8=255, 7=127, 6=63, 5=31, 4=15, 3=7, 2=3, 1=1; or use 'all' to use all available gpus
+num_gpus: 1 # 8=255, 7=127, 6=63, 5=31, 4=15, 3=7, 2=3, 1=1; or use 'all' to use all available gpus
 # Masks blue benchbot pixels if masks are present
 use_masking: False
 
@@ -37,13 +37,14 @@ resize_photos: True
 add_photos_and_masks: True
 detect_markers: True
 import_references: True
+match: True
 align: True
 optimize_cameras: True
 export_gcp_camref_err: True
 build_depth: True
 build_dense: True
 build_model: True
-build_texture: True
+build_texture: False # Not necessary for typical pipeline
 build_dem: True
 build_ortho: True
 export_fov: True

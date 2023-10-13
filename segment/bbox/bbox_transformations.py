@@ -198,18 +198,34 @@ class BBoxMapper:
 
             # Isolate the chunk
             camera_chunk = None
-            # for chunk in [self.doc.chunks[1]]:
-            for chunk in self.doc.chunks:
-                cameras = [camera.label for camera in chunk.cameras]
-                if image_id in cameras:
-                    camera_chunk = chunk
-                    camera = [cam for cam in chunk.cameras if cam.label == image_id][0]
-                    break
+            if len(self.doc.chunks) == 3:  # using the "Merged" chunk
+                log.info(
+                    f"Using the 'Merged' chunk to transform pixel bbox coordinates ({self.doc.chunks[-1]})."
+                )
+                camera_chunk = self.doc.chunks[-1]
+                cameras = [camera.label for camera in camera_chunk.cameras]
+                assert image_id in cameras, f"image_id not in cameras."
+                camera = [cam for cam in camera_chunk.cameras if cam.label == image_id][
+                    0
+                ]
+
+            else:  # If no "Merged" chunk, finding the chunk with the image_id
+                log.info(f"No 'Merged' chunk.")
+                for chunk in self.doc.chunks:
+                    cameras = [camera.label for camera in chunk.cameras]
+                    if image_id in cameras:
+                        camera_chunk = chunk
+                        log.info(f"Using chunk: {camera_chunk}.")
+                        camera = [
+                            cam for cam in chunk.cameras if cam.label == image_id
+                        ][0]
+                        break
 
             assert camera_chunk is not None
 
             # From: https://www.agisoft.com/forum/index.php?topic=13875.0
             # surface = camera_chunk.point_cloud
+            # surface = self.doc.chunks[-1].model
             surface = camera_chunk.model
 
             global_coordinates = dict()
@@ -228,10 +244,8 @@ class BBoxMapper:
                 ):
                     x_coord = coords[0]
                     y_coord = coords[1]
-                    # print(x_coord, y_coord)
-                    changed = False
+
                     if x_coord < 0:
-                        changed = True
                         x_coord == 0
                     if y_coord < 0:
                         y_coord == 0
@@ -250,12 +264,7 @@ class BBoxMapper:
                         log.critical(
                             f"Point internal is {point_internal}. Image ID is {image_id}. Ray target is {ray_target}"
                         )
-                        print(changed)
-                        print(x_coord, y_coord)
-                        print(coords_2D)
-                        # continue
-                        # raise TypeError()
-                        global_coord = Metashape.Vector([0, 0, 0])
+                        raise TypeError()
                     else:
                         # From https://www.agisoft.com/forum/index.php?topic=12781.0
                         global_coord = camera_chunk.crs.project(

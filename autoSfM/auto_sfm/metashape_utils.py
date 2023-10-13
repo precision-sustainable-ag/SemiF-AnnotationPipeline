@@ -168,17 +168,27 @@ class SfM:
 
         self.save_project()
 
-    def align_photos(
+    def get_unaligned_cameras(
+        self,
+        chunk: int = 0,
+    ):
+        unaligned_cameras = [
+            camera
+            for camera in self.doc.chunks[chunk].cameras
+            if camera.transform is None
+        ]
+        return unaligned_cameras
+
+    def match_photos(
         self,
         progress_callback: Callable = percentage_callback,
         chunk: int = 0,
         correct: bool = False,
     ):
-        """Align Photos"""
-        self.save_project()
+        log.info(f"Matching photos")
+        """Match Photos"""
         ms.app.cpu_enable = False
         ms.app.gpu_mask = self.num_gpus
-        log.info("Matching photos.")
 
         self.doc.chunks[chunk].matchPhotos(
             downscale=self.cfg["asfm"]["align_photos"]["downscale"],
@@ -201,8 +211,21 @@ class SfM:
             max_workgroup_size=100,
             progress=progress_callback,
         )
+        if ms.app.gpu_mask:
+            ms.app.cpu_enable = True
+        self.save_project()
 
-        log.info("Aligning cameras.")
+    def align_photos(
+        self,
+        progress_callback: Callable = percentage_callback,
+        chunk: int = 0,
+        correct: bool = False,
+    ):
+        log.info(f"Aligning photos")
+        """Align Photos"""
+        ms.app.cpu_enable = False
+        ms.app.gpu_mask = self.num_gpus
+
         self.doc.chunks[chunk].alignCameras(
             cameras=self.doc.chunks[chunk].cameras,
             min_image=2,
@@ -211,20 +234,16 @@ class SfM:
             subdivide_task=True,
             progress=progress_callback,
         )
+        if ms.app.gpu_mask:
+            ms.app.cpu_enable = True
+        self.save_project()
 
-        unaligned_cameras = [
-            camera
-            for camera in self.doc.chunks[chunk].cameras
-            if camera.transform is None
-        ]
+        unaligned_cameras = self.get_unaligned_cameras(chunk)
 
         if len(unaligned_cameras) != 0:
             log.warning(f"Found {len(unaligned_cameras)} unaligned cameras.")
-
-        if ms.app.gpu_mask:
-            ms.app.cpu_enable = True
-        if self.cfg["asfm"]["align_photos"]["autosave"]:
-            self.save_project()
+            log.warning(f"Setting 'correct' to True.")
+            correct = True
 
         if correct:
             # Check if all the cameras were aligned
@@ -242,28 +261,27 @@ class SfM:
                 if self.cfg.asfm.detect_markers:
                     log.info("Detecting markers.")
                     self.detect_markers(chunk=chunk + 1)
-                    # self.detect_markers(chunk=chunk)
 
                 # Import reference for the new chunk
                 log.info("Importing reference.")
                 self.import_reference(chunk=chunk + 1)
-                # self.import_reference(chunk=chunk)
 
                 # Align again
                 log.info("Aligning photos agains.")
-                # self.align_photos(chunk=chunk + 1, correct=False)
+                self.match_photos(chunk=chunk + 1)
                 self.align_photos(chunk=chunk + 1, correct=False)
 
                 # Merge the chunks
                 log.info("Merging Chunks.")
-                # Merge the chunks
                 self.doc.mergeChunks(merge_markers=True, chunks=[0, 1])
+
+                unaligned_cameras_2 = self.get_unaligned_cameras(chunk + 2)
+                unaligned_cameras_1 = self.get_unaligned_cameras(chunk + 1)
+                unaligned_cameras_0 = self.get_unaligned_cameras(chunk)
 
                 # Set the active chunk
                 log.info("Setting active chunk.")
-                # self.doc.chunk = self.doc.chunks[chunk]
                 self.doc.chunk = self.doc.chunks[chunk + 2]
-                # log.warning(len(self.doc.chunk.cameras))
 
                 # Remove duplicate unaligned cameras
                 camera_counts = Counter(
@@ -274,17 +292,21 @@ class SfM:
                     if camera.transform is None and camera_counts[camera.label] > 1:
                         self.doc.chunk.remove(camera)
 
-                unaligned_cameras_2 = [
-                    camera
-                    for camera in self.doc.chunks[chunk + 2].cameras
-                    if camera.transform is None
-                ]
+                log.warning(
+                    f"Found {len(unaligned_cameras_2)} unaligned cameras after second alignment for chunk + 2. Moving on to depth map construction."
+                )
+                log.warning(
+                    f"Found {len(unaligned_cameras_1)} unaligned cameras after second alignment for chunk + 1. Moving on to depth map construction."
+                )
+                log.warning(
+                    f"Found {len(unaligned_cameras_0)} unaligned cameras after second alignment for chunk + 0. Moving on to depth map construction."
+                )
 
-                if len(unaligned_cameras_2) != 0:
-                    log.warning(
-                        f"Found {len(unaligned_cameras_2)} unaligned cameras after second alignment. Moving on to depth map construction."
-                    )
-                else:
+                unaligned_cameras = self.get_unaligned_cameras(chunk)
+                log.warning(
+                    f"Found {len(unaligned_cameras)} unaligned cameras after second alignment for chunk + 0. Moving on to depth map construction."
+                )
+                if len(unaligned_cameras) == 0:
                     log.info("Zero unaligned cameras after second alignment.")
 
                 self.save_project()
@@ -293,7 +315,7 @@ class SfM:
         ms.app.cpu_enable = False
         ms.app.gpu_mask = self.num_gpus
         log.info(
-            "Number of cameras in chunk at depth map: ", len(self.doc.chunk.cameras)
+            f"Number of cameras in chunk at depth map: {len(self.doc.chunk.cameras)}"
         )
 
         self.doc.chunk.buildDepthMaps(
@@ -337,9 +359,9 @@ class SfM:
 
     def build_model(self, progress_callback: Callable = percentage_callback):
         self.doc.chunk.buildModel(
-            surface_type=ms.Arbitrary,  
+            surface_type=ms.Arbitrary,
             interpolation=ms.Extrapolated,
-            face_count=ms.HighFaceCount,  
+            face_count=ms.HighFaceCount,
             source_data=ms.PointCloudData,
             vertex_colors=True,
             vertex_confidence=True,
