@@ -1157,7 +1157,7 @@
             "class_id": 41,
             "USDA_symbol": "GOHI",
             "EPPO": "GOSHI",
-            "group": "Dicot",
+            "group": "dicot",
             "class": "Magnoliopsida",
             "subclass": "Dilleniidae",
             "order": "Malvales",
