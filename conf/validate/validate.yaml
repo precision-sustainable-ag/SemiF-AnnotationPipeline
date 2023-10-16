@@ -1,0 +1,45 @@
+########## General Settings ###########
+validation_dir: ${general.workdir}/validate/results
+
+sample_sz: 10  # Must be between 10-50
+random_state: 41
+figsize: [12,8]
+dpi: 300
+
+# Full res images
+plot_full_res_images: False
+full_res_save_location: ${validate.validation_dir}/${general.batch_id}/full_res_images
+
+# Bboxes
+plot_boxes: True
+bbox_save_location: ${validate.validation_dir}/${general.batch_id}/bboxes
+bbox_transparent_fc: True
+
+# Masks
+plot_masks: True
+mask_save_location: ${validate.validation_dir}/${general.batch_id}/masks
+mask_transparent_fc: True
+colorize_semantic_mask: True
+
+
+# Cutouts
+plot_cutouts: True
+cutout_save_location: ${validate.validation_dir}/${general.batch_id}/cutouts
+cutout_transparent_fc: True
+
+# Not implemented
+cutout_props:
+  ######### Inspect Cutout Settings ########
+  extends_border:  # True
+  is_primary:  # True
+  green_sum_max: 
+  green_sum_min: 
+  # percentiles: 25, 50, 75 quartiles, mean, or None
+  area_max: 
+  area_min:
+  # should be between 0 and 1
+  solid_max: 
+  solid_min: 
+  # number of components
+  component_min:
+  component_max:

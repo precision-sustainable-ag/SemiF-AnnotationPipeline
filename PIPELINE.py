@@ -13,6 +13,7 @@ sys.path.append("move_data")
 sys.path.append("autoSfM")
 sys.path.append("segment")
 sys.path.append("inspect")
+sys.path.append("validate")
 
 log = logging.getLogger(__name__)
 

@@ -8,6 +8,7 @@ defaults:
 # ancillary configs
   - detect: detect
   - segment: segment
+  - validate: validate
   - planting: planting # Planting dates
   - override hydra/job_logging: custom # custom logging 
   - _self_
@@ -41,7 +42,8 @@ pipeline:
   localize_plants: False
   remap_labels: False
   assign_species: False
-  segment_vegetation: True
+  segment_vegetation: False
+  validate: True
   
 # Other job/naming options (currently not used)
 job:
