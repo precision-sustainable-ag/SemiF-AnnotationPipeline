@@ -193,6 +193,95 @@ class BBoxMapper:
         Maps all the bounding boxes to a global coordinate space
         """
 
+        # Create a list of chunks for each image_id
+        image_id_to_chunks = {image.image_id: [] for image in self.images}
+        for chunk in self.doc.chunks:
+            for camera in chunk.cameras:
+                image_id_to_chunks[camera.label].append(chunk)
+        for image in tqdm(self.images, desc="Mapping: Projecting 2D to 3D"):
+            image_id = image.image_id
+
+            chunks = image_id_to_chunks.get(image_id, [])
+            if not chunks:
+                log.critical(f"No chunks found for image_id {image_id}. Skipping...")
+                continue
+
+            for bbox in image.bboxes:
+                global_coordinates = None
+                for chunk in chunks:
+                    try:
+                        global_coordinates = self.map_local_to_global(
+                            bbox, image_id, chunk
+                        )
+                        if global_coordinates:
+                            bbox.update_global_coordinates(global_coordinates)
+                            break
+                    except Exception as e:
+                        log.warning(
+                            f"Error mapping bbox for image_id {image_id} using chunk {chunk}. Reason: {str(e)}"
+                        )
+                if not global_coordinates:
+                    log.critical(
+                        f"Failed to map bbox for image_id {image_id} using any chunk."
+                    )
+
+    def map_local_to_global(self, bbox, image_id, chunk):
+        camera = next((cam for cam in chunk.cameras if cam.label == image_id), None)
+        if not camera:
+            raise ValueError(
+                f"No camera found for image_id {image_id} in chunk {chunk}."
+            )
+
+        surface = chunk.model
+        mapped_coordinates = []
+
+        for co, coords in zip(
+            ["top_left", "bottom_left", "top_right", "bottom_right"],
+            [
+                bbox.local_coordinates.top_left,
+                bbox.local_coordinates.bottom_left,
+                bbox.local_coordinates.top_right,
+                bbox.local_coordinates.bottom_right,
+            ],
+        ):
+            x_coord, y_coord = max(coords[0], 0), max(coords[1], 0)
+
+            ray_origin = camera.center
+            if ray_origin is None:
+                raise ValueError(f"Camera center is None. Image ID is {image_id}.")
+
+            coords_2D = Metashape.Vector([x_coord, y_coord])
+            ray_target = camera.unproject(coords_2D)
+            point_internal = surface.pickPoint(ray_origin, ray_target)
+
+            if point_internal is None:
+                log.critical(
+                    f"Point internal is None. Image ID is {image_id}. Ray target is {ray_target}"
+                )
+                # raise ValueError(
+                #     f"Point internal is None. Image ID is {image_id}. Ray target is {ray_target}"
+                # )
+                global_coord = np.array([0, 0])
+            else:
+                global_coord = chunk.crs.project(
+                    chunk.transform.matrix.mulp(point_internal)
+                )[:2]
+                print(global_coord)
+            mapped_coordinates.append(global_coord)
+
+        return BoxCoordinates(
+            np.array(mapped_coordinates[0]),
+            np.array(mapped_coordinates[2]),
+            np.array(mapped_coordinates[1]),
+            np.array(mapped_coordinates[3]),
+        )
+
+    def map_og(self):
+        ### Deprecated
+        """
+        Maps all the bounding boxes to a global coordinate space
+        """
+
         for image in tqdm(self.images, desc="Mapping: Projecting 2D to 3D"):
             image_id = image.image_id
 
