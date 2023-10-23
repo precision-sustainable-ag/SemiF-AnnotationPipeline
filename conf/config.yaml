@@ -24,9 +24,9 @@ hydra:
 #----------------------------------------------------
 general:
   #season: summer_weeds_2022
-  season: summer_cash_crops_2023
+  # season: summer_cash_crops_2023
   #season: summer_weeds_2023
-  #season: cool_season_covers_2022_2023
+  season: cool_season_covers_2022_2023
   # season: cool_season_cover_2022_2023_MD_pos_2
   # season: cool_season_cover_2022_2023_MD_pos_3 # used only for MD_2023-03-16
 #----------------------------------------------------
@@ -39,11 +39,11 @@ general:
 pipeline:
   download_data: False
   autosfm_pipeline: False
-  localize_plants: False
-  remap_labels: False
-  assign_species: False
+  localize_plants: True
+  remap_labels: True
+  assign_species: True
   segment_vegetation: False
-  validate: True
+  validate: False
   
 # Other job/naming options (currently not used)
 job:
