@@ -1180,6 +1180,34 @@
                 122,
                 228
             ]
+        },
+        "URRE2": {
+            "class_id": 42,
+            "USDA_symbol": "URRE2",
+            "EPPO": "PANRP",
+            "group": "monocot",
+            "class": "Liliopsida",
+            "subclass": "Commelinidae",
+            "order": "Cyperales",
+            "family": "Poaceae",
+            "genus": " Urochloa",
+            "species": "reptans",
+            "common_name": "Sprawling signalgrass",
+            "authority": "(Linnaeus) Stapf",
+            "growth_habit": "Graminoid",
+            "duration": "annual perennial",
+            "collection_location": "TX",
+            "category": "summer weed",
+            "collection_timing": "summer",
+            "multi_species_USDA_symbol": null,
+            "link": "https://plants.usda.gov/home/plantProfile?symbol=URRE2",
+            "note": null,
+            "hex": "#aa952b",
+            "rgb": [
+                170,
+                149,
+                43
+            ]
         }
     },
     "Notes": {
