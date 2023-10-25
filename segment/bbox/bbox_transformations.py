@@ -258,15 +258,16 @@ class BBoxMapper:
                 log.critical(
                     f"Point internal is None. Image ID is {image_id}. Ray target is {ray_target}"
                 )
-                # raise ValueError(
-                #     f"Point internal is None. Image ID is {image_id}. Ray target is {ray_target}"
-                # )
-                global_coord = np.array([0, 0])
+
+                # global_coord = np.array([0, 0])
+                raise ValueError(
+                    f"Point internal is None. Image ID is {image_id}. Ray target is {ray_target}"
+                )
+
             else:
                 global_coord = chunk.crs.project(
                     chunk.transform.matrix.mulp(point_internal)
                 )[:2]
-                print(global_coord)
             mapped_coordinates.append(global_coord)
 
         return BoxCoordinates(
