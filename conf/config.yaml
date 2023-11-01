@@ -24,8 +24,9 @@ hydra:
 #----------------------------------------------------
 general:
   # season: summer_weeds_2022
-  # season: summer_cash_crops_2023
-  season: summer_weeds_2023
+  season: summer_cash_crops_2023
+  # season: summer_weeds_2023 # Before 2023-08-09 for TX summer weeds 2023
+  # season: summer_weeds_2023_TXpos2 # Everything after 2023-08-29 for TX summer weeds 2023
   # season: cool_season_covers_2022_2023
   # season: cool_season_cover_2022_2023_MD_pos_2
   # season: cool_season_cover_2022_2023_MD_pos_3 # used only for MD_2023-03-16
@@ -41,9 +42,10 @@ pipeline:
   autosfm_pipeline: False
   localize_plants: False
   remap_labels: False
-  assign_species: True
-  segment_vegetation: False
-  validate: False
+  assign_species: False
+  segment_vegetation: True
+  validate: True
+  compare_blobs: True
   
 # Other job/naming options (currently not used)
 job:
@@ -52,6 +54,7 @@ job:
   jobdir: ${data.datadir}/${job.jobname}/${job.job_now}
 
 blob_names: # directory names in SemiF-AP/data that mimic blob container structure
+  upload: semifield-upload
   developed: semifield-developed-images
   utils: semifield-utils
   cutout: semifield-cutouts
@@ -94,3 +97,58 @@ logs:
   logdir: ${general.workdir}/.batchlogs
   processed: ${logs.logdir}/processed.txt
   unprocessed: ${logs.logdir}/unprocessed.txt
+  preprocessed_backlog: ${logs.logdir}/preprocessed_backlog.txt
+
+
+date_ranges:
+  MD:
+    weeds 2022:
+      start: 2022-03-04
+      end: 2022-10-19
+    cover crops 2022/2023:
+      start: 2022-10-20
+      end: 2023-04-25
+    cash crops 2023:
+      start: 2023-05-12
+      end: 2023-07-07
+    weeds 2023:
+      start: 2023-07-17
+      end: 2023-09-17
+    cover crops 2023/2024:
+      start: 2023-09-18
+      end: 2024-03-30
+
+  NC:
+    weeds 2022:
+      start: 2022-03-04
+      end: 2022-10-10
+    cover crops 2022/2023:
+      start: 2022-10-11
+      end: 2023-03-30
+    cash crops 2023:
+      start: 2023-06-06
+      end: 2023-07-25
+    weeds 2023:
+      start: 2023-08-21
+      end: 2023-10-09
+    cover crops 2023/2024:
+      start: 2023-10-10
+      end: 2024-03-30
+
+  TX:
+    weeds 2022:
+      start: 2022-03-04
+      end: 2022-10-24
+    cover crops 2022/2023:
+      start: 2022-10-25
+      end: 2023-04-04
+    cash crops 2023:
+      start: 2023-05-08
+      end: 2023-08-01
+    weeds 2023:
+      start: 2023-08-04
+      end: 2023-10-19
+    cover crops 2023/2024:
+      start: 2023-10-20
+      end: 2024-03-30
+

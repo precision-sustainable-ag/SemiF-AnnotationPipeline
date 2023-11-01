@@ -55,16 +55,25 @@ def read_keys(keypath):
     with open(keypath, "r") as file:
         pipe_keys = yaml.safe_load(file)
         sas = pipe_keys["SAS"]
+        account_url = sas["account_url"]
+        # semif cutouts
         up_cut = sas["cutouts"]["upload"]
         down_cut = sas["cutouts"]["download"]
-
+        # semif developed-images
         up_dev = sas["developed"]["upload"]
         down_dev = sas["developed"]["download"]
+        # semif-upload blob
+        down_upload = sas["upload"]["download"]
+        up_upload = sas["upload"]["upload"]
+
         keys = PipelineKeys(
+            account_url=account_url,
             down_dev=down_dev,
             up_dev=up_dev,
             down_cut=down_cut,
             up_cut=up_cut,
+            down_upload=down_upload,
+            up_upload=up_upload,
             ms_lic=pipe_keys["metashape"]["lic"],
         )
     return keys

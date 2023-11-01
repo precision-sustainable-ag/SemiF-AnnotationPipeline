@@ -98,7 +98,7 @@ class SegmentVegetation:
             min_hole_size = 5000
             median_kernel = 9
 
-        elif boxarea > 200000:  # Large
+        elif boxarea >= 200000:  # Large
             min_object_size = 10000
             min_hole_size = 10000
             median_kernel = 11

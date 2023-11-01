@@ -14,6 +14,7 @@ sys.path.append("autoSfM")
 sys.path.append("segment")
 sys.path.append("inspect")
 sys.path.append("validate")
+sys.path.append("analyze_blobs")
 
 log = logging.getLogger(__name__)
 
