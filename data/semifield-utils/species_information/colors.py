@@ -4,6 +4,8 @@
 # c between 17.72 and 100
 # luminosity between 30.77 and 95.28
 # Avoids use of 255 rgb value
+
+# fmt: off
 import json
 from collections import OrderedDict
 
@@ -91,9 +93,9 @@ for usda_sym in spec.keys():
     spec[usda_sym] = result
     popped = spec[usda_sym].pop("scientific_name")
 data["species"] = spec
-with open('data/semifield-utils/species_information/species_info.json',
-          'w') as f:
-    json.dump(data, f, indent=4)
+# with open('data/semifield-utils/species_information/species_info.json',
+        #   'w') as f:
+    # json.dump(data, f, indent=4)
     # outfile.write(json_object)
 class_ids = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
@@ -110,7 +112,7 @@ usda_symbols = [
     'GLMA4', 'AMHY', 'CHAL7', 'PADI', 'DAST', 'ABTH', 'SEPU8', 'SEFA',
     'ERCA20', 'ZEA', 'plant', 'colorchecker', 'VIVI', 'PISA6', 'TRIN3',
     'TRPR2', 'BRASS2', 'RASA2', 'SECE', 'TRITI2', 'TRAE', 'AVSA', 'HORDE',
-    'AVST2', 'GOHI'
+    'AVST2', 'GOHI', 'URRE2'
 ]
 
 hex = [
