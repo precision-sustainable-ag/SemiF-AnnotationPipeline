@@ -20,11 +20,13 @@ class AzureBlobFolderComparer:
         self.account_url = self.keys.account_url
         self.container_name_1 = cfg.blob_names.upload
         self.container_name_2 = cfg.blob_names.developed
+        # self.container_name_2 = cfg.blob_names.cutout
 
         self.date_ranges = cfg.date_ranges
         self.folder_pattern = re.compile(r"^[A-Z]{2}_\d{4}-\d{2}-\d{2}(?![\w-])")
         self.sas_token_1 = self.keys.down_upload.split("?")[1]
         self.sas_token_2 = self.keys.down_dev.split("?")[1]
+        # self.sas_token_2 = self.keys.down_cut.split("?")[1]
 
     def list_unique_folders(self, container_name, sas_token):
         """List all unique folders in a given container using walk_blobs."""

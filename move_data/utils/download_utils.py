@@ -11,7 +11,6 @@ log = logging.getLogger(__name__)
 
 
 class DownloadData:
-
     def __init__(self, cfg: DictConfig) -> None:
         self.cfg = cfg
         self.download_script = cfg.movedata.download_data.download_sh
@@ -32,9 +31,9 @@ class DownloadData:
 
     def list_missing_local(self):
         """Checks for the existance of 2 necessary folders and 1 optional in the main local batch directory.
-            1. images - (folder) preprocessed ("developed") images 
-            2. masks - (folder) bench bot masks
-            3. plant-detections (optional) - (folder) of plant-detection results (gives warning if not present)
+        1. images - (folder) preprocessed ("developed") images
+        2. masks - (folder) bench bot masks
+        3. plant-detections (optional) - (folder) of plant-detection results (gives warning if not present)
         """
 
         # Check for necessary directories
@@ -46,15 +45,14 @@ class DownloadData:
         # Logs missing azure data to a log file in .batchlogs.
         if len(missing_data) > 0:
             log.error(f"Missing data in azure blob container found.")
-            log.error(
-                f"Loggging to {Path(self.miss_az_log).name} in .batchlogs")
-            with open(self.miss_az_log, 'a+') as f:
+            log.error(f"Loggging to {Path(self.miss_az_log).name} in .batchlogs")
+            with open(self.miss_az_log, "a+") as f:
                 for dat in missing_data:
                     f.write(f"{self.batch}: {dat}\n")
 
     def list_azure_data(self):
         # Read local azure batch content file
-        with open(self.container_list, 'r') as f:
+        with open(self.container_list, "r") as f:
             lines = [line.strip() for line in f.readlines()]
         return lines
 
@@ -66,9 +64,7 @@ class DownloadData:
         batch_lines = [line for line in lines if self.batch in line]
 
         # Remove batch parent
-        present_data = [
-            data.replace(f"{self.batch}/", "") for data in batch_lines
-        ]
+        present_data = [data.replace(f"{self.batch}/", "") for data in batch_lines]
 
         # Find difference between 2 sets
         for i in self.necessary:
@@ -97,8 +93,7 @@ class DownloadData:
         empty_masks = [x for x in masks if x.stat().st_size == 0]
 
         if len(empty_imgs) != 0:
-            log.warning(
-                f"Moving empty images: {len(empty_imgs)} to 'error_data'.")
+            log.warning(f"Moving empty images: {len(empty_imgs)} to 'error_data'.")
             for src in empty_imgs:
                 dst_dir = self.error_data
                 dst = Path(dst_dir, "images", src.name)
@@ -106,8 +101,7 @@ class DownloadData:
                 shutil.move(src, dst)
 
         if len(empty_masks) != 0:
-            log.warning(
-                f"Moving empty masks: {len(empty_masks)} to 'error_data'.")
+            log.warning(f"Moving empty masks: {len(empty_masks)} to 'error_data'.")
             for src in empty_masks:
                 dst_dir = self.error_data
                 dst = Path(dst_dir, "masks", src.name)
@@ -121,15 +115,19 @@ class DownloadData:
 
         # TODO: account for if seperate data is missing in images and masks
         imgs = [
-            x.stem for x in Path(self.batchdir, "images").glob("*.jpg")
+            x.stem
+            for x in Path(self.batchdir, "images").glob("*.jpg")
             if ".pp3" not in x.name
         ]
         masks = [
             x.stem.replace("_mask", "")
             for x in Path(self.batchdir, "masks").glob("*.png")
         ]
-        flag_suffix = ("masks", "_mask.png") if (len(imgs) < len(masks)) and (
-            len(imgs) == len(masks)) else ("images", ".jpg")
+        flag_suffix = (
+            ("masks", "_mask.png")
+            if (len(imgs) < len(masks)) and (len(imgs) == len(masks))
+            else ("images", ".jpg")
+        )
         set1 = set(imgs)
         set2 = set(masks)
 
@@ -139,13 +137,13 @@ class DownloadData:
 
         miss_paths = [Path(src_dir, x) for x in missing_name]
         if len(miss_paths) > 10:
-            log.error("More than 10 missing images were identified. Exiting.")
+            log.error(
+                f"More than 10 missing images were identified {len(miss_paths)}. Exiting."
+            )
             exit(1)
         else:
             for src in miss_paths:
-                log.warning(
-                    f"Moving missing image: {len(miss_paths)} to 'error_data'."
-                )
+                log.warning(f"Moving missing image: {len(miss_paths)} to 'error_data'.")
                 dst_dir = Path(self.error_data)
                 dst_dir.mkdir(parents=True, exist_ok=True)
                 dst = Path(dst_dir, src.name)

@@ -189,11 +189,11 @@ class SfM:
         """Match Photos"""
         ms.app.cpu_enable = False
         ms.app.gpu_mask = self.num_gpus
-
+        # fmt: off
         self.doc.chunks[chunk].matchPhotos(
             downscale=self.cfg["asfm"]["align_photos"]["downscale"],
-            generic_preselection=True,  # usually True
-            reference_preselection=True,
+            generic_preselection=self.cfg["asfm"]["align_photos"]["generic_preselection"], 
+            reference_preselection=self.cfg["asfm"]["align_photos"]["reference_preselection"],
             reference_preselection_mode=ms.ReferencePreselectionSource,
             filter_mask=self.cfg["asfm"]["use_masking"],
             mask_tiepoints=True,  # True
@@ -242,8 +242,8 @@ class SfM:
 
         if len(unaligned_cameras) != 0:
             log.warning(f"Found {len(unaligned_cameras)} unaligned cameras.")
-            log.warning(f"Setting 'correct' to True.")
-            correct = True
+            # log.warning(f"Setting 'correct' to True.")
+            # correct = True
 
         if correct:
             # Check if all the cameras were aligned
@@ -275,10 +275,6 @@ class SfM:
                 log.info("Merging Chunks.")
                 self.doc.mergeChunks(merge_markers=True, chunks=[0, 1])
 
-                unaligned_cameras_2 = self.get_unaligned_cameras(chunk + 2)
-                unaligned_cameras_1 = self.get_unaligned_cameras(chunk + 1)
-                unaligned_cameras_0 = self.get_unaligned_cameras(chunk)
-
                 # Set the active chunk
                 log.info("Setting active chunk.")
                 self.doc.chunk = self.doc.chunks[chunk + 2]
@@ -292,22 +288,8 @@ class SfM:
                     if camera.transform is None and camera_counts[camera.label] > 1:
                         self.doc.chunk.remove(camera)
 
-                log.warning(
-                    f"Found {len(unaligned_cameras_2)} unaligned cameras after second alignment for chunk + 2. Moving on to depth map construction."
-                )
-                log.warning(
-                    f"Found {len(unaligned_cameras_1)} unaligned cameras after second alignment for chunk + 1. Moving on to depth map construction."
-                )
-                log.warning(
-                    f"Found {len(unaligned_cameras_0)} unaligned cameras after second alignment for chunk + 0. Moving on to depth map construction."
-                )
-
                 unaligned_cameras = self.get_unaligned_cameras(chunk)
-                log.warning(
-                    f"Found {len(unaligned_cameras)} unaligned cameras after second alignment for chunk + 0. Moving on to depth map construction."
-                )
-                if len(unaligned_cameras) == 0:
-                    log.info("Zero unaligned cameras after second alignment.")
+                log.info(f"Final unaligned cameras count: {len(unaligned_cameras)}")
 
                 self.save_project()
 
