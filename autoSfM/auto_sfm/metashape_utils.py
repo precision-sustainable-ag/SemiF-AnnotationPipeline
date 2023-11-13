@@ -288,7 +288,7 @@ class SfM:
                     if camera.transform is None and camera_counts[camera.label] > 1:
                         self.doc.chunk.remove(camera)
 
-                unaligned_cameras = self.get_unaligned_cameras(chunk)
+                unaligned_cameras = self.get_unaligned_cameras(chunk + 2)
                 log.info(f"Final unaligned cameras count: {len(unaligned_cameras)}")
 
                 self.save_project()
