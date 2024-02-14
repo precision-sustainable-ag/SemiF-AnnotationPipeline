@@ -57,6 +57,9 @@ def main(cfg: DictConfig) -> None:
             bp.determine_status()
             bp.save_to_file(cfg.movedata.unprocessed_and_processed_batches)
             bp.write_summary(cfg.movedata.unprocessed_and_processed_batches)
+            bp.save_results_to_csv(
+                cfg.movedata.unprocessed_and_processed_batches.replace(".txt", ".csv")
+            )
         except Exception as e:
             log.exception(f"Failed to write unprocessed and processed items. Exiting.")
             exit(1)

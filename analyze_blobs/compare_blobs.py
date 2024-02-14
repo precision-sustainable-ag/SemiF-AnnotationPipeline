@@ -1,3 +1,4 @@
+import csv
 import logging
 import re
 import sys
@@ -155,6 +156,22 @@ class AzureBlobFolderComparer:
                         file.write(f"    - {folder}\n")
                 file.write("\n")
 
+    def write_missing_folders_to_csv(self, missing_folders, csv_file_path):
+        """Write missing folders to a CSV file."""
+        with open(csv_file_path, mode="w", newline="") as file:
+            csv_writer = csv.writer(file)
+            # Write CSV headers
+            csv_writer.writerow(["index", "state", "season", "batch_id"])
+
+            # Initialize index
+            index = 1
+            # Write data rows
+            for state, periods in missing_folders.items():
+                for season, batch_ids in periods.items():
+                    for batch_id in batch_ids:
+                        csv_writer.writerow([index, state, season, batch_id])
+                        index += 1
+
 
 # Usage
 @hydra.main(version_base="1.2", config_path="conf", config_name="config")
@@ -169,3 +186,4 @@ def main(cfg: DictConfig) -> None:
 
     missing_folders = comparer.find_missing_folders(classified_folders_src, classified_folders_tgt)
     comparer.write_missing_folders_to_file(missing_folders, cfg.logs.preprocessed_backlog)
+    comparer.write_missing_folders_to_csv(missing_folders, cfg.logs.preprocessed_backlog.replace(".txt", ".csv"))
