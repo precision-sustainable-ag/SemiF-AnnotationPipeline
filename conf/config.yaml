@@ -16,25 +16,27 @@ defaults:
 hydra:
   run:
     # dir: ./outputs
-    dir: ${logs.logdir}/${job.jobname}
+    dir: ${logs.logdir}/${job.jobname}/${general.batch_id}/${job.job_now}
     # dir: ${logs.logdir}/${job.jobname}
-  output_subdir: 
+  output_subdir: ${hydra.run.dir}/hydra
 
 # Required config. Only change these.
 #----------------------------------------------------
 general:
   # season: summer_weeds_2022
-  season: summer_cash_crops_2023
-  # season: summer_weeds_2023 # Before 2023-08-09 for TX summer weeds 2023
-  # season: summer_weeds_2023_TXpos2 # Everything after 2023-08-29 for TX summer weeds 2023
-  # season: cool_season_covers_2022_2023
+  # season: summer_cash_crops_2023
+  # season: summer_weeds_2023 # Before 2023-08-09 for TX summer weeds 2023 and all other locations
+  season: summer_weeds_2023_TXpos2 # Everything after 2023-08-29 for TX summer weeds 2023
+  #season: cool_season_covers_2022_2023
   # season: cool_season_cover_2022_2023_MD_pos_2
   # season: cool_season_cover_2022_2023_MD_pos_3 # used only for MD_2023-03-16
+  # season: cool_season_covers_2023_2024
 #----------------------------------------------------
   metashape_key: ??? # Do not put key in the config since the file is committed to GitHub
   batch_id: ???
   # Main working directory 
   workdir: ${hydra:runtime.cwd}  # where the code is executed
+  cpu_denominator: 4
 
 # Select sections of pipeline to run
 pipeline:
@@ -44,13 +46,14 @@ pipeline:
   remap_labels: False
   assign_species: False
   segment_vegetation: True
-  validate: True
-  compare_blobs: True
+  validate: False
+  repo_overview: False
+  compare_blobs: False
   
 # Other job/naming options (currently not used)
 job:
   jobname: ${general.season}
-  job_now: &nowdir ${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job_now: &nowdir ${now:%Y-%m-%d}/${now:%H:%M:%S}
   jobdir: ${data.datadir}/${job.jobname}/${job.job_now}
 
 blob_names: # directory names in SemiF-AP/data that mimic blob container structure
@@ -78,6 +81,9 @@ data:
   # Ground control points directory
   gcp_dir: ${data.datadir}/${blob_names.utils}/autosfm/GroundControlPoints/${general.season}
   gcp_ref: None
+  repo_database: ${general.workdir}/repo_overview
+  database_parquet: ${data.repo_database}/database
+  longterm_storage : /mnt/research-projects/s/screberg/longterm_images
 
 pipeline_keys: ${general.workdir}/keys/pipeline_keys.yaml
   
@@ -103,52 +109,51 @@ logs:
 date_ranges:
   MD:
     weeds 2022:
-      start: 2022-03-04
-      end: 2022-10-19
+      start: "2022-03-04"
+      end: "2022-10-19"
     cover crops 2022/2023:
-      start: 2022-10-20
-      end: 2023-04-25
+      start: "2022-10-20"
+      end: "2023-04-25"
     cash crops 2023:
-      start: 2023-05-12
-      end: 2023-07-07
+      start: "2023-05-12"
+      end: "2023-07-07"
     weeds 2023:
-      start: 2023-07-17
-      end: 2023-09-17
+      start: "2023-07-17"
+      end: "2023-09-17"
     cover crops 2023/2024:
-      start: 2023-09-18
-      end: 2024-03-30
+      start: "2023-09-18"
+      end: "2024-03-30"
 
   NC:
     weeds 2022:
-      start: 2022-03-04
-      end: 2022-10-10
+      start: "2022-03-04"
+      end: "2022-10-10"
     cover crops 2022/2023:
-      start: 2022-10-11
-      end: 2023-03-30
+      start: "2022-10-11"
+      end: "2023-03-30"
     cash crops 2023:
-      start: 2023-06-06
-      end: 2023-07-25
+      start: "2023-06-06"
+      end: "2023-07-25"
     weeds 2023:
-      start: 2023-08-21
-      end: 2023-10-09
+      start: "2023-08-21"
+      end: "2023-10-09"
     cover crops 2023/2024:
-      start: 2023-10-10
-      end: 2024-03-30
+      start: "2023-10-10"
+      end: "2024-03-30"
 
   TX:
     weeds 2022:
-      start: 2022-03-04
-      end: 2022-10-24
+      start: "2022-03-04"
+      end: "2022-10-24"
     cover crops 2022/2023:
-      start: 2022-10-25
-      end: 2023-04-04
+      start: "2022-10-25"
+      end: "2023-04-04"
     cash crops 2023:
-      start: 2023-05-08
-      end: 2023-08-01
+      start: "2023-05-08"
+      end: "2023-08-01"
     weeds 2023:
-      start: 2023-08-04
-      end: 2023-10-19
+      start: "2023-08-04"
+      end: "2023-10-19"
     cover crops 2023/2024:
-      start: 2023-10-20
-      end: 2024-03-30
-
+      start: "2023-10-20"
+      end: "2024-03-30"

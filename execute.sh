@@ -5,7 +5,7 @@ set -o pipefail
 
 COMMAND=./execute.sh
 
-## Main processessing section that runs individual processes 
+## Main processessing section that runs individual processes
 ## but moves to another batch if any single process fails with exit code 1.
 
 # Read unprocessed batches
@@ -26,3 +26,6 @@ for line in $(cat $need_process)
     count=$((count+1))
         
     done
+
+
+chmod -R g+rwx /home/psa_images/SemiF-AnnotationPipeline/ 2>/dev/null # '2>/dev/null' to avoid error messages
