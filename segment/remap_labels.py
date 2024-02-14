@@ -11,9 +11,7 @@ log = logging.getLogger(__name__)
 
 
 class RemapLabels:
-
     def __init__(self, cfg: DictConfig) -> None:
-
         self.batch_id = cfg.general.batch_id
         self.data_dir = Path(cfg.data.datadir)
         self.developed_dir = Path(cfg.data.developeddir)  # data_root
@@ -43,10 +41,12 @@ class RemapLabels:
     def remap_labels(self):
         # Initialize the reader which will read the annotation files and convert the bounding
         # boxes to the desired format
-        reader = ParseYOLOCsv(image_path=self.image_dir,
-                              label_path=self.raw_label,
-                              fullres_image_path=self.fullres_image_path,
-                              fov_cams=self.fov_cams)
+        reader = ParseYOLOCsv(
+            image_path=self.image_dir,
+            label_path=self.raw_label,
+            fullres_image_path=self.fullres_image_path,
+            fov_cams=self.fov_cams,
+        )
 
         # Initialize the connector and get a list of all the images
         box_connector = BBoxComponents(
@@ -58,13 +58,15 @@ class RemapLabels:
             reader,
             True,
             self.raw_label,
-            fullres_image_path=self.fullres_image_path)
+            fullres_image_path=self.fullres_image_path,
+        )
         log.info("Fetching image metadata.")
         imgs = box_connector.images
         # Map the bounding boxes from local coordinates to global coordinate system
         log.info("Starting mapping.")
-        metashape_project_path = Path(self.batch_dir, "autosfm", "project",
-                                      f"{self.batch_id}.psx")
+        metashape_project_path = Path(
+            self.batch_dir, "autosfm", "project", f"{self.batch_id}.psx"
+        )
         mapper = BBoxMapper(metashape_project_path, imgs)
         mapper.map()
         # Sanity check

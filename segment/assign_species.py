@@ -85,16 +85,17 @@ def main(cfg: DictConfig) -> None:
                     # Find the closest distance
                     closest_polygon_index = distances.idxmin()
                     closest_distance = distances[closest_polygon_index]
-                    if closest_distance < 2:
+                    closest_distance_thresh = 2
+                    if closest_distance < closest_distance_thresh:
                         closest_polygon = polygons_filtered.loc[closest_polygon_index]
                         poly_cls = closest_polygon["species"]
                         log.warning(
-                            f"Global centroid found in the next closest polygon less than 1 meter away: {closest_polygon['comm_name']}"
+                            f"Global centroid found in the next closest polygon less than {closest_distance_thresh} meter away: {closest_polygon['comm_name']}"
                         )
 
                     else:
                         log.warning(
-                            f"No polygon or closest polygon (< 1 meter) was found. Exiting."
+                            f"No polygon or closest polygon (< {closest_distance_thresh} meter) was found. Exiting.{closest_distance}\n{poly_cls}\n{file}\n{point}"
                         )
                         exit(1)
                 else:

@@ -153,7 +153,6 @@ class BBoxComponents:
         row = self.camera_reference[
             self.camera_reference["label"] == image_id
         ].reset_index(drop=True)
-        print(row)
         pixel_width = float(row.loc[0, "pixel_width"])
         pixel_height = float(row.loc[0, "pixel_height"])
 

@@ -16,7 +16,7 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import torch
+# import torch
 from colormap import rgb2hex
 from dacite import Config, from_dict
 from matplotlib.offsetbox import AnnotationBbox, OffsetImage
@@ -662,11 +662,11 @@ def crop_cutouts(img, add_padding=False):
 
 
 # ------------------- Helper functions --------------------------------
-def bbox_iou(box1, box2):
-    box1 = torch.tensor([box1], dtype=torch.float)
-    box2 = torch.tensor([box2], dtype=torch.float)
-    iou = bops.box_iou(box1, box2)
-    return iou
+# def bbox_iou(box1, box2):
+#     box1 = torch.tensor([box1], dtype=torch.float)
+#     box2 = torch.tensor([box2], dtype=torch.float)
+#     iou = bops.box_iou(box1, box2)
+#     return iou
 
 
 def get_img_bbox(x, y, imgshape):
