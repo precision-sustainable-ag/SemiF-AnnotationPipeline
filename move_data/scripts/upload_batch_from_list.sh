@@ -7,6 +7,7 @@ BATCHES=$1
 SAS=$(cat /home/psa_images/SemiF-AnnotationPipeline/keys/pipeline_keys.yaml | shyaml get-value SAS.developed.upload)
 
 for line in `cat $BATCHES`; do
+	echo
 	echo "Uploading batch $line to Azure semifield-developed-images"
     prefix=${SAS%%?sv=*} # remove before ?sv=
     suffix=${SAS#*?sv=} # remove after   ?sv=
@@ -18,9 +19,12 @@ for line in `cat $BATCHES`; do
 	metadata="/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/$line/metadata"
 	jsonmetadata="/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/$line/$line.json"
 		
+	
 	azcopy copy "${asfm-}" "${dst-}" --recursive
 	azcopy copy "${meta_masks-}" "${dst-}" --recursive
 	azcopy copy "${metadata-}" "${dst-}" --recursive
 	azcopy copy "${jsonmetadata-}" "${jsondst-}"
+	echo "Done copying batch $line to Azure blob container semifield-developed-images"
+	echo
 
 done

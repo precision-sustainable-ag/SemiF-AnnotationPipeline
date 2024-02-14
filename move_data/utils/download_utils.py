@@ -137,10 +137,11 @@ class DownloadData:
 
         miss_paths = [Path(src_dir, x) for x in missing_name]
         if len(miss_paths) > 10:
-            log.error(
-                f"More than 10 missing images were identified {len(miss_paths)}. Exiting."
-            )
-            exit(1)
+            if self.cfg.asfm.use_masking:
+                log.error(
+                    f"More than 10 missing images were identified {len(miss_paths)}. Exiting"
+                )
+                exit(1)
         else:
             for src in miss_paths:
                 log.warning(f"Moving missing image: {len(miss_paths)} to 'error_data'.")

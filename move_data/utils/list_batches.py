@@ -137,21 +137,59 @@ class BatchProcessor:
                 "weeds 2022": ("2022-03-04", "2022-10-01"),
                 "cover crops 2022/2023": ("2022-10-20", "2023-04-25"),
                 "cash crops 2023": ("2023-05-12", "2023-07-07"),
-                "weeds 2023": ("2023-07-17", "2023-10-25"),
+                "weeds 2023": ("2023-07-17", "2023-09-17"),
+                "cover crops 2023/2024": ("2023-09-18", "2024-04-25"),
             },
             "NC": {
                 "weeds 2022": ("2022-03-04", "2022-10-01"),
                 "cover crops 2022/2023": ("2022-10-11", "2023-03-30"),
                 "cash crops 2023": ("2023-06-06", "2023-07-25"),
-                "weeds 2023": ("2023-08-21", "2023-12-25"),
+                "weeds 2023": ("2023-08-21", "2023-10-09"),
+                "cover crops 2023/2024": ("2023-10-10", "2024-4-25"),
             },
             "TX": {
                 "weeds 2022": ("2022-03-04", "2022-10-01"),
                 "cover crops 2022/2023": ("2022-10-25", "2023-04-04"),
                 "cash crops 2023": ("2023-05-08", "2023-08-01"),
-                "weeds 2023": ("2023-08-04", "2023-12-25"),
+                "weeds 2023": ("2023-08-04", "2023-10-19"),
+                "cover crops 2023/2024": ("2023-10-20", "2024-4-25"),
             },
         }
+
+    # existing __init__ and other methods remain unchanged
+
+    def save_results_to_csv(self, csv_filename):
+        """
+        Saves the summary of processed and not processed batches to a CSV file.
+
+        Args:
+            csv_filename (str): The filename for the output CSV.
+        """
+        # Initialize a list to store the rows of the DataFrame
+        rows = []
+
+        # Iterate over states, categories, and their respective statuses
+        for state, categories in self.results.items():
+            for category, status_data in categories.items():
+                for status in ["Processed", "Not Processed"]:
+                    for batch in status_data[status]:
+                        # Append a row for each batch
+                        rows.append(
+                            {
+                                "state": state,
+                                "category": category,
+                                "batch": batch,
+                                "status": status,
+                            }
+                        )
+
+        # Create a DataFrame from the rows
+        df = pd.DataFrame(rows, columns=["state", "category", "batch", "status"])
+
+        # Save the DataFrame to a CSV file
+        df.to_csv(csv_filename, index=False)
+
+        print(f"Results saved to {csv_filename}")
 
     def read_container_list(self, path):
         with open(path) as f:
