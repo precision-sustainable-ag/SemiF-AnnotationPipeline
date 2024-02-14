@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib import patches
+from tqdm import tqdm
 
 sys.path.append("/home/psa_images/SemiF-AnnotationPipeline")
 sys.path.append("/home/psa_images/SemiF-AnnotationPipeline/segment")
@@ -105,12 +106,14 @@ def plot_bboxes(
         save_location (str, optional): save location of plot. Defaults to ".".
         figsize (tuple, optional): figure size. Defaults to (8, 12).
     """
-    for _, i in df.iterrows():
+    for _, i in tqdm(df.iterrows()):
         image_path = i["image_paths"]
 
         i = Path(image_path)
+        assert i.exists()
         # cv2.imread(image_path)
         meta_path = image_path.replace(f"images/{i.name}", f"metadata/{i.stem}.json")
+        assert Path(meta_path).exists()
         bboxes, labels = get_detection_data(meta_path)
         if len(bboxes) == 0:
             continue
@@ -218,7 +221,7 @@ def plot_masks(
     species_info=None,
     dpi=300,
 ):
-    for _, df in df_sample.iterrows():
+    for _, df in tqdm(df_sample.iterrows()):
         imgpath = df["image_paths"]
         maskpath = df["semantic_masks"]
         instancepath = df["instance_masks"]
@@ -339,7 +342,7 @@ def plot_cutouts(
 ):
     mdf = df.copy()
 
-    for species in mdf["common_name"].unique():
+    for species in tqdm(mdf["common_name"].unique()):
         sdf = mdf[mdf["common_name"] == species]
 
         if len(sdf) == 0:

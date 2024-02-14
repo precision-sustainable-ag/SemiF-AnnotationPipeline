@@ -1,3 +1,5 @@
+import logging
+
 from omegaconf import DictConfig
 from validate_utils import (
     batch_df,
@@ -8,9 +10,12 @@ from validate_utils import (
     validation_sample_df,
 )
 
+log = logging.getLogger(__name__)
+
 
 # # Define directories and load data
 def main(cfg: DictConfig) -> None:
+    log.info(f"Validating batch {cfg.general.batch_id}")
     ########### Change these as necessary ###########
     cutout_dir = cfg.data.cutoutdir
     species_info_json = cfg.data.species
@@ -51,9 +56,11 @@ def main(cfg: DictConfig) -> None:
     df = validation_sample_df(ogdf, sample_sz=sample_sz, random_state=random_state)
 
     if plot_full_res_images:
+        log.info(f"Saving original image for batch {cfg.general.batch_id}")
         save_original_full_res_images(df, save_location=full_res_save_location)
 
     if plot_boxes:
+        log.info(f"Plotting bounding boxes.")
         plot_bboxes(
             df,
             show_labels=True,
@@ -64,6 +71,7 @@ def main(cfg: DictConfig) -> None:
             dpi=dpi,
         )
     if plot_masks_results:
+        log.info(f"Plotting masks.")
         plot_masks(
             df,
             figsize=fig_size,
@@ -73,6 +81,7 @@ def main(cfg: DictConfig) -> None:
             dpi=dpi,
         )
     if plot_cutout_results:
+        log.info(f"Plotting cutouts.")
         plot_cutouts(
             df,
             figsize=fig_size,
@@ -81,3 +90,4 @@ def main(cfg: DictConfig) -> None:
             transparent_fc=cutout_transparent_fc,
             dpi=dpi,
         )
+    log.info(f"Finished validating batch {cfg.general.batch_id}")
