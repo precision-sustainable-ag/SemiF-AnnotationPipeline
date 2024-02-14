@@ -7,9 +7,7 @@
 
 # fmt: off
 import json
-from collections import OrderedDict
 
-import numpy as np
 import pandas as pd
 
 VERSION = 1.2
@@ -26,77 +24,9 @@ NOTES = {
     "Brassicas class contains 4 species - Brassica napus, Brassica rapa, Brassica juncea, Brassica hirta"
 }
 
-# csv = "class_list.csv"
-# df = pd.read_csv(csv, index_col="species_id")
-# df = df.where(df.notnull(), None)
-# df["rgb"] = df.rgb.map(lambda x: x.lstrip('"').rstrip("'"))
-# df["rgb"] = df.rgb.str.replace("'", "", regex=True)
-# df["rgb"] = df.rgb.str.replace("[", "", regex=False)
-# df["rgb"] = df.rgb.str.replace("]", "", regex=False)
-# df["rgb"] = df.rgb.str.split(", ").apply(lambda x: [int(i) for i in x])
-# df = df.to_dict("index")
-# spec_info = dict()
-# spec_info["species"] = df
-# spec_info["Notes"] = NOTES
-# spec_info["Version"] = VERSION
-
-
-# json_object = json.dumps(spec_info, indent=4)
-# with open("data/semifield-utils/species_info.json", "w") as outfile:
-# outfile.write(json_object)
-def make_custom_sort(orders):
-    orders = [{k: -i
-               for (i, k) in enumerate(reversed(order), 1)}
-              for order in orders]
-
-    def process(stuff):
-        if isinstance(stuff, dict):
-            l = [(k, process(v)) for (k, v) in stuff.items()]
-            keys = set(stuff)
-            for order in orders:
-                if keys.issuperset(order):
-                    return OrderedDict(
-                        sorted(l, key=lambda x: order.get(x[0], 0)))
-            return OrderedDict(sorted(l))
-        if isinstance(stuff, list):
-            return [process(x) for x in stuff]
-        return stuff
-
-    return process
-
-
-with open("species_info_og.json") as outfile:
+with open("species_info.json") as outfile:
     data = json.load(outfile)
 spec = data["species"]
-for usda_sym in spec.keys():
-    info = spec[usda_sym]["common_name"].split(" ")
-    genus, species = info[0], info[1] if len(info) > 1 else info[0]
-    spec[usda_sym]["genus"] = genus
-    spec[usda_sym]["species"] = species
-    # sort_order = ['site', 'A1', 'A5', 'A10']
-    sort_order = [
-        "class_id", "USDA_symbol", "EPPO", "group", "class", "subclass",
-        "order", "family", "genus", "species", "common_name",
-        "scientific_name", "authority", "growth_habit", "duration",
-        "collection_location", "category", "collection_timing", "link", "note",
-        "hex", "rgb"
-    ]
-    custom_sort = make_custom_sort([sort_order])
-    # allclskeys_ordered = [
-    #     OrderedDict(
-    #         sorted(item.items(), key=lambda item: sort_order.index(item[0])))
-    #     for item in spec[usda_sym]
-    # ]
-
-    result = custom_sort(spec[usda_sym])
-
-    spec[usda_sym] = result
-    popped = spec[usda_sym].pop("scientific_name")
-data["species"] = spec
-# with open('data/semifield-utils/species_information/species_info.json',
-        #   'w') as f:
-    # json.dump(data, f, indent=4)
-    # outfile.write(json_object)
 class_ids = [
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
     21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
