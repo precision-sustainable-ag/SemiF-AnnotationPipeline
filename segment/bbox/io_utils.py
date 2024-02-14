@@ -7,26 +7,20 @@ import pandas as pd
 
 
 class ParseXML:
-
     def __init__(self, image_path, label_path):
         self.image_path = image_path
         self.label_path = label_path
         self.create_image_list()
 
     def create_image_list(self):
-
         images = glob(os.path.join(self.image_path, "*.jpg"))
-        image_ids = [
-            image.split(os.path.sep)[-1].split(".")[0] for image in images
+        image_ids = [image.split(os.path.sep)[-1].split(".")[0] for image in images]
+
+        self.image_list = [
+            {"id": image_id, "path": path} for image_id, path in zip(image_ids, images)
         ]
 
-        self.image_list = [{
-            "id": image_id,
-            "path": path
-        } for image_id, path in zip(image_ids, images)]
-
     def parse(self, xml_file):
-
         tree = ET.parse(xml_file)
         root = tree.getroot()
 
@@ -55,13 +49,12 @@ class ParseXML:
                     "bottom_left": bottom_left,
                     "bottom_right": bottom_right,
                     "cls": labels[j],
-                    "is_normalized": False
+                    "is_normalized": False,
                 }
                 boxes.append(bbox)
         return boxes
 
     def create_bboxes(self):
-
         bounding_boxes = dict()
 
         for image in self.image_list:
@@ -77,18 +70,12 @@ class ParseXML:
         return bounding_boxes
 
     def __call__(self, *args, **kwargs):
-
         bounding_boxes = self.create_bboxes()
         return self.image_list, bounding_boxes
 
 
 class ParseYOLOCsv:
-
-    def __init__(self,
-                 image_path,
-                 label_path,
-                 fullres_image_path=None,
-                 fov_cams=None):
+    def __init__(self, image_path, label_path, fullres_image_path=None, fov_cams=None):
         self.image_path = image_path
         self.label_path = label_path
         self.fov_cams = fov_cams
@@ -99,7 +86,6 @@ class ParseYOLOCsv:
         self.create_image_list()
 
     def create_image_list(self):
-
         images = Path(self.image_path).glob("*.jpg")
         images = [x for x in images]
         cams = [
@@ -118,16 +104,12 @@ class ParseYOLOCsv:
 
         image_ids = [x.stem for x in images]
 
-        self.image_list = [{
-            "id": image_id,
-            "path": str(path),
-            "fullres_path": fullres_path
-        }
-                           for image_id, path, fullres_path in zip(
-                               image_ids, images, fullres_images)]
+        self.image_list = [
+            {"id": image_id, "path": str(path), "fullres_path": fullres_path}
+            for image_id, path, fullres_path in zip(image_ids, images, fullres_images)
+        ]
 
     def parse(self, df):
-
         boxes = []
 
         for i, line in df.iterrows():
@@ -135,10 +117,15 @@ class ParseYOLOCsv:
             width = line["xmax"] - line["xmin"]
             height = line["ymax"] - line["ymin"]
 
-            top_left = line["xmin"], line["ymin"]
-            top_right = line["xmax"], line["ymin"]
-            bottom_left = line["xmin"], line["ymax"]
-            bottom_right = line["xmax"], line["ymax"]
+            xmin = max([0, line["xmin"]])
+            ymin = max([0, line["ymin"]])
+            xmax = min([1, line["xmax"]])
+            ymax = min([1, line["ymax"]])
+
+            top_left = xmin, ymin
+            top_right = xmax, ymin
+            bottom_left = xmin, ymax
+            bottom_right = xmax, ymax
 
             bbox = {
                 "id": str(i),
@@ -147,21 +134,21 @@ class ParseYOLOCsv:
                 "bottom_left": bottom_left,
                 "bottom_right": bottom_right,
                 "cls": cls,
-                "is_normalized": True
+                "is_normalized": True,
             }
             boxes.append(bbox)
 
         return boxes
 
     def create_bboxes(self):
-
         bounding_boxes = dict()
         df = pd.read_csv(self.label_path)
 
         for image in self.image_list:
             image_id = image["id"]
             _df = df[df["imgname"] == image_id + ".jpg"].reset_index(
-                drop=True, inplace=False)
+                drop=True, inplace=False
+            )
 
             bboxes = self.parse(_df)
             bounding_boxes[image_id] = bboxes
@@ -169,7 +156,6 @@ class ParseYOLOCsv:
         return bounding_boxes
 
     def __call__(self, *args, **kwargs):
-
         bounding_boxes = self.create_bboxes()
 
         return self.image_list, bounding_boxes
