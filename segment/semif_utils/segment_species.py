@@ -54,19 +54,19 @@ class Segment:
         return True if np.sum(hsv_mask) > thresh else False, np.sum(hsv_mask)
 
     def general_seg(self, mode="cluster"):
-        log.info("Making ExG")
+        log.debug("Making ExG")
         exg_vi = make_exg(self.img, thresh=True)
-        log.info("Thresholding Vi")
+        log.debug("Thresholding Vi")
         th_vi = thresh_vi(exg_vi)
         if mode == "cluster":
-            log.info("Making Kmeans")
+            log.debug("Making Kmeans")
             temp_mask = make_kmeans(th_vi)
-            log.info("Reducing holes")
+            log.debug("Reducing holes")
             temp_mask = reduce_holes(temp_mask * 255) * 255
         elif mode == "threshold":
-            log.info("Making Otsu threshold")
+            log.debug("Making Otsu threshold")
             temp_mask = otsu_thresh(th_vi)
-            log.info("Reducing holes after Otsu")
+            log.debug("Reducing holes after Otsu")
             temp_mask = reduce_holes(temp_mask * 255) * 255
         self.mask = temp_mask.copy()
         return self.mask
