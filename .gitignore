@@ -1,6 +1,7 @@
 # Assets
-assets
-
+assets/** */
+*.txt
+*.sh
 # Hydra outputs
 **outputs
 developed
