@@ -53,7 +53,7 @@ def main(cfg: DictConfig) -> None:
 
         try:
             log.info("Procssing to find processed and not processed batches.")
-            bp = BatchProcessor(cfg.movedata.find_missing.container_list)
+            bp = BatchProcessor(cfg)
             bp.determine_status()
             bp.save_to_file(cfg.movedata.unprocessed_and_processed_batches)
             bp.write_summary(cfg.movedata.unprocessed_and_processed_batches)
