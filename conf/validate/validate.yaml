@@ -1,9 +1,9 @@
 ########## General Settings ###########
 validation_dir: ${general.workdir}/validate/results
 
-sample_sz: 20  # Must be between 10-50
+sample_sz: 50  # Must be between 10-50
 random_state: 41
-figsize: [12,8]
+figsize: [8,6]
 dpi: 150
 
 # Full res images
