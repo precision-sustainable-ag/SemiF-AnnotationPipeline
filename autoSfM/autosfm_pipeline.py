@@ -215,15 +215,6 @@ def main(cfg: DictConfig) -> None:
             exit(1)
 
     # Export preview view of ortho
-    if cfg.asfm.preview_img:
-        try:
-            log.info(f"Exporting preview image")
-            pipeline.capture_view()
-        except Exception as e:
-            log.exception(f"Failed to export preview image. Exiting")
-            exit(1)
-
-    # Export preview view of ortho
     if cfg.asfm.export_report:
         try:
             log.info(f"Exporting report")

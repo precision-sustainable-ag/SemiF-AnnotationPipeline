@@ -13,7 +13,8 @@ from PIL import Image
 
 from .callbacks import percentage_callback
 from .dataframe import DataFrame
-from .estimation import CameraStats, MarkerStats, field_of_view, find_object_dimension
+from .estimation import (CameraStats, MarkerStats, field_of_view,
+                         find_object_dimension)
 
 log = logging.getLogger(__name__)
 
@@ -58,12 +59,11 @@ class SfM:
         """Save the project"""
         project_path = self.cfg["asfm"]["proj_path"]
         assert project_path.split(".")[-1] == "psx"
-        self.doc.save(project_path)
+        self.doc.save()
 
     def add_photos(self):
         """Adds a directory to the project"""
         photos = glob.glob(os.path.join(self.cfg["asfm"]["down_photos"], "*.jpg"))
-
         if self.doc.chunk is None:
             self.doc.addChunk()
         self.doc.chunk.addPhotos(photos)
@@ -179,6 +179,18 @@ class SfM:
         ]
         return unaligned_cameras
 
+    def reset_region(self):
+        """
+        Reset the region and make it much larger than the points; necessary because if points go outside the region, they get clipped when saving
+        """
+
+        self.doc.chunk.resetRegion()
+        region_dims = self.doc.chunk.region.size
+        region_dims[2] *= 3
+        self.doc.chunk.region.size = region_dims
+
+        return True
+
     def match_photos(
         self,
         progress_callback: Callable = percentage_callback,
@@ -194,19 +206,19 @@ class SfM:
             downscale=self.cfg["asfm"]["align_photos"]["downscale"],
             generic_preselection=self.cfg["asfm"]["align_photos"]["generic_preselection"], 
             reference_preselection=self.cfg["asfm"]["align_photos"]["reference_preselection"],
-            reference_preselection_mode=ms.ReferencePreselectionSource,
+            # reference_preselection_mode=ms.ReferencePreselectionSource,
             filter_mask=self.cfg["asfm"]["use_masking"],
             mask_tiepoints=True,  # True
-            filter_stationary_points=True,
-            keypoint_limit=40000,
+            filter_stationary_points=False,
+            keypoint_limit=60000,
             keypoint_limit_per_mpx=1000,
-            tiepoint_limit=4000,
+            tiepoint_limit=20000, # default 4000
             keep_keypoints=False,
             cameras=self.doc.chunks[chunk].cameras,
-            guided_matching=False,  # False
+            guided_matching=False,
             reset_matches=True,
-            subdivide_task=True,
-            workitem_size_cameras=20,
+            subdivide_task=False,
+            workitem_size_cameras=20, # default 20
             workitem_size_pairs=80,
             max_workgroup_size=100,
             progress=progress_callback,
@@ -229,9 +241,9 @@ class SfM:
         self.doc.chunks[chunk].alignCameras(
             cameras=self.doc.chunks[chunk].cameras,
             min_image=2,
-            adaptive_fitting=False,  # adaptive_fitting=False,
+            adaptive_fitting=False,
             reset_alignment=True,
-            subdivide_task=True,
+            subdivide_task=False,
             progress=progress_callback,
         )
         if ms.app.gpu_mask:
@@ -250,11 +262,17 @@ class SfM:
             log.warning("Correction enabled. Checking for unaligned cameras.")
             if len(unaligned_cameras) < 1:
                 log.info("Not enough unaligned cameras to perform alignment, skipping.")
-            if len(unaligned_cameras) > 1:
+            elif len(unaligned_cameras) > 1:
                 log.info("Attempting to align unaligned cameras.")
-                # Add a chunk and try to process separately
+
+                # # Add a chunk and try to process separately
                 self.doc.addChunk()
                 photos = [camera.photo.path for camera in unaligned_cameras]
+                # fmt: off
+                if len(photos) <= 10:
+                    for i in photos:
+                        log.info(i)
+
                 self.doc.chunks[1].addPhotos(photos)
 
                 # Detect markers for the new chunk
@@ -263,35 +281,47 @@ class SfM:
                     self.detect_markers(chunk=chunk + 1)
 
                 # Import reference for the new chunk
-                log.info("Importing reference.")
-                self.import_reference(chunk=chunk + 1)
+                if self.cfg.asfm.import_references:
+                    log.info("Importing reference.")
+                    self.import_reference(chunk=chunk + 1)
 
                 # Align again
-                log.info("Aligning photos agains.")
+                log.info("Matching and Aligning photos agains.")
                 self.match_photos(chunk=chunk + 1)
+
+
+                photos = [camera.photo.path for camera in self.doc.chunks[1].cameras if camera.transform is None]
+
                 self.align_photos(chunk=chunk + 1, correct=False)
+
+
 
                 # Merge the chunks
                 log.info("Merging Chunks.")
-                self.doc.mergeChunks(merge_markers=True, chunks=[0, 1])
-
-                # Set the active chunk
+                self.doc.mergeChunks(
+                    merge_markers=True,
+                    chunks=[0, 1],
+                    progress=progress_callback,
+                )
                 log.info("Setting active chunk.")
                 self.doc.chunk = self.doc.chunks[chunk + 2]
 
+                # fmt: off
+                photos = [camera.photo.path for camera in self.doc.chunks[1].cameras if camera.transform is None]
+                if len(photos) < 10:
+                    for i in photos:
+                        log.info(i)
                 # Remove duplicate unaligned cameras
-                camera_counts = Counter(
-                    [camera.label for camera in self.doc.chunk.cameras]
-                )
-
+                camera_counts = Counter([camera.label for camera in self.doc.chunk.cameras])
                 for camera in self.doc.chunk.cameras:
                     if camera.transform is None and camera_counts[camera.label] > 1:
                         self.doc.chunk.remove(camera)
+                log.info(f"Unaligned cameras in current chunk: {len([camera for camera in self.doc.chunk.cameras if camera.transform is None])}")
+                log.info(f"Final number of cameras in current chunk after realignement: {len(self.doc.chunk.cameras)}")
+                # fmt: on
 
-                unaligned_cameras = self.get_unaligned_cameras(chunk + 2)
-                log.info(f"Final unaligned cameras count: {len(unaligned_cameras)}")
-
-                self.save_project()
+        self.reset_region()
+        self.save_project()
 
     def build_depth_map(self, progress_callback: Callable = percentage_callback):
         ms.app.cpu_enable = False
@@ -302,9 +332,9 @@ class SfM:
 
         self.doc.chunk.buildDepthMaps(
             downscale=self.cfg["asfm"]["depth_map"]["downscale"],
-            filter_mode=ms.MildFiltering,
+            filter_mode=ms.ModerateFiltering,
             cameras=self.doc.chunk.cameras,
-            reuse_depth=False,
+            reuse_depth=True,
             max_neighbors=-1,
             subdivide_task=True,
             workitem_size_cameras=20,
@@ -343,18 +373,19 @@ class SfM:
         self.doc.chunk.buildModel(
             surface_type=ms.Arbitrary,
             interpolation=ms.Extrapolated,
-            face_count=ms.HighFaceCount,
+            face_count=ms.LowFaceCount,
             source_data=ms.PointCloudData,
             vertex_colors=True,
             vertex_confidence=True,
             volumetric_masks=False,
             keep_depth=True,
             trimming_radius=0,
-            subdivide_task=True,
+            subdivide_task=False,
             workitem_size_cameras=20,
             max_workgroup_size=100,
             progress=progress_callback,
         )
+        self.doc.chunk.model.closeHoles(level=100)
         self.save_project()
 
     def build_texture(self, progress_callback: Callable = percentage_callback):
@@ -467,7 +498,7 @@ class SfM:
         detected_gcps = 0
         for row in self.gcp_reference.content_dict:
             detected_gcps += row["Detected"]
-        percentage_detected_gcps = detected_gcps / total_gcps
+        percentage_detected_gcps = detected_gcps / max(1, total_gcps)
 
         dataframe = DataFrame(
             [
@@ -607,23 +638,13 @@ class SfM:
 
         df.to_csv(self.cfg["asfm"]["fov_ref"], index=False, header=True)
 
-    def capture_view(self):
-        ortho_fname = self.cfg["asfm"]["ortho_path"]
-        save_path = self.cfg["asfm"]["preview"]
-        # # Open the file:
-        with rio.open(ortho_fname, "r") as raster:
-            # Read the grid values into numpy arrays
-            red = raster.read(1, masked=True)
-            green = raster.read(2, masked=True)
-            blue = raster.read(3, masked=True)
-            alpha = raster.read(4, masked=True)
-            # Create RGBA natural color composite
-            rgba = np.dstack((red, green, blue, alpha))
-            width = self.cfg["asfm"]["max_wid"]
-            r = float(width) / rgba.shape[1]
-            dim = (width, int(rgba.shape[0] * r))
-            # perform the actual resizing of the image
-            resized = cv2.resize(rgba, dim, interpolation=cv2.INTER_AREA)
-            pilimg = Image.fromarray(resized)
-            dpi = self.cfg["asfm"]["dpi"]
-            pilimg.save(save_path, dpi=(dpi, dpi))
+    def export_report(self, progress_callback: Callable = percentage_callback):
+        self.doc.chunk.exportReport(
+            path=f"{self.cfg['batchdata']['autosfm']}/{self.cfg['general']['batch_id']}.pdf",
+            title=self.cfg["general"]["batch_id"],
+            description="report",
+            font_size=12,
+            page_numbers=True,
+            include_system_info=True,
+            progress=progress_callback,
+        )

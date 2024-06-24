@@ -70,7 +70,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "asfm",
         "relative_path": asfm_rel,
-        "present": asfm_ex
+        "present": asfm_ex,
     }
     asfm_list.append(asfm_dict)
     # PSX project directory
@@ -81,7 +81,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "proj_dir",
         "relative_path": proj_dir_rel,
-        "present": proj_dir_ex
+        "present": proj_dir_ex,
     }
     asfm_list.append(proj_dir_dict)
     # Metashape project psx file
@@ -92,7 +92,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "proj_path",
         "relative_path": proj_path_rel,
-        "present": proj_path_ex
+        "present": proj_path_ex,
     }
     asfm_list.append(proj_path_dict)
     # Downscaled photos
@@ -103,7 +103,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "down_photos",
         "relative_path": down_photos_rel,
-        "present": down_photos_ex
+        "present": down_photos_ex,
     }
     asfm_list.append(down_photos_dict)
     # Downscaled masks
@@ -114,7 +114,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "down_masks",
         "relative_path": down_masks_rel,
-        "present": down_masks_ex
+        "present": down_masks_ex,
     }
     asfm_list.append(down_masks_dict)
     # References
@@ -125,7 +125,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "refs",
         "relative_path": refs_rel,
-        "present": refs_ex
+        "present": refs_ex,
     }
     asfm_list.append(refs_dict)
     # GCP ref
@@ -136,7 +136,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "gcp_ref",
         "relative_path": gcp_ref_rel,
-        "present": gcp_ref_ex
+        "present": gcp_ref_ex,
     }
     asfm_list.append(gcp_ref_dict)
     # Camera reference
@@ -147,7 +147,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "cam_ref",
         "relative_path": cam_ref_rel,
-        "present": cam_ref_ex
+        "present": cam_ref_ex,
     }
     asfm_list.append(cam_ref_dict)
     # Error Reference
@@ -158,7 +158,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "err_ref",
         "relative_path": err_ref_rel,
-        "present": err_ref_ex
+        "present": err_ref_ex,
     }
     asfm_list.append(err_ref_dict)
     # FOV reference
@@ -169,7 +169,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "fov_ref",
         "relative_path": fov_ref_rel,
-        "present": fov_ref_ex
+        "present": fov_ref_ex,
     }
     asfm_list.append(fov_ref_dict)
     # Ortho directory
@@ -180,7 +180,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "orthodir",
         "relative_path": orthodir_rel,
-        "present": orthodir_ex
+        "present": orthodir_ex,
     }
     asfm_list.append(orthodir_dict)
     # Ortho tiff
@@ -191,7 +191,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "ortho_path",
         "relative_path": ortho_path_rel,
-        "present": ortho_path_ex
+        "present": ortho_path_ex,
     }
     asfm_list.append(ortho_path_dict)
     # DEM directory
@@ -202,7 +202,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "demdir",
         "relative_path": demdir_rel,
-        "present": demdir_ex
+        "present": demdir_ex,
     }
     asfm_list.append(demdir_dict)
     # DEM tiff
@@ -213,7 +213,7 @@ def autosfm_present(cfg: DictConfig) -> None:
         "main_dir": "autosfm",
         "item": "dem_path",
         "relative_path": dem_path_rel,
-        "present": dem_path_ex
+        "present": dem_path_ex,
     }
     asfm_list.append(dem_path_dict)
     # Preview image
@@ -232,7 +232,6 @@ def autosfm_present(cfg: DictConfig) -> None:
 
 
 def parse_and_generate_config(config):
-
     data_dir = config["data"]["datadir"]
     batch_id = config["general"]["batch_id"]
     gcp_dir = config["gcp_dir"]
@@ -253,10 +252,12 @@ def parse_and_generate_config(config):
 
     if state_id == "NC":
         gcp_reference_path = os.path.join(
-            gcp_dir, f"GroundControlPoints_NC_2022-07-14_elongated.csv")
+            gcp_dir, f"GroundControlPoints_NC_2022-07-14_elongated.csv"
+        )
     elif state_id == "MD":
         gcp_reference_path = os.path.join(
-            gcp_dir, f"GroundControlPoints_MD_2022-06-21_elongated.csv")
+            gcp_dir, f"GroundControlPoints_MD_2022-06-21_elongated.csv"
+        )
 
     config["photo_directory"] = photo_directory
     config["masks_directory"] = masks_directory
@@ -269,63 +270,63 @@ def parse_and_generate_config(config):
     if not config.get("project_path", ""):
         project_path = os.path.join(batch_autosfm, "project")
         make_dir(project_path)
-        config["project_path"] = os.path.join(project_path,
-                                              config["project_name"] + ".psx")
+        config["project_path"] = os.path.join(
+            project_path, config["project_name"] + ".psx"
+        )
 
     if not config.get("camera_export_path", ""):
         reference_path = os.path.join(batch_autosfm, "reference")
         make_dir(reference_path)
-        config["camera_export_path"] = os.path.join(reference_path,
-                                                    "camera_reference.csv")
+        config["camera_export_path"] = os.path.join(
+            reference_path, "camera_reference.csv"
+        )
 
     if not config.get("gcp_export_path", ""):
         reference_path = os.path.join(batch_autosfm, "reference")
         make_dir(reference_path)
-        config["gcp_export_path"] = os.path.join(reference_path,
-                                                 "gcp_reference.csv")
+        config["gcp_export_path"] = os.path.join(reference_path, "gcp_reference.csv")
 
     if not config.get("error_statistics_path", ""):
         reference_path = os.path.join(batch_autosfm, "reference")
         make_dir(reference_path)
-        config["error_statistics_path"] = os.path.join(reference_path,
-                                                       "error_statistics.csv")
+        config["error_statistics_path"] = os.path.join(
+            reference_path, "error_statistics.csv"
+        )
 
-    if config["dem"]["enabled"] and config['dem']["export"]["enabled"]:
+    if config["dem"]["enabled"] and config["dem"]["export"]["enabled"]:
         dem_config = config["dem"]["export"]
         if not dem_config.get("path", ""):
             dem_image_path = os.path.join(batch_autosfm, "dem")
             make_dir(dem_image_path)
             dem_config["path"] = os.path.join(dem_image_path, "dem.tif")
-        config['dem']["export"] = dem_config
+        config["dem"]["export"] = dem_config
 
-    if config["orthomosaic"]["enabled"] and config['orthomosaic']["export"][
-            "enabled"]:
+    if config["orthomosaic"]["enabled"] and config["orthomosaic"]["export"]["enabled"]:
         orthomosaic_config = config["orthomosaic"]["export"]
         if not orthomosaic_config.get("path", ""):
             image_path = os.path.join(batch_autosfm, "ortho")
             make_dir(image_path)
-            orthomosaic_config["path"] = os.path.join(image_path,
-                                                      "orthomosaic.tif")
-        config['orthomosaic']["export"] = orthomosaic_config
+            orthomosaic_config["path"] = os.path.join(image_path, "orthomosaic.tif")
+        config["orthomosaic"]["export"] = orthomosaic_config
 
     if config["camera_fov"]["enabled"]:
         if not config["camera_fov"].get("camera_fov_path", ""):
             reference_path = os.path.join(batch_autosfm, "reference")
             make_dir(reference_path)
             config["camera_fov"]["camera_fov_path"] = os.path.join(
-                reference_path, "fov.csv")
+                reference_path, "fov.csv"
+            )
 
     if config["downscale"]["enabled"]:
         assert not config["downscale"].get(
-            "destination",
-            ""), "The downscale path should not be manualy specified."
+            "destination", ""
+        ), "The downscale path should not be manualy specified."
         downscale_dir = os.path.join(batch_autosfm, "downscaled_photos")
         make_dir(downscale_dir)
         config["downscale"]["destination"] = downscale_dir
 
         if config["use_masking"]:
-            downscaled_mask_dir = os.path.join(batch_autosfm,
-                                               "downscaled_masks")
+            downscaled_mask_dir = os.path.join(batch_autosfm, "downscaled_masks")
             make_dir(downscaled_mask_dir)
             config["downscale"]["mask_destination"] = downscaled_mask_dir
 
