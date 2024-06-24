@@ -27,7 +27,7 @@ download_data:
   download_sh: ${movedata.workdir}/scripts/DownloadBatch.sh
   input_data: # Must be present in blob container
     - images
-    - masks
+    # - masks
     - plant-detections
     
 

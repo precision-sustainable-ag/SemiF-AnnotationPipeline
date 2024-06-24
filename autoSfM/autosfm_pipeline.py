@@ -5,7 +5,8 @@ from omegaconf import DictConfig
 
 from autoSfM.auto_sfm.config_utils import autosfm_present, create_config
 from autoSfM.auto_sfm.metashape_utils import SfM
-from autoSfM.auto_sfm.resize import resize_masks, resize_photo_diretory
+from autoSfM.auto_sfm.resize import (create_masks, resize_masks,
+                                     resize_photo_diretory)
 
 # Set the logger
 log = logging.getLogger(__name__)
@@ -46,14 +47,19 @@ def main(cfg: DictConfig) -> None:
             if cfg["asfm"]["downscale"]["enabled"]:
                 log.info(f"Resizing images")
                 resize_photo_diretory(cfg)
-
-                if cfg["asfm"]["use_masking"]:
-                    log.info(f"Resizing masks")
-                    resize_masks(cfg)
-
+                # log.info(f"Resizing masks")
+                # resize_masks(cfg)
         except Exception as e:
             log.exception(f"Failed to downsize images. Exiting.")
             exit(1)
+
+        if cfg["asfm"]["use_masking"]:
+            try:
+                log.info(f"Creating masks")
+                create_masks(cfg)
+            except Exception as e:
+                log.exception(f"Failed to create masks. Exiting.")
+                exit(1)
 
     # Initialize pipeline
     log.info(f"Initializing SfM")
@@ -209,11 +215,11 @@ def main(cfg: DictConfig) -> None:
             exit(1)
 
     # Export preview view of ortho
-    if cfg.asfm.preview_img:
+    if cfg.asfm.export_report:
         try:
-            log.info(f"Exporting preview image")
-            pipeline.capture_view()
+            log.info(f"Exporting report")
+            pipeline.export_report()
         except Exception as e:
-            log.exception(f"Failed to export preview image. Exiting")
+            log.exception(f"Failed to export report. Exiting")
             exit(1)
     log.info(f"AutoSfM Complete")

@@ -1,3 +1,5 @@
 database
 results
+figures
 !.gitignore
+*.ipynb
