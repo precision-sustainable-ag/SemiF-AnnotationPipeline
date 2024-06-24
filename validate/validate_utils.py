@@ -1,6 +1,5 @@
 import json
-import os
-import re
+import logging
 import shutil
 import sys
 from pathlib import Path
@@ -86,6 +85,35 @@ def save_original_full_res_images(
         dst_dir.mkdir(exist_ok=True, parents=True)
         shutil.copy2(src_path, dst_dir)
 
+def resize_bboxes(bboxes, original_width, original_height, new_width, new_height):
+    """
+    Resize a list of bounding boxes according to the new image dimensions.
+
+    Parameters:
+    - bboxes: A list of bounding boxes, where each bounding box is in (x, y, w, h) format.
+    - original_width: The original width of the image.
+    - original_height: The original height of the image.
+    - new_width: The desired width of the resized image.
+    - new_height: The desired height of the resized image.
+
+    Returns:
+    - resized_bboxes: A list of resized bounding boxes in (x, y, w, h) format.
+    """
+    # Calculate the scaling factors
+    scale_x = new_width / original_width
+    scale_y = new_height / original_height
+
+    # Resize the bounding boxes
+    resized_bboxes = []
+    for bbox in bboxes:
+        x, y, w, h = bbox
+        resized_x = int(x * scale_x)
+        resized_y = int(y * scale_y)
+        resized_w = int(w * scale_x)
+        resized_h = int(h * scale_y)
+        resized_bboxes.append((resized_x, resized_y, resized_w, resized_h))
+
+    return resized_bboxes
 
 def plot_bboxes(
     df,
@@ -129,7 +157,18 @@ def plot_bboxes(
             # image = plt.imread(image_path)
             image = cv2.imread(str(image_path))
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            plt.imshow(image)
+
+            # Get the original dimensions of the image
+            original_height, original_width = image.shape[:2]
+            new_width = original_width//5
+            new_height = original_height//5
+            
+            # Resize the image
+            resized_image = cv2.resize(image, (new_width, new_height))
+
+            resized_bboxes = resize_bboxes(bboxes, original_width, original_height, new_width, new_height)
+
+            plt.imshow(resized_image)
 
             if not axis:
                 ax.axis(False)
@@ -139,7 +178,7 @@ def plot_bboxes(
             fontsize = (
                 fig.get_figwidth() + fig.get_figheight()
             ) * 0.5  # Adjust the scaling factor as desired
-            for i, bbox in enumerate(bboxes):
+            for i, bbox in enumerate(resized_bboxes):
                 xmin, ymin, xmax, ymax = bbox
                 w = xmax - xmin
                 h = ymax - ymin
@@ -161,7 +200,7 @@ def plot_bboxes(
                     rx, ry = box.get_xy()
                     ax.text(
                         rx,
-                        (ry - 130),
+                        (ry - 40),
                         str(labels[i]),
                         verticalalignment="top",
                         color="white",
@@ -241,10 +280,18 @@ def plot_masks(
         fig, (ax1, ax2, ax3) = plt.subplots(
             1, 3, figsize=figsize, facecolor="none" if transparent_fc else "w"
         )
+        original_height, original_width = rgbimg.shape[:2]
+        new_width = original_width//5
+        new_height = original_height//5
+        
+        # Resize the image
+        resized_rgbimg = cv2.resize(rgbimg, (new_width, new_height))
+        resized_rgbmask = cv2.resize(rgbmask, (new_width, new_height))
+        resized_rgbinstance = cv2.resize(rgbinstance, (new_width, new_height))
 
-        ax1.imshow(rgbimg)
-        ax2.imshow(rgbmask)
-        ax3.imshow(rgbinstance)
+        ax1.imshow(resized_rgbimg)
+        ax2.imshow(resized_rgbmask)
+        ax3.imshow(resized_rgbinstance)
 
         ax1.axis(False)
         ax2.axis(False)
