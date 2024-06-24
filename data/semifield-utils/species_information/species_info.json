@@ -1264,6 +1264,62 @@
                 168,
                 70
             ]
+        },
+        "AMSP": {
+            "class_id": 45,
+            "USDA_symbol": "AMSP",
+            "EPPO": "AMASP",
+            "group": "Dicot",
+            "class": "Magnoliopsida",
+            "subclass": "Caryophyllidae",
+            "order": "Caryophyllales",
+            "family": "Amaranthaceae",
+            "genus": "Amaranthus",
+            "species": "spinosus",
+            "common_name": "Spiny amaranth",
+            "authority": "Linnaeus",
+            "growth_habit": "forb/herb",
+            "duration": "annual",
+            "collection_location": "MD",
+            "category": "summer weed",
+            "collection_timing": "summer",
+            "multi_species_USDA_symbol": null,
+            "link": "https://plants.usda.gov/home/plantProfile?symbol=AMSP",
+            "note": null,
+            "hex": "#968de9",
+            "rgb": [
+                150,
+                141,
+                233
+            ]
+        },
+        "TRPO2": {
+            "class_id": 46,
+            "USDA_symbol": "TRPO2",
+            "EPPO": "TRTPO",
+            "group": "Dicot",
+            "class": "Magnoliopsida",
+            "subclass": "Caryophyllidae",
+            "order": "Caryophyllales",
+            "family": "Aizoaceae",
+            "genus": "Trianthema",
+            "species": "portulacastrum",
+            "common_name": "desert horsepurslane",
+            "authority": "Linnaeus",
+            "growth_habit": "forb/herb",
+            "duration": "annual/perennial",
+            "collection_location": "TX",
+            "category": "summer weed",
+            "collection_timing": "summer",
+            "multi_species_USDA_symbol": null,
+            "link": "https://plants.usda.gov/home/plantProfile?symbol=TRPO2",
+            "note": null,
+            "hex": "#d88633",
+            "rgb": [
+                216,
+                134,
+                51
+            ]
         }
     },
     "Notes": {
