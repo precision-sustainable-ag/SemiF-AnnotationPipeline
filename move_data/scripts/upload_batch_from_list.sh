@@ -17,13 +17,11 @@ for line in `cat $BATCHES`; do
 	asfm="/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/$line/autosfm"
 	meta_masks="/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/$line/meta_masks"
 	metadata="/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/$line/metadata"
-	jsonmetadata="/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/$line/$line.json"
 		
 	
 	azcopy copy "${asfm-}" "${dst-}" --recursive
 	azcopy copy "${meta_masks-}" "${dst-}" --recursive
 	azcopy copy "${metadata-}" "${dst-}" --recursive
-	azcopy copy "${jsonmetadata-}" "${jsondst-}"
 	echo "Done copying batch $line to Azure blob container semifield-developed-images"
 	echo
 
