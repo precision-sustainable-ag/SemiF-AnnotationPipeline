@@ -358,8 +358,8 @@ class ImageMetadata:
     Contrast: int
     Saturation: int
     Sharpness: int
-    LensSpecification: list
     LensModel: str
+    LensSpecification: Optional[list] = None
     BodySerialNumber: Optional[str] = None
     MakerNote: Optional[str] = None
     ImageDescription: Optional[str] = None
@@ -567,7 +567,7 @@ class ImageData(Image):
             "bboxes": [asdict(x) for x in self.bboxes],
             # "bboxes": [x.config for x in self.bboxes],
             "cutout_ids": self.cutout_ids,
-            "rel_path": self.rel_path
+            "rel_path": self.rel_path,
             # "schema_version": self.schema_version
         }
 
