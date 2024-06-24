@@ -118,13 +118,15 @@ class ListBatches:
 
 
 class BatchProcessor:
-    def __init__(self, container_list):
+    def __init__(self, cfg):
+
         """Summarizes the processed and unprocessed batches by filtering the contents of container_contents.txt
 
         Args:
             container_list (str): file path to container_list.txt
         """
-        self.folders = self.read_container_list(container_list)
+        self.container_list = cfg.movedata.find_missing.container_list
+        self.folders = self.read_container_list(self.container_list)
         # Sub-folders that must be present to be considered "processed"
         self.necessary_subfolders = ["autosfm", "meta_masks", "metadata"]
         self.results = {}
@@ -134,25 +136,28 @@ class BatchProcessor:
         # Date ranges for each "season" by state
         self.date_ranges = {
             "MD": {
-                "weeds 2022": ("2022-03-04", "2022-10-01"),
+                "weeds 2022": ("2022-03-04", "2022-09-17"),
                 "cover crops 2022/2023": ("2022-10-20", "2023-04-25"),
                 "cash crops 2023": ("2023-05-12", "2023-07-07"),
                 "weeds 2023": ("2023-07-17", "2023-09-17"),
-                "cover crops 2023/2024": ("2023-09-18", "2024-04-25"),
+                "cover crops 2023/2024": ("2023-09-18", "2024-05-16"),
+                "weeds 2024": ("", ""),
             },
             "NC": {
-                "weeds 2022": ("2022-03-04", "2022-10-01"),
+                "weeds 2022": ("2022-03-04", "2022-09-23"),
                 "cover crops 2022/2023": ("2022-10-11", "2023-03-30"),
                 "cash crops 2023": ("2023-06-06", "2023-07-25"),
-                "weeds 2023": ("2023-08-21", "2023-10-09"),
-                "cover crops 2023/2024": ("2023-10-10", "2024-4-25"),
+                "weeds 2023": ("2023-08-21", "2023-10-10"),
+                "cover crops 2023/2024": ("2023-10-11", "2024-03-14"),
+                "weeds 2024": ("", ""),
             },
             "TX": {
-                "weeds 2022": ("2022-03-04", "2022-10-01"),
+                "weeds 2022": ("2022-03-04", "2022-10-24"),
                 "cover crops 2022/2023": ("2022-10-25", "2023-04-04"),
                 "cash crops 2023": ("2023-05-08", "2023-08-01"),
                 "weeds 2023": ("2023-08-04", "2023-10-19"),
-                "cover crops 2023/2024": ("2023-10-20", "2024-4-25"),
+                "cover crops 2023/2024": ("2023-10-20", "2024-03-01"),
+                "weeds 2024": ("TX_2024-03-26", ""),
             },
         }
 
