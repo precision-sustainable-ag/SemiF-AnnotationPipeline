@@ -11,7 +11,6 @@ from omegaconf import DictConfig
 
 class SampleImageData:
     def __init__(self, cfg, df):
-        self.cfg = cfg
         self.df = df
         self.longterm_storage = cfg.data.longterm_storage
         self.cutout_n = 5  # per species
@@ -71,8 +70,12 @@ class SampleImageData:
 
 class ParquetDataProcessor:
     def __init__(self, cfg):
-        self.cfg = cfg
-        self.db_path = self.get_most_recent_parquet_file()
+        self.database_parquet = cfg.data.database_parquet
+        self.repo_database = cfg.data.repo_database
+        # self.db_path = self.get_most_recent_parquet_file()
+        self.db_path = Path(
+            "/home/psa_images/SemiF-AnnotationPipeline/repo_overview/database/concatenated_20240425.parquet"
+        )
         self.setup_data_results_dirs()
         self.df = None
         self.get_formatted_season2datetime(dict(cfg.date_ranges))
@@ -87,7 +90,7 @@ class ParquetDataProcessor:
         most_recent_file = None
         latest_timestamp = None
 
-        for file in os.listdir(self.cfg.data.database_parquet):
+        for file in os.listdir(self.database_parquet):
             if file.endswith("parquet"):
                 parts = file.split("_")
                 if len(parts) > 1:
@@ -103,14 +106,14 @@ class ParquetDataProcessor:
                         continue
 
         return (
-            Path(self.cfg.data.database_parquet, most_recent_file)
+            Path(self.database_parquet, most_recent_file)
             if most_recent_file
             else "No recent file found."
         )
 
     def setup_data_results_dirs(self):
         timestamp = datetime.now().strftime("%Y%m%d")
-        results_dir = Path(self.cfg.data.repo_database, "results", f"data_{timestamp}")
+        results_dir = Path(self.repo_database, "results", f"data_{timestamp}")
 
         self.metrics_results_dir = Path(results_dir, "metrics")
         self.metrics_results_dir.mkdir(parents=True, exist_ok=True)
@@ -154,7 +157,7 @@ class ParquetDataProcessor:
 
         return df
 
-    def read_parquet_file(self):
+    def read_parquet_file(self, totals=True):
         self.df = pd.read_parquet(self.db_path)
         self.df["state_id"] = self.df.batch_id.str.split("_", expand=False).str[0]
         self.df["date"] = self.df.batch_id.str.split("_", expand=False).str[1]
@@ -166,10 +169,16 @@ class ParquetDataProcessor:
         self.df["general_season"] = self.df["season"].apply(self.assign_season)
 
         self.df = self.fix_cash_crops(self.df)
+        self.df = self.fix_weeds(self.df)
+        if totals:
+            self.total_species = self.df[self.df["common_name"] != "Colorchecker"][
+                "common_name"
+            ].nunique()
+            self.image_total = self.df["image_id"].sum()
 
-        self.total_species = self.df[self.df["common_name"] != "Colorchecker"][
-            "common_name"
-        ].nunique()
+    def fix_weeds(self, df):
+        df.loc[df.common_name == "Horseweed", "general_season"] = "weeds"
+        return df
 
     def fix_cash_crops(self, df):
         df.loc[df.common_name == "Soybean", "general_season"] = "cash crops"
@@ -189,8 +198,6 @@ class ParquetDataProcessor:
         )
 
         cdf.to_csv(f"{self.metrics_results_dir}/images_by_common_name.csv")
-
-        self.image_total = cdf["image_id"].sum()
 
     def table_for_pub(self):
         # sdf = self.df.drop_duplicates("image_id")
@@ -270,36 +277,7 @@ class ParquetDataProcessor:
         cdf = cdf[cdf["common_name"] != "Colorchecker"].reset_index(drop=True)
         print(cdf)
 
-        # cdf.to_csv(f"{self.metrics_results_dir}/cutouts_by_common_name_and_state.csv")
-        # if save_fig:
-        #     # print(sdf)
-        #     sns.set_context("notebook")
-        #     sns.set(font_scale=2)
-        #     g = sns.catplot(
-        #         data=cdf,
-        #         x="cutout_id",
-        #         y="common_name",
-        #         orient="horizontal",
-        #         col="state_id",
-        #         sharey=False,
-        #         kind="bar",
-        #         height=10,
-        #     )
-        #     g.set(xlabel="", ylabel="")
-        #     g.set_titles(col_template="{col_name}")
-        #     g.fig.subplots_adjust(top=0.9)  # adjust the Figure in rp
-        #     g.fig.suptitle("Full Bench Cutouts by Species and State")
-        #     for ax in g.axes.ravel():
-        #         # add annotations
-        #         for c in ax.containers:
-        #             # labels = [f'{(v.get_width() / 1000):.1f}K' for v in c]
-        #             labels = [int(v.get_width()) for v in c]
-        #             ax.bar_label(c, labels=labels, label_type="edge", fontsize=14)
-        #         ax.margins(y=0.2)
-        #     g.savefig(
-        #         f"{self.figs_results_dir}/cutouts_by_common_name_and_state.png",
-        #         dpi=150,
-        #     )
+
 
     def cutouts_by_common_name_state(self, save_fig=False):
         cdf = self.df.drop_duplicates("cutout_id")
@@ -314,7 +292,7 @@ class ParquetDataProcessor:
         if save_fig:
             # print(sdf)
             sns.set_context("notebook")
-            sns.set(font_scale=2)
+            sns.set_theme(font_scale=2)
             g = sns.catplot(
                 data=cdf,
                 x="cutout_id",
@@ -327,8 +305,8 @@ class ParquetDataProcessor:
             )
             g.set(xlabel="", ylabel="")
             g.set_titles(col_template="{col_name}")
-            g.fig.subplots_adjust(top=0.9)  # adjust the Figure in rp
-            g.fig.suptitle("Full Bench Cutouts by Species and State")
+            g.figure.subplots_adjust(top=0.9)  # adjust the Figure in rp
+            g.figure.suptitle("Full Bench Cutouts by Species and State")
             for ax in g.axes.ravel():
                 # add annotations
                 for c in ax.containers:
@@ -338,6 +316,98 @@ class ParquetDataProcessor:
                 ax.margins(y=0.2)
             g.savefig(
                 f"{self.figs_results_dir}/cutouts_by_common_name_and_state.png",
+                dpi=150,
+            )
+
+    def primary_cutouts_by_common_name_general_season(self, save_fig=False):
+        pcdf = self.df[self.df["is_primary"] == True]
+        gb_pcdf = (
+            pcdf.groupby(["general_season", "common_name"])
+            .cutout_id.count()
+            .reset_index()
+            .sort_values(["general_season", "cutout_id"])
+        )
+        fin_gb_pcdf = gb_pcdf[gb_pcdf["common_name"] != "Colorchecker"].reset_index(
+            drop=True
+        )
+        fin_gb_pcdf.to_csv(
+            f"{self.metrics_results_dir}/primary_cutouts_by_common_name_general_season.csv"
+        )
+
+        if save_fig:
+            sns.set_context("notebook")
+            sns.set_theme(font_scale=2)
+            g = sns.catplot(
+                data=fin_gb_pcdf,
+                x="cutout_id",
+                y="common_name",
+                orient="horizontal",
+                col="general_season",
+                sharey=False,
+                kind="bar",
+                height=14,
+            )
+            g.set(xlabel="", ylabel="")
+            g.set_titles(col_template="{col_name}")
+            g.figure.subplots_adjust(top=0.9)  # adjust the Figure in rp
+            g.figure.suptitle("Cutouts by Species, State, and Primary Status")
+            for ax in g.axes.ravel():
+                # add annotations
+                for c in ax.containers:
+                    # labels = [f'{(v.get_width() / 1000):.1f}K' for v in c]
+                    labels = [int(v.get_width()) for v in c]
+                    ax.bar_label(c, labels=labels, label_type="edge", fontsize=14)
+                ax.margins(y=0.2)
+            g.savefig(
+                f"{self.figs_results_dir}/primary_cutouts_by_common_name_general_season.png",
+                dpi=150,
+            )
+
+    def primary_weed_cutouts_by_common_nameEPPO_state(self, save_fig=False):
+        pcdf = self.df[self.df["is_primary"] == True]
+        pcdf = self.df[self.df["general_season"] == "weeds"]
+        pcdf = pcdf[pcdf["common_name"] != "Unknown"]
+        pcdf = pcdf[pcdf["common_name"] != "Colorchecker"].reset_index(drop=True)
+
+        pcdf["common_name/EPPO"] = pcdf["common_name"] + "/" + pcdf["EPPO"]
+
+        fin_gb_pcdf = (
+            pcdf.groupby(["state_id", "common_name/EPPO"])
+            .cutout_id.count()
+            .reset_index()
+            .sort_values(["state_id", "cutout_id"])
+        )
+
+        fin_gb_pcdf.to_csv(
+            f"{self.metrics_results_dir}/primary_weed_cutouts_by_common_nameEPPO_state.csv"
+        )
+
+        if save_fig:
+            sns.set_context("notebook")
+            sns.set_theme(font_scale=2)
+            g = sns.catplot(
+                data=fin_gb_pcdf,
+                x="cutout_id",
+                y="common_name/EPPO",
+                orient="horizontal",
+                col="state_id",
+                sharey=False,
+                kind="bar",
+                height=14,
+            )
+            g.set(xlabel="", ylabel="")
+            g.set_titles(col_template="{col_name}")
+            g.figure.subplots_adjust(top=0.9)  # adjust the Figure in rp
+            g.figure.suptitle("Primary Cutouts by Common Name/EPPO and state")
+            for ax in g.axes.ravel():
+                # add annotations
+                for c in ax.containers:
+                    # labels = [f'{(v.get_width() / 1000):.1f}K' for v in c]
+                    labels = [int(v.get_width()) for v in c]
+                    ax.bar_label(c, labels=labels, label_type="edge", fontsize=14)
+                ax.margins(y=0.2)
+            g.savefig(
+                f"{self.figs_results_dir}/primary_weed_cutouts_by_common_nameEPPO_state.png",
                 dpi=150,
             )
 
@@ -357,7 +427,7 @@ class ParquetDataProcessor:
         )
         self.total_primary_cutouts = fin_gb_pcdf["cutout_id"].sum()
 
-    def primary_status_cutouts_by_common_name_state(self):
+    def primary_status_cutouts_by_common_name_state(self, save_fig=False):
         gb_pcdf = (
             self.df.groupby(["common_name", "state_id", "is_primary"])
             .cutout_id.count()
@@ -370,6 +440,40 @@ class ParquetDataProcessor:
         fin_gb_pcdf.to_csv(
             f"{self.metrics_results_dir}/primary_status_cutouts_by_common_name_and_state.csv"
         )
+        if save_fig:
+            sns.set_context("notebook")
+            sns.set_theme(
+                context="talk",  # one of {paper, notebook, talk, poster}
+                style="whitegrid",  # one of {darkgrid, whitegrid, dark, white, ticks}
+                font="sans-serif",
+                font_scale=2,
+            )
+            # sns.set_theme(font_scale=2)
+            g = sns.catplot(
+                data=fin_gb_pcdf[fin_gb_pcdf["is_primary"] == True],
+                x="cutout_id",
+                y="common_name",
+                orient="horizontal",
+                col="state_id",
+                sharey=False,
+                kind="bar",
+                height=14,
+            )
+            g.set(xlabel="", ylabel="")
+            g.set_titles(col_template="{col_name}")
+            g.figure.subplots_adjust(top=0.9)  # adjust the Figure in rp
+            g.figure.suptitle("Cutouts by Species, State, and Primary Status")
+            for ax in g.axes.ravel():
+                # add annotations
+                for c in ax.containers:
+                    # labels = [f'{(v.get_width() / 1000):.1f}K' for v in c]
+                    labels = [int(v.get_width()) for v in c]
+                    ax.bar_label(c, labels=labels, label_type="edge", fontsize=14)
+                ax.margins(y=0.2)
+            g.savefig(
+                f"{self.figs_results_dir}/cutouts_by_common_name_state_isprimary_TRUE.png",
+                dpi=150,
+            )
 
     # Function to determine the food type
     @staticmethod
@@ -557,23 +661,25 @@ class ParquetDataProcessor:
         tdf.to_csv(f"{self.metrics_results_dir}/totals.csv", header=False)
 
 
-def main(cfg: DictConfig) -> None:
-    # Example usage
-    processor = ParquetDataProcessor(cfg)
-    processor.read_parquet_file()
-    # processor.table_for_pub()
-    processor.cutouts_by_common_name_state_and_season()
-    # processor.image_by_common_name()
-    # processor.images_by_common_name_state(save_fig=True)
-    # processor.images_by_species_and_season(save_fig=True)
-    # processor.cutouts_by_common_name()
-    # processor.cutouts_by_common_name_state(save_fig=True)
-    # processor.primary_cutouts_by_common_name()
-    # processor.primary_status_cutouts_by_common_name_state()
+# def main(cfg: DictConfig) -> None:
+#     # Example usage
+#     processor = ParquetDataProcessor(cfg)
+#     processor.read_parquet_file()
+#     # # processor.table_for_pub()
+#     processor.cutouts_by_common_name_state_and_season()
+#     processor.image_by_common_name()
+#     processor.images_by_common_name_state(save_fig=True)
+#     processor.images_by_species_and_season(save_fig=True)
+#     processor.cutouts_by_common_name()
+#     processor.cutouts_by_common_name_state(save_fig=True)
+#     processor.primary_cutouts_by_common_name()
+#     processor.primary_status_cutouts_by_common_name_state(save_fig=True)
+#     processor.primary_cutouts_by_common_name_general_season(save_fig=True)
+#     processor.primary_weed_cutouts_by_common_nameEPPO_state(save_fig=True)
 
-    # processor.cutouts_by_species_and_season(save_fig=True)
-    # processor.unique_batches_by_state_season(save_fig=True)
-    # processor.totals()
+#     processor.cutouts_by_species_and_season(save_fig=True)
+#     processor.unique_batches_by_state_season(save_fig=True)
+#     processor.totals()
 
-    # sampler = SampleImageData(cfg, processor.df)
-    # sampler.copy_cutouts()
+#     # sampler = SampleImageData(cfg, processor.df)
+#     # sampler.copy_cutouts()
