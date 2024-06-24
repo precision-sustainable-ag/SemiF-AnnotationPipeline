@@ -12,7 +12,6 @@ def concatenate_csv_from_folders_and_save(main_folder_path, output_file_path):
         x for x in Path(main_folder_path).glob("*") if x.name.startswith(batch_pref)
     ]
     csv_files = [x for batch in cutout_batches for x in batch.glob("*.csv")]
-    print(len(csv_files))
 
     all_dfs = []
 
@@ -33,12 +32,36 @@ def concatenate_csv_from_folders_and_save(main_folder_path, output_file_path):
     return concatenated_df
 
 
+def concat_parquets(longtermparquetpath, growdataparquetpath):
+    df1 = pd.read_parquet(longtermparquetpath)
+    print("Longterm Parquet loaded")
+    df2 = pd.read_parquet(growdataparquetpath)
+    print("GROWDATA Parquet loaded")
+    df = pd.concat([df1, df2])
+    print("DFs concatenated")
+    datetimestr = Path(growdataparquetpath).stem.split("_")[-1]
+    savedir = "database"
+    name = f"concatenated_{datetimestr}.parquet"
+    print(Path(savedir, name))
+    df.to_parquet(Path(savedir, name), index=False)
+
+    print("DF saved")
+    print(Path(savedir, name).exists())
+
+
+
+
+
 if __name__ == "__main__":
-    cutout_dir = "/mnt/research-projects/s/screberg/longterm_images/semifield-cutouts"
-    # cutout_dir = "/home/psa_images/SemiF-AnnotationPipeline/data/semifield-cutouts/"
+    # cutout_dir = "/mnt/research-projects/s/screberg/GROW_DATA/semifield-cutouts"
+    # cutout_dir = "/mnt/research-projects/s/screberg/longterm_images/semifield-cutouts"
+    longtermparquetpath = "database/updated_repo_LONGTERM_IMAGES_20240425.parquet"
+    growdataparquetpath = "database/updated_repo_GROW_DATA_20240425.parquet"
+
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d")
     results_dir = Path("database/")
     results_dir.mkdir(exist_ok=True, parents=True)
-    output_file_path = Path(results_dir, f"updated_repo_{timestamp}.parquet")
-    large_df = concatenate_csv_from_folders_and_save(cutout_dir, str(output_file_path))
+    output_file_path = Path(results_dir, f"updated_repo_LONGTERM_IMAGES_{timestamp}.parquet")
+    # large_df = concatenate_csv_from_folders_and_save(cutout_dir, str(output_file_path))
+    concat_parquets(longtermparquetpath, growdataparquetpath)
