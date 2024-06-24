@@ -195,9 +195,30 @@ class BBoxMapper:
 
         # Create a list of chunks for each image_id
         image_id_to_chunks = {image.image_id: [] for image in self.images}
-        for chunk in self.doc.chunks:
+        chunck_labels = [chunk.label for chunk in self.doc.chunks]
+        if "Merged Chunk" in chunck_labels:
+            chunk = self.doc.chunks[-1]
+            log.info(f"Using 'Merged Chunk' for processing. {chunk}")
+            # for chunk in self.doc.chunks:
             for camera in chunk.cameras:
-                image_id_to_chunks[camera.label].append(chunk)
+                # print(camera.label)
+                if camera.label in image_id_to_chunks:
+                    image_id_to_chunks[camera.label].append(chunk)
+        elif (len(chunck_labels) == 1) and ("Chunk 1" == chunck_labels[0]):
+            chunk = self.doc.chunks[0]
+            log.info(f"Using 'Chunk 1' for processing. {chunk}")
+            # for chunk in self.doc.chunks:
+            for camera in chunk.cameras:
+                # print(camera.label)
+                if camera.label in image_id_to_chunks:
+                    image_id_to_chunks[camera.label].append(chunk)
+
+        else:
+            for chunk in self.doc.chunks:
+                for camera in chunk.cameras:
+                    if camera.label in image_id_to_chunks:
+                        image_id_to_chunks[camera.label].append(chunk)
+
         for image in tqdm(self.images, desc="Mapping: Projecting 2D to 3D"):
             image_id = image.image_id
 
@@ -218,7 +239,7 @@ class BBoxMapper:
                             break
                     except Exception as e:
                         log.warning(
-                            f"Error mapping bbox for image_id {image_id} using chunk {chunk}. Reason: {str(e)}"
+                            f"Error mapping bbox for image_id {image_id} using chunk {chunk}. Reason: {str(e)}\nGlobal coordinates: {global_coordinates}."
                         )
                 if not global_coordinates:
                     log.critical(
@@ -248,15 +269,15 @@ class BBoxMapper:
 
             ray_origin = camera.center
             if ray_origin is None:
-                raise ValueError(f"Camera center is None. Image ID is {image_id}.")
+                log.critical(f"Camera center is None. Image ID is {image_id}.")
 
             coords_2D = Metashape.Vector([x_coord, y_coord])
             ray_target = camera.unproject(coords_2D)
             point_internal = surface.pickPoint(ray_origin, ray_target)
 
             if point_internal is None:
-                log.critical(
-                    f"Point internal is None. Image ID is {image_id}. Ray target is {ray_target}"
+                log.warning(
+                    f"Point internal is None. Image ID is {image_id}. Ray origin is {ray_origin}. Ray target is {ray_target}. 2D coordinates {co}: {coords_2D}, the missing coordinate will used based on the other present coordinates."
                 )
 
                 # global_coord = np.array([0, 0])
@@ -270,12 +291,14 @@ class BBoxMapper:
                 )[:2]
             mapped_coordinates.append(global_coord)
 
-        return BoxCoordinates(
+        bbox_coordinates = BoxCoordinates(
             np.array(mapped_coordinates[0]),
             np.array(mapped_coordinates[2]),
             np.array(mapped_coordinates[1]),
             np.array(mapped_coordinates[3]),
         )
+
+        return bbox_coordinates
 
     def map_og(self):
         ### Deprecated

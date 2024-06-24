@@ -16,6 +16,7 @@ import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 # import torch
 from colormap import rgb2hex
 from dacite import Config, from_dict
@@ -61,7 +62,8 @@ def save_json(path, data):
 def create_dataclasses(metadir, cfg):
     labels = sorted([str(x) for x in (metadir).glob("*.json")])
     return_list = []
-    procs = int(cpu_count() / 2)  # - cfg.segment.cpus_left
+    procs = len(os.sched_getaffinity(0)) // cfg.segment.cpus_left
+    # procs = int(cpu_count() / 2)  # - cfg.segment.cpus_left
     with Pool(processes=procs) as pool:
         imap_unordered_it = pool.imap_unordered(get_image_meta, labels)
         for x in imap_unordered_it:

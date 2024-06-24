@@ -2,6 +2,7 @@ import copy
 import logging
 import os
 import time
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
@@ -13,15 +14,10 @@ import pandas as pd
 from omegaconf import DictConfig
 from semif_utils.datasets import BatchMetadata, Cutout, SegmentData
 from semif_utils.segment_species import Segment
-from semif_utils.segment_utils import GenCutoutProps, generate_new_color, prep_bbox
-from semif_utils.utils import (
-    apply_mask,
-    create_dataclasses,
-    cutoutmeta2csv,
-    get_upload_datetime,
-    reduce_holes,
-    save_json,
-)
+from semif_utils.segment_utils import (GenCutoutProps, generate_new_color,
+                                       prep_bbox)
+from semif_utils.utils import (apply_mask, create_dataclasses, cutoutmeta2csv,
+                               get_upload_datetime, reduce_holes, save_json)
 from tqdm import tqdm
 
 log = logging.getLogger(__name__)
@@ -343,13 +339,9 @@ def main(cfg: DictConfig) -> None:
 
         log.info(f"Multi-Processing image data for batch {batch_dir.name}.")
         procs = int(len(os.sched_getaffinity(0)) / 6)
-        with Pool(processes=procs) as p:
-            results = p.imap_unordered(svg.cutout_pipeline, payloads)
-            try:
-                for _ in results:
-                    pass
-            except TimeoutError:
-                print("A task took too long and was terminated.")
+        with ProcessPoolExecutor(max_workers=procs) as executor:
+            # Submit tasks using map
+            executor.map(svg.cutout_pipeline, payloads)
         log.info(f"Finished segmenting vegetation for batch {batch_dir.name}")
     else:
         # Single process
