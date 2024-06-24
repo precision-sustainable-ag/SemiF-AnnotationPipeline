@@ -24,7 +24,7 @@ NOTES = {
     "Brassicas class contains 4 species - Brassica napus, Brassica rapa, Brassica juncea, Brassica hirta"
 }
 
-with open("species_info.json") as outfile:
+with open("species_info.json", "r") as outfile:
     data = json.load(outfile)
 spec = data["species"]
 class_ids = [
@@ -42,7 +42,7 @@ usda_symbols = [
     'GLMA4', 'AMHY', 'CHAL7', 'PADI', 'DAST', 'ABTH', 'SEPU8', 'SEFA',
     'ERCA20', 'ZEA', 'plant', 'colorchecker', 'VIVI', 'PISA6', 'TRIN3',
     'TRPR2', 'BRASS2', 'RASA2', 'SECE', 'TRITI2', 'TRAE', 'AVSA', 'HORDE',
-    'AVST2', 'GOHI', 'URRE2'
+    'AVST2', 'GOHI', 'URRE2', "SISP", "IPLA", "AMSP", "TRPO2"
 ]
 
 hex = [
