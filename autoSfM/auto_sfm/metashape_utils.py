@@ -5,11 +5,7 @@ from collections import Counter
 from copy import deepcopy
 from typing import Callable
 
-import cv2
 import Metashape as ms
-import numpy as np
-import rasterio as rio
-from PIL import Image
 
 from .callbacks import percentage_callback
 from .dataframe import DataFrame
@@ -22,6 +18,7 @@ log = logging.getLogger(__name__)
 class SfM:
     def __init__(self, cfg):
         self.cfg = cfg
+        self.markerbit = self.get_target_bit(cfg)
         self.metashape_key = cfg.general.metashape_key
         self.doc = self.load_or_create_project(cfg["asfm"]["proj_path"])
         self.metashape_key = cfg.general.metashape_key
@@ -31,6 +28,23 @@ class SfM:
             else 2 ** len(ms.app.enumGPUDevices()) - 1
         )
 
+    def get_target_bit(self, cfg: dict) -> ms.TargetType:
+        season = cfg.general.season
+        seasons_12bit = [
+            "summer_weeds_2022", 
+            "cool_season_covers_2022_2023", 
+            "summer_cash_crops_2023", 
+            "summer_weeds_2023",
+            "cool_season_covers_2023_2024"
+            ]
+        
+        markerBit = ms.CircularTarget14bit
+        for season12 in seasons_12bit:
+            if season in season12:
+                markerBit = ms.CircularTarget12bit
+            
+        return markerBit
+    
     def load_or_create_project(self, project_path: str) -> ms.Document:
         """Opens a project if it exists or creates and saves a project
 
@@ -82,7 +96,7 @@ class SfM:
     ):
         """Detects 12 bit circular markers"""
         self.doc.chunks[chunk].detectMarkers(
-            target_type=ms.CircularTarget12bit,
+            target_type=self.markerbit,
             tolerance=50,
             filter_mask=False,
             inverted=False,
