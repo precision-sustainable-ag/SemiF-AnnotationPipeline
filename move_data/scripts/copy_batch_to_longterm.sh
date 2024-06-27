@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
 
-# Copies local batch data to longterm storage.
-# Copied data includes:
-# 1. asfm/reference
-# 2. meta_masks
-# 3. metadata
-# 4. *.json, 
-# 5. images (if they are not present already)
+LOGFILE="./pipeline.log"
 
+# Copies local batch data to longterm storage.
 
 BATCHES=$1 # txt file of batches that you want to upload to cutouts
 
@@ -16,16 +11,15 @@ SRCPARENT="/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-im
 
 for line in `cat $BATCHES`; do
     echo
-    echo "Starting batch $line to longterm storage"
+    echo "Starting batch $line to longterm storage" >> $LOGFILE
 
     DST_BATCHDIR=$DST/$line
     SRC=$SRCPARENT/$line
-    echo "Copying to destination: $DST_BATCHDIR"
+    echo "Copying to destination: $DST_BATCHDIR" >> $LOGFILE
     if [ ! -d "$DST_BATCHDIR" ]; then
-        echo "Making destination directory"
+        echo "Making destination directory" >> $LOGFILE
         mkdir $DST_BATCHDIR
     fi
-    
     
     DSTimages="$DST_BATCHDIR/images"
     images="$SRC/images"
@@ -34,24 +28,22 @@ for line in `cat $BATCHES`; do
 	metadata="$SRC/metadata"
     jsonmetadata="$SRC/$line.json"
 
-    
-    
     if [ -d "$DSTimages" ]; then
-        echo "Image directory exists. Skipping image copy."
+        echo "Image directory exists. Skipping image copy." >> $LOGFILE
     else
-        echo "Copying images because they do not exist in longterm storage"
+        echo "Copying images because they do not exist in longterm storage" >> $LOGFILE
         cp -r $images $DSTimages
     fi
 
-    echo "Copying asfm reference data"
+    echo "Copying asfm reference data" >> $LOGFILE
     cp -r $asfm $DST_BATCHDIR
-    echo "Copying meta_masks"
+    echo "Copying meta_masks" >> $LOGFILE
     cp -r $meta_masks $DST_BATCHDIR
-    echo "Copying metadata"
+    echo "Copying metadata" >> $LOGFILE
     cp -r $metadata $DST_BATCHDIR
-    echo "Copying .json file"
+    echo "Copying .json file" >> $LOGFILE
     cp $jsonmetadata $DST_BATCHDIR
-    echo "Done copying to longterm storage for batch $line"
+    echo "Done copying to longterm storage for batch $line" >> $LOGFILE
     echo
 
 done
