@@ -4,10 +4,10 @@ import os
 from math import ceil
 from multiprocessing import Pool
 from pathlib import Path
+import piexif
 
 import cv2
 import numpy as np
-import piexif
 from PIL import Image, ImageFile
 from skimage.color import rgb2hsv
 from skimage.morphology import binary_closing, square
@@ -58,36 +58,31 @@ def resize_and_save(data):
     scale = data["scale"]
     masks = data["masks"]
 
-    assert scale > 0.0 and scale <= 1.0, "scale should be between (0, 1]."
+    assert 0.0 < scale <= 1.0, "scale should be between (0, 1]."
 
     try:
         image = Image.open(image_src)
         width, height = image.size
-        scaled_width, scaled_height = int(ceil(width * scale)), int(
-            ceil(height * scale)
-        )
-
+        scaled_width, scaled_height = int(ceil(width * scale)), int(ceil(height * scale))
         kwargs = {}
-        if not masks:
+        if masks:
+            resized_image.save(image_dst, quality=95, **kwargs)
+            resized_image.save(image_dst, **kwargs)
+        
+        else:
             try:
                 exif_data = piexif.load(image.info["exif"])
                 exif_bytes = piexif.dump(exif_data)
                 kwargs["exif"] = exif_bytes
             except KeyError:
-                print("EXIF data not found, resizing without EXIF data.")
+                log.warning("EXIF data not found, resizing without EXIF data.")
 
             resized_image = image.resize((scaled_width, scaled_height))
             resized_image.save(image_dst, quality=95, **kwargs)
-        else:
-            resized_image = image.resize((scaled_width, scaled_height))
-            resized_image.save(image_dst, **kwargs)
-    except (IOError, SyntaxError) as e:
-        log.error(f"Bad file: {image_src}")
-        return
-    except Exception as e:
-        log.error(f"Error processing file {image_src}: {e}")
-        return
 
+    except (IOError, SyntaxError) as e:
+        log.error(f"Bad file: {image_src}. Error: {e}")
+    
 
 def resize_photo_diretory(cfg):
     base_path = cfg["batchdata"]["images"]

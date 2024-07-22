@@ -47,19 +47,13 @@ def main(cfg: DictConfig) -> None:
             if cfg["asfm"]["downscale"]["enabled"]:
                 log.info(f"Resizing images")
                 resize_photo_diretory(cfg)
-                # log.info(f"Resizing masks")
-                # resize_masks(cfg)
+                if cfg["asfm"]["use_masking"]:
+                    log.info(f"Resizing masks")
+                    resize_masks(cfg)
         except Exception as e:
             log.exception(f"Failed to downsize images. Exiting.")
             exit(1)
 
-        if cfg["asfm"]["use_masking"]:
-            try:
-                log.info(f"Creating masks")
-                create_masks(cfg)
-            except Exception as e:
-                log.exception(f"Failed to create masks. Exiting.")
-                exit(1)
 
     # Initialize pipeline
     log.info(f"Initializing SfM")
