@@ -1325,10 +1325,12 @@
     "Notes": {
         "1": "USDA symbols are used as species index key.",
         "2": "When difference between USDA and EPPO codes, scientific_names, or authority occured, USDA information was used.",
-        "3": "Purple nutsedge (CYRO) is used by may also be yellow nutsedge (CYES).",
+        "3": "Purple nutsedge (CYRO) is used but may also be yellow nutsedge (CYES) for years 2022, and 2023.",
         "4": "North Carolina (MD), Texas (TX), Maryland (MD)",
         "5": "Brassicas class contains 4 species - Brassica napus, Brassica rapa, Brassica juncea, Brassica hirta",
-        "6": "Large crabgrass collected in NC may be southern crabgrass."
+        "6": "Large crabgrass collected in NC may be southern crabgrass.",
+        "7": "Large crabgrass collected at any location maybe Large or other Spp.",
+        "8": "Smooth pigweed (AMHY) may also be Redroot pigweed (AMARE)."
     },
     "Version": 1.3
 }
