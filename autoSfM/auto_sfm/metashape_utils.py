@@ -1,4 +1,5 @@
 import glob
+from pathlib import Path
 import logging
 import os
 from collections import Counter
@@ -18,6 +19,8 @@ log = logging.getLogger(__name__)
 class SfM:
     def __init__(self, cfg):
         self.cfg = cfg
+        self.state_id = self.cfg.general.batch_id.split("_")[0]
+        self.crs = self.get_crs_str(cfg)
         self.markerbit = self.get_target_bit(cfg)
         self.metashape_key = cfg.general.metashape_key
         self.doc = self.load_or_create_project(cfg["asfm"]["proj_path"])
@@ -30,6 +33,7 @@ class SfM:
 
     def get_target_bit(self, cfg: dict) -> ms.TargetType:
         season = cfg.general.season
+        state_id = cfg.general.batch_id.split("_")[0]
         seasons_12bit = [
             "summer_weeds_2022", 
             "cool_season_covers_2022_2023", 
@@ -40,10 +44,31 @@ class SfM:
         
         markerBit = ms.CircularTarget14bit
         for season12 in seasons_12bit:
-            if season in season12:
+            if (season in season12) or state_id == "TX":
                 markerBit = ms.CircularTarget12bit
             
         return markerBit
+    
+    def get_crs_str(self, cfg):
+        season = cfg.general.season
+        state_id = cfg.general.batch_id.split("_")[0]
+        local_crs = [
+            "summer_weeds_2022", 
+            "cool_season_covers_2022_2023", 
+            "summer_cash_crops_2023", 
+            "summer_weeds_2023",
+            "cool_season_covers_2023_2024"
+            ]
+        if state_id == "MD" and season not in local_crs:
+            crs = "EPSG::4326"
+        elif state_id == "NC" and season not in local_crs:
+            crs = "EPSG::4326"
+        else:
+            crs = "LOCAL"
+
+        log.info(f"CRS: {crs}")
+        return crs
+        
     
     def load_or_create_project(self, project_path: str) -> ms.Document:
         """Opens a project if it exists or creates and saves a project
@@ -80,6 +105,7 @@ class SfM:
         photos = glob.glob(os.path.join(self.cfg["asfm"]["down_photos"], "*.jpg"))
         if self.doc.chunk is None:
             self.doc.addChunk()
+        self.doc.chunk.crs = ms.CoordinateSystem(self.crs)
         self.doc.chunk.addPhotos(photos)
 
     def add_masks(self):
@@ -94,7 +120,8 @@ class SfM:
     def detect_markers(
         self, chunk: int = 0, progress_callback: Callable = percentage_callback
     ):
-        """Detects 12 bit circular markers"""
+        """Detects 12 or 14 bit circular markers"""
+        log.info(f"Detecting markers: {self.markerbit}")
         self.doc.chunks[chunk].detectMarkers(
             target_type=self.markerbit,
             tolerance=50,
@@ -122,6 +149,7 @@ class SfM:
             create_markers=True,
             threshold=0.1,
             shutter_lag=0,
+            crs=ms.CoordinateSystem(self.crs)
         )
         self.save_project()
 
@@ -163,20 +191,20 @@ class SfM:
             self.doc.chunk.cameras[i].reference.enabled = False
 
         self.doc.chunk.optimizeCameras(
-            fit_f=True,
-            fit_cx=True,
-            fit_cy=True,
-            fit_b1=True,
-            fit_b2=True,
-            fit_k1=True,
-            fit_k2=True,
-            fit_k3=True,
-            fit_k4=True,
-            fit_p1=True,
-            fit_p2=True,
-            fit_corrections=False,
-            adaptive_fitting=False,
-            tiepoint_covariance=False,
+            fit_f=self.cfg["asfm"]["optimize_cameras_cfg"]["fit_f"],
+            fit_cx=self.cfg["asfm"]["optimize_cameras_cfg"]["fit_cx"],
+            fit_cy=self.cfg["asfm"]["optimize_cameras_cfg"]["fit_cy"],
+            fit_b1=self.cfg["asfm"]["optimize_cameras_cfg"]["fit_b1"],
+            fit_b2=self.cfg["asfm"]["optimize_cameras_cfg"]["fit_b2"],
+            fit_k1=self.cfg["asfm"]["optimize_cameras_cfg"]["fit_k1"],
+            fit_k2=self.cfg["asfm"]["optimize_cameras_cfg"]["fit_k2"],
+            fit_k3=self.cfg["asfm"]["optimize_cameras_cfg"]["fit_k3"],
+            fit_k4=self.cfg["asfm"]["optimize_cameras_cfg"]["fit_k4"],
+            fit_p1=self.cfg["asfm"]["optimize_cameras_cfg"]["fit_p1"],
+            fit_p2=self.cfg["asfm"]["optimize_cameras_cfg"]["fit_p2"],
+            fit_corrections=self.cfg["asfm"]["optimize_cameras_cfg"]["fit_corrections"],
+            adaptive_fitting=self.cfg["asfm"]["optimize_cameras_cfg"]["adaptive_fitting"],
+            tiepoint_covariance=self.cfg["asfm"]["optimize_cameras_cfg"]["tiepoint_covariance"],
             progress=progress_callback,
         )
 
@@ -206,49 +234,49 @@ class SfM:
         return True
 
     def match_photos(
-        self,
-        progress_callback: Callable = percentage_callback,
-        chunk: int = 0,
-        correct: bool = False,
-    ):
-        log.info(f"Matching photos")
-        """Match Photos"""
+            self,
+            progress_callback: Callable = percentage_callback,
+            chunk: int = 0,
+            reference_preselection=ms.ReferencePreselectionSource):
+        """Matches photos in the specified chunk using the provided settings."""
+        log.info("Matching photos")
+
         ms.app.cpu_enable = False
         ms.app.gpu_mask = self.num_gpus
-        # fmt: off
+        match_settings = self.cfg["asfm"]["align_photos"]
         self.doc.chunks[chunk].matchPhotos(
-            downscale=self.cfg["asfm"]["align_photos"]["downscale"],
-            generic_preselection=self.cfg["asfm"]["align_photos"]["generic_preselection"], 
-            reference_preselection=self.cfg["asfm"]["align_photos"]["reference_preselection"],
-            # reference_preselection_mode=ms.ReferencePreselectionSource,
+            downscale=match_settings["downscale"],
+            generic_preselection=match_settings["generic_preselection"],
+            reference_preselection=match_settings["reference_preselection"],
+            reference_preselection_mode=reference_preselection,
             filter_mask=self.cfg["asfm"]["use_masking"],
-            mask_tiepoints=True,  # True
-            filter_stationary_points=False,
-            keypoint_limit=60000,
-            keypoint_limit_per_mpx=1000,
-            tiepoint_limit=20000, # default 4000
+            mask_tiepoints=True,
+            filter_stationary_points=match_settings["filter_stationary_points"],
+            keypoint_limit=600000,
+            keypoint_limit_per_mpx=10000,
+            tiepoint_limit=200000,
             keep_keypoints=False,
             cameras=self.doc.chunks[chunk].cameras,
             guided_matching=False,
             reset_matches=True,
-            subdivide_task=False,
-            workitem_size_cameras=20, # default 20
+            subdivide_task=True,
+            workitem_size_cameras=20,
             workitem_size_pairs=80,
             max_workgroup_size=100,
             progress=progress_callback,
         )
-        if ms.app.gpu_mask:
-            ms.app.cpu_enable = True
+
+        ms.app.cpu_enable = True if ms.app.gpu_mask else False
         self.save_project()
 
     def align_photos(
-        self,
-        progress_callback: Callable = percentage_callback,
-        chunk: int = 0,
-        correct: bool = False,
-    ):
-        log.info(f"Aligning photos")
-        """Align Photos"""
+            self,
+            progress_callback: Callable = percentage_callback,
+            chunk: int = 0,
+            correct: bool = False,
+            ):
+        """Aligns photos in the specified chunk and optionally corrects unaligned cameras."""
+        log.info("Aligning photos")
         ms.app.cpu_enable = False
         ms.app.gpu_mask = self.num_gpus
 
@@ -257,85 +285,67 @@ class SfM:
             min_image=2,
             adaptive_fitting=False,
             reset_alignment=True,
-            subdivide_task=False,
+            subdivide_task=True,
             progress=progress_callback,
         )
-        if ms.app.gpu_mask:
-            ms.app.cpu_enable = True
+        ms.app.cpu_enable = True if ms.app.gpu_mask else False
         self.save_project()
 
         unaligned_cameras = self.get_unaligned_cameras(chunk)
-
-        if len(unaligned_cameras) != 0:
+        if unaligned_cameras:
             log.warning(f"Found {len(unaligned_cameras)} unaligned cameras.")
-            # log.warning(f"Setting 'correct' to True.")
-            # correct = True
+            if correct:
+                self._correct_unaligned_cameras(unaligned_cameras, chunk, progress_callback)
 
-        if correct:
-            # Check if all the cameras were aligned
-            log.warning("Correction enabled. Checking for unaligned cameras.")
-            if len(unaligned_cameras) < 1:
-                log.info("Not enough unaligned cameras to perform alignment, skipping.")
-            elif len(unaligned_cameras) > 1:
-                log.info("Attempting to align unaligned cameras.")
-
-                # # Add a chunk and try to process separately
-                self.doc.addChunk()
-                photos = [camera.photo.path for camera in unaligned_cameras]
-                # fmt: off
-                if len(photos) <= 10:
-                    for i in photos:
-                        log.info(i)
-
-                self.doc.chunks[1].addPhotos(photos)
-
-                # Detect markers for the new chunk
-                if self.cfg.asfm.detect_markers:
-                    log.info("Detecting markers.")
-                    self.detect_markers(chunk=chunk + 1)
-
-                # Import reference for the new chunk
-                if self.cfg.asfm.import_references:
-                    log.info("Importing reference.")
-                    self.import_reference(chunk=chunk + 1)
-
-                # Align again
-                log.info("Matching and Aligning photos agains.")
-                self.match_photos(chunk=chunk + 1)
-
-
-                photos = [camera.photo.path for camera in self.doc.chunks[1].cameras if camera.transform is None]
-
-                self.align_photos(chunk=chunk + 1, correct=False)
-
-
-
-                # Merge the chunks
-                log.info("Merging Chunks.")
-                self.doc.mergeChunks(
-                    merge_markers=True,
-                    chunks=[0, 1],
-                    progress=progress_callback,
-                )
-                log.info("Setting active chunk.")
-                self.doc.chunk = self.doc.chunks[chunk + 2]
-
-                # fmt: off
-                photos = [camera.photo.path for camera in self.doc.chunks[1].cameras if camera.transform is None]
-                if len(photos) < 10:
-                    for i in photos:
-                        log.info(i)
-                # Remove duplicate unaligned cameras
-                camera_counts = Counter([camera.label for camera in self.doc.chunk.cameras])
-                for camera in self.doc.chunk.cameras:
-                    if camera.transform is None and camera_counts[camera.label] > 1:
-                        self.doc.chunk.remove(camera)
-                log.info(f"Unaligned cameras in current chunk: {len([camera for camera in self.doc.chunk.cameras if camera.transform is None])}")
-                log.info(f"Final number of cameras in current chunk after realignement: {len(self.doc.chunk.cameras)}")
-                # fmt: on
-
+        self._remove_duplicate_and_unaligned_cameras()
         self.reset_region()
         self.save_project()
+    
+    def _correct_unaligned_cameras(self, unaligned_cameras, chunk, progress_callback):
+        """Attempts to correct unaligned cameras by reprocessing them."""
+        log.warning("Correction enabled. Checking for unaligned cameras.")
+        
+        if len(unaligned_cameras) < 1:
+            log.info("Not enough unaligned cameras to perform alignment, skipping.")
+            return
+
+        log.info("Attempting to align unaligned cameras.")
+        new_chunk = self.doc.addChunk()
+        photos = [camera.photo.path for camera in unaligned_cameras]
+
+        new_chunk.addPhotos(photos)
+
+        self.detect_markers(chunk=len(self.doc.chunks) - 1)
+        self.import_reference(chunk=len(self.doc.chunks) - 1)
+
+        log.info("Matching and Aligning photos again.")
+        self.match_photos(chunk=len(self.doc.chunks) - 1)
+        self.align_photos(chunk=len(self.doc.chunks) - 1, correct=False)
+
+        log.info("Merging Chunks.")
+        self.doc.mergeChunks(chunks=[chunk, len(self.doc.chunks) - 1], merge_markers=True, progress=progress_callback)
+        log.info("Setting active chunk.")
+        self.doc.chunk = self.doc.chunks[-1]
+
+    def _remove_duplicate_and_unaligned_cameras(self):
+        """Removes duplicate aligned cameras and unaligned cameras from the chunk."""
+        unique_aligned_cameras = set()
+        cameras_to_remove = []
+
+        for camera in self.doc.chunk.cameras:
+            if camera.transform is None:
+                cameras_to_remove.append(camera)
+            elif camera.label in unique_aligned_cameras:
+                cameras_to_remove.append(camera)
+            else:
+                unique_aligned_cameras.add(camera.label)
+
+        for camera in cameras_to_remove:
+            self.doc.chunk.remove(camera)
+
+        log.info(f"Unaligned cameras in current chunk: {len(self.get_unaligned_cameras())}")
+        log.info(f"Final number of cameras in current chunk after realignment: {len(self.doc.chunk.cameras)}")
+
 
     def build_depth_map(self, progress_callback: Callable = percentage_callback):
         ms.app.cpu_enable = False
@@ -554,35 +564,35 @@ class SfM:
 
             pixel_height = camera.sensor.pixel_height
             if pixel_height is None:
-                print(
+                log.warning(
                     f"pixel_height missing for camera {camera.label}, skipping FOV calculation."
                 )
                 calculate_fov = False
 
             pixel_width = camera.sensor.pixel_width
             if pixel_width is None:
-                print(
+                log.warning(
                     f"pixel_width missing for camera {camera.label}, skipping FOV calculation."
                 )
                 calculate_fov = False
 
             height = camera.sensor.height
             if height is None:
-                print(
+                log.warning(
                     f"height missing for camera {camera.label}, skipping FOV calculation."
                 )
                 calculate_fov = False
 
             width = camera.sensor.width
             if width is None:
-                print(
+                log.warning(
                     f"width missing for camera {camera.label}, skipping FOV calculation."
                 )
                 calculate_fov = False
 
             f = camera.calibration.f
             if f is None:
-                print(f"f missing for camera {camera.label}, skipping FOV calculation.")
+                log.warning(f"f missing for camera {camera.label}, skipping FOV calculation.")
                 calculate_fov = False
 
             if calculate_fov:
