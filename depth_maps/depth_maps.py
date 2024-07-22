@@ -35,14 +35,14 @@ def export_depth(doc, output_folder, upscale_2_fullsize=True, single_band_f32=Tr
                         img_u8 = 255 - img_u8
                         img_u8 = img_u8 - 255 * (img_u8 * (1 / 255)) # normalized
                         img_u8 = img_u8.convert("RGB", "U8")
-                        img_u8.save(output_folder + "/" + camera.label + "_grayscale_8bit.tif", compression = compr_deflate)
+                        img_u8.save(output_folder + "/" + camera.label + "_grayscale_8bit.png", compression = compr_deflate)
 
                     if grayscale_16bit:
                         img_u16 = img.convert("RGB", "U16")
                         img_u16 = 65535 - img_u16
                         img_u16 = img_u16 - 65535 * (img_u16 * (1 / 65535)) # normalized
                         img_u16 = img_u16.convert("RGB", "U16")
-                        img_u16.save(output_folder + "/" + camera.label + "_grayscale_16bit.tif", compression = compr_deflate)
+                        img_u16.save(output_folder + "/" + camera.label + "_grayscale_16bit.png", compression = compr_deflate)
                 
                 if single_band_f32:
                     depth = depth.convert(" ","F32")
@@ -55,7 +55,7 @@ def export_depth(doc, output_folder, upscale_2_fullsize=True, single_band_f32=Tr
         print("Depth maps exported to:\n " + output_folder)
 
 
-project_path = "/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/MD_2022-07-20/autosfm/project/MD_2022-07-20.psx"
+project_path = "/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/MD_2024-06-28/autosfm/project/MD_2024-06-28.psx"
 output_folder = Path("test_depthmaps")
 output_folder.mkdir(exist_ok=True, parents=True)
 doc = ms.Document()

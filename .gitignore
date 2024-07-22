@@ -15,7 +15,7 @@ azcopy
 # VS code stuff
 **.vscode
 **workspace.code-workspace
-
+autoSfM/package/dependencies/*
 # Byte-compiled / optimized / DLL files
 **__pycache__/
 
