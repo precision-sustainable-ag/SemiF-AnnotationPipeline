@@ -37,37 +37,91 @@ def batch_df(batch_id, cutout_dir, batch_dir):
     )
     return df
 
+def filter_unique_images_with_multiple_classes(df, column_a="image_id", column_b="class_id"):
+    # Group by column_a and count unique values in column_b
+    unique_counts = df.groupby(column_a)[column_b].nunique()
+    
+    # Filter to get the values of column_a that have more than one unique value in column_b
+    filtered_a_values = unique_counts[unique_counts > 1].index
+    
+    # Filter the DataFrame to include only rows with the filtered column_a values
+    filtered_df = df[df[column_a].isin(filtered_a_values)]
+    
+    return filtered_df
 
-def validation_sample_df(df, sample_sz=10, random_state=42, drop_img_duplicates=True):
-    if drop_img_duplicates:
-        df = df.drop_duplicates(
-            subset="image_paths", keep="first"
-        )  # Emphasize different full-res images and not cutouts
-    df = df.sample(sample_sz, random_state=random_state)
-    return df
+def validation_sample_df(df: pd.DataFrame, sample_sz=10, random_state=42, drop_img_duplicates=True):
+
+    filtered_df = filter_unique_images_with_multiple_classes(df)
+    species_dfs = []
+    unique_classes = df["common_name"].unique()
+    
+    if sample_sz < len(unique_classes):
+        class_sample_size = 1
+    else:
+        class_sample_size = sample_sz // len(unique_classes)
+
+    for uniq_cls in unique_classes:
+        class_df = df[df["common_name"]== uniq_cls]
+        class_df = class_df.drop_duplicates(subset="image_id")
+
+        if class_df.shape[0] < class_sample_size:
+            class_sample_size = class_df.shape[0]
+
+        df_species_sample = class_df.sample(class_sample_size, random_state=random_state)
+        species_dfs.append(df_species_sample)
+    
+    
+    sample_filtered_sz = 10
+
+    filtered_dfs = []
+    unique_filtered_classes = filtered_df["common_name"].unique()
+    
+    for uniq_filt_cls in unique_filtered_classes:
+        filt_class_df = filtered_df[filtered_df["common_name"]== uniq_filt_cls]
+        filt_class_df = filt_class_df.drop_duplicates(subset="image_id")
+    
+        if filt_class_df.shape[0] < sample_filtered_sz:
+            sample_filtered_sz = filt_class_df.shape[0]
+
+        filtered_df_species_sample = filt_class_df.sample(sample_filtered_sz, random_state=random_state)
+        filtered_dfs.append(filtered_df_species_sample)
+
+
+    df_sample = pd.concat(species_dfs + filtered_dfs)
+    df_sample = df_sample.drop_duplicates(subset="image_id")
+    df = df[df["image_paths"].isin(df_sample["image_paths"])]
+
+    return df.sort_values(by="image_id")
 
 
 def get_detection_data(jsonpath):
     meta = read_metadata(jsonpath)
-    imgwidth, imgheight = meta["fullres_width"], meta["fullres_height"]
-    bboxes = meta["bboxes"]
+    categories = meta["categories"]
+
+    annotations = meta["annotations"]
     boxes = []
     labels = []
-    for box in bboxes:
-        x1 = box["local_coordinates"]["top_left"][0] * imgwidth
-        y1 = box["local_coordinates"]["top_left"][1] * imgheight
+    for annotation in annotations:
+        x1 = annotation["bbox_xywh"][0] # top left x
+        y1 = annotation["bbox_xywh"][1] # top left y
 
-        x2 = box["local_coordinates"]["bottom_right"][0] * imgwidth
-        y2 = box["local_coordinates"]["bottom_right"][1] * imgheight
+        w = annotation["bbox_xywh"][2] # bbox width
+        h = annotation["bbox_xywh"][3] # bbox height
+
+        x2 = x1 + w
+        y2 = y1 + h
 
         boxes.append([x1, y1, x2, y2])
 
-        if box["cls"] == "plant":
-            class_id = box["cls"]
-            common_name = box["cls"]
-        else:
-            class_id = str(box["cls"]["class_id"])
-            common_name = box["cls"]["common_name"]
+        bbox_category_class_id = annotation["category_class_id"]
+        bbox_category = None
+        for cat in categories:
+            if cat["class_id"] == bbox_category_class_id:
+                bbox_category = cat
+                break
+
+        class_id = bbox_category["class_id"]
+        common_name = bbox_category["common_name"]
 
         label = f"{common_name} ({class_id})"
         labels.append(label)
@@ -134,13 +188,12 @@ def plot_bboxes(
         save_location (str, optional): save location of plot. Defaults to ".".
         figsize (tuple, optional): figure size. Defaults to (8, 12).
     """
-    for _, i in tqdm(df.iterrows()):
-        image_path = i["image_paths"]
+    unique_images_df = df.drop_duplicates(subset="image_paths")
+    for _, row in tqdm(unique_images_df.iterrows(), total=unique_images_df.shape[0]):
+        image_path = Path(row["image_paths"])
+        assert image_path.exists()
 
-        i = Path(image_path)
-        assert i.exists()
-        # cv2.imread(image_path)
-        meta_path = image_path.replace(f"images/{i.name}", f"metadata/{i.stem}.json")
+        meta_path = str(image_path).replace(f"images/{image_path.name}", f"metadata/{image_path.stem}.json")
         assert Path(meta_path).exists()
         bboxes, labels = get_detection_data(meta_path)
         if len(bboxes) == 0:
@@ -154,7 +207,6 @@ def plot_bboxes(
             ax = fig.add_axes([0, 0, 1, 1])
 
             # read and plot the image
-            # image = plt.imread(image_path)
             image = cv2.imread(str(image_path))
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
@@ -252,18 +304,19 @@ def convert_mask_values(mask, color_mapping):
 
 
 def plot_masks(
-    df_sample,
+    df,
     figsize=(8, 12),
-    transparent_fc=True,
+    transparent_fc=False,
     include_suptitles=True,
     save_location=".",
     species_info=None,
-    dpi=300,
+    dpi=150,
 ):
-    for _, df in tqdm(df_sample.iterrows()):
-        imgpath = df["image_paths"]
-        maskpath = df["semantic_masks"]
-        instancepath = df["instance_masks"]
+    unique_images_df = df.drop_duplicates(subset="image_paths")
+    for _, row in tqdm(unique_images_df.iterrows(), total=unique_images_df.shape[0]):
+        imgpath = row["image_paths"]
+        maskpath = row["semantic_masks"]
+        instancepath = row["instance_masks"]
         bgr = cv2.imread(imgpath)
         rgbimg = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
@@ -298,14 +351,19 @@ def plot_masks(
         ax3.axis(False)
 
         if include_suptitles:
+            imgdf = df[df["image_paths"]== imgpath]
+            uniq_common_names = ", ".join(imgdf["common_name"].unique())
+            uniq_meta_class_ids = ", ".join(imgdf["class_id"].unique().astype(str))
+            uniq_mask_class_ids = ", ".join([str(x) for x in np.unique(bgrsemmask[..., 0]) if x != 0])
+            
             fontsize = (
                 fig.get_figwidth() + fig.get_figheight()
             ) * 0.5  # Adjust the scaling factor as desired
-            ax1.title.set_text(f"Common name: {df.common_name}")
+            ax1.title.set_text(f"Unique Common names: {uniq_common_names}")
             ax1.title.set_fontsize(fontsize)
-            ax2.title.set_text("Unique semantic mask values (class_id): ")
+            ax2.title.set_text(f"Unique mask class_ids: \n{uniq_mask_class_ids}")
             ax2.title.set_fontsize(fontsize)
-            ax3.title.set_text(f"{np.unique(bgrsemmask[..., 0])}")
+            ax3.title.set_text(f"Unique metadata class_ids: \n{uniq_meta_class_ids}")
             ax3.title.set_fontsize(fontsize)
 
         plt.tight_layout()
@@ -387,10 +445,10 @@ def plot_cutouts(
     title=True,
     dpi=300,
 ):
-    mdf = df.copy()
-
-    for species in tqdm(mdf["common_name"].unique()):
-        sdf = mdf[mdf["common_name"] == species]
+    unique_images_df = df.drop_duplicates(subset="image_paths")
+    unique_cnames = unique_images_df["common_name"].unique()
+    for species in tqdm(unique_cnames, total=unique_cnames.shape[0]):
+        sdf = unique_images_df[unique_images_df["common_name"] == species]
 
         if len(sdf) == 0:
             continue

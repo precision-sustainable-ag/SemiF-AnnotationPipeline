@@ -193,74 +193,13 @@ class GenCutoutProps:
             g_mean, g_std = cv2.meanStdDev(g, mask=mask)
             r_mean, r_std = cv2.meanStdDev(r, mask=mask)
 
-            # skewness
-            b_skewness = skew(b[np.nonzero(b)]) if ignore_zeros else skew(b.flatten())
-            g_skewness = skew(g[np.nonzero(g)]) if ignore_zeros else skew(g.flatten())
-            r_skewness = skew(r[np.nonzero(r)]) if ignore_zeros else skew(r.flatten())
-            # kurtosis
-            b_kurtosis = (
-                kurtosis(b[np.nonzero(b)]) if ignore_zeros else kurtosis(b.flatten())
-            )
-            g_kurtosis = (
-                kurtosis(g[np.nonzero(g)]) if ignore_zeros else kurtosis(g.flatten())
-            )
-            r_kurtosis = (
-                kurtosis(r[np.nonzero(r)]) if ignore_zeros else kurtosis(r.flatten())
-            )
-            # variance
-            b_variance = (
-                np.var(b[np.nonzero(b)]) if ignore_zeros else np.var(b.flatten())
-            )
-            g_variance = (
-                np.var(g[np.nonzero(g)]) if ignore_zeros else np.var(g.flatten())
-            )
-            r_variance = (
-                np.var(r[np.nonzero(r)]) if ignore_zeros else np.var(r.flatten())
-            )
-
-            # ExG and GLI
-            exg_image = make_exg(rgb_image)
-            gli_image = make_gli(rgb_image)
-            # Calculate ExG and GLI mean and standard deviation
-            exg_mean = np.mean(exg_image)
-            exg_std = np.std(exg_image)
-
-            gli_mean = np.mean(gli_image)
-            gli_std = np.std(gli_image)
-
             del rgb_image
             del b, g, r
             del mask
 
-            # Return the results as a dictionary
-            result = {
-                "exg_mean": exg_mean,
-                "exg_std": exg_std,
-                "gli_mean": gli_mean,
-                "gli_std": gli_std,
-                "channel_r": {
-                    "mean": float(r_mean[0][0]),
-                    "std": float(r_std[0][0]),
-                    "skewness": float(r_skewness),
-                    "kurtosis": float(r_kurtosis),
-                    "variance": float(r_variance),
-                },
-                "channel_g": {
-                    "mean": float(g_mean[0][0]),
-                    "std": float(g_std[0][0]),
-                    "skewness": float(g_skewness),
-                    "kurtosis": float(g_kurtosis),
-                    "variance": float(g_variance),
-                },
-                "channel_b": {
-                    "mean": float(b_mean[0][0]),
-                    "std": float(b_std[0][0]),
-                    "skewness": float(b_skewness),
-                    "kurtosis": float(b_kurtosis),
-                    "variance": float(b_variance),
-                },
-            }
-            return result
+            rgb_mean = [float(r_mean[0][0]), float(g_mean[0][0]), float(b_mean[0][0])]
+            rgb_std = [float(r_std[0][0]), float(g_std[0][0]), float(b_std[0][0])]
+            return rgb_mean, rgb_std
 
     def all_zero_props(self):
         return {
@@ -317,14 +256,9 @@ class GenCutoutProps:
         nprops["blur_effect"] = self.get_blur_effect()
         nprops["num_components"] = self.num_connected_components()
 
-        nprops["cropout_descriptive_stats"] = self.analyze_image(self.img)
-        nprops["cutout_descriptive_stats"] = self.analyze_image(
-            self.cutout, ignore_zeros=True
-        )
-
-        # nprops["cropout_descriptive_stats"] = self.descriptive_stats(self.img)
-        # nprops["cutout_descriptive_stats"] = self.descriptive_stats(
-        #     self.cutout, ignore_zeros=True)
+        rgb_mean, rgb_std = self.analyze_image(self.img)
+        nprops["cropout_rgb_mean"] = rgb_mean
+        nprops["cropout_rgb_std"] = rgb_std
 
         return nprops
 
