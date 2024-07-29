@@ -147,94 +147,162 @@ def get_cutout_meta(path):
     return cutout
 
 
+# Flatten the nested JSON
+def flatten_json(y):
+    out = {}
+
+    def flatten(x, name=''):
+        if type(x) is dict:
+            for a in x:
+                flatten(x[a], name + a + '_')
+        elif type(x) is list:
+            i = 0
+            for a in x:
+                flatten(a, name + str(i) + '_')
+                i += 1
+        else:
+            out[name[:-1]] = x
+
+    flatten(y)
+    return out
+
+# Function to rename columns dynamically
+def rename_columns(columns):
+    rename_map = {
+        'cropout_rgb_mean_0': 'cropout_rgb_mean_r',
+        'cropout_rgb_mean_1': 'cropout_rgb_mean_g',
+        'cropout_rgb_mean_2': 'cropout_rgb_mean_b',
+        'cropout_rgb_std_0': 'cropout_rgb_std_r',
+        'cropout_rgb_std_1': 'cropout_rgb_std_g',
+        'cropout_rgb_std_2': 'cropout_rgb_std_b',
+        'category_rgb_0': 'category_rgb_r',
+        'category_rgb_1': 'category_rgb_g',
+        'category_rgb_2': 'category_rgb_b'
+    }
+
+    new_columns = []
+    for col in columns:
+        # Keep the format for category_rgb columns
+        if 'category_rgb' in col:
+            if 'category_rgb_0' == col:
+                col = 'category_rgb_r'
+            if 'category_rgb_1' == col:
+                col = 'category_rgb_g'
+            if 'category_rgb_2' == col:
+                col = 'category_rgb_b'
+
+            new_columns.append(col)
+        else:
+            # Remove nested prefixes like "cutout_props_" or "category_"
+            col = col.replace('cutout_props_', '').replace('category_', '')
+            # Replace specific mappings if present
+            if col in rename_map:
+                col = rename_map[col]
+            new_columns.append(col)
+    return new_columns
+
 def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
     # Get all json files
     metas = [x for x in Path(cutoutdir, batch_id).glob("*.json")]
     cutouts = []
+
     for meta in tqdm(metas):
+        
         # Get dictionaries
-        cutout = asdict(get_cutout_meta(meta))
-        row = cutout["cutout_props"]
-        cls = cutout["cls"]
+        with open(meta) as f:
+            j = json.load(f)
+        data = flatten_json(j)
+        cutouts.append(data)
+    df = pd.DataFrame(cutouts)
+    df.columns = rename_columns(list(df.columns))
+    if save_df:
+        df.to_csv(csv_savepath, index=False)
+    return df
+    
 
-        # croput Descriptive stats
-        ds = cutout["cutout_props"]["cropout_descriptive_stats"]
-        if ds is not None:
-            nd = dict()
-            for d in ds:
-                if type(ds[d]) != dict:
-                    nd["cropout_" + d] = ds[d]
-                elif type(ds[d]) == dict:
-                    chan_suff = d.split("_")[-1]
-                    for chan in ds[d]:
-                        nd["cropout_" + chan_suff + "_" + chan] = ds[d][chan]
-            cutout.update(nd)
-        else:
-            nd["cropout_descriptive_stats"] = None
+    #     cutout = asdict(get_cutout_meta(meta))
+    #     row = cutout["cutout_props"]
+    #     cls = cutout["category"]
 
-        # croput Descriptive stats
-        ds = cutout["cutout_props"]["cutout_descriptive_stats"]
-        if ds is not None:
-            nd = dict()
-            for d in ds:
-                if type(ds[d]) != dict:
-                    nd["cutout_" + d] = ds[d]
-                elif type(ds[d]) == dict:
-                    chan_suff = d.split("_")[-1]
-                    for chan in ds[d]:
-                        nd["cutout_" + chan_suff + "_" + chan] = ds[d][chan]
-            cutout.update(nd)
-        else:
-            nd["cutout_"] = None
+    #     # croput Descriptive stats
+    #     # ds = cutout["cutout_props"]["cropout_rgb_mean"]
+    #     # print(ds)
+    #     # if ds is not None:
+    #     #     nd = dict()
+    #     #     for d in ds:
+    #     #         if type(ds[d]) != dict:
+    #     #             nd["cropout_" + d] = ds[d]
+    #     #         elif type(ds[d]) == dict:
+    #     #             chan_suff = d.split("_")[-1]
+    #     #             for chan in ds[d]:
+    #     #                 nd["cropout_" + chan_suff + "_" + chan] = ds[d][chan]
+    #     #     cutout.update(nd)
+    #     # else:
+    #         # nd["cropout_rgb_mean"] = None
 
-        # Extend nested dicts to single column header
-        for ro in row:
-            rec = {ro: row[ro]}
-            cutout.update(rec)
-            for cl in cls:
-                spec = {cl: cls[cl]}
-                if cl == "rgb":
-                    r = {"r": str(spec["rgb"][0])}
-                    g = {"g": str(spec["rgb"][1])}
-                    b = {"b": str(spec["rgb"][2])}
-                    cutout.update(r)
-                    cutout.update(g)
-                    cutout.update(b)
-                cutout.update(spec)
-        # Remove duplicate nested dicts
-        cutout.pop("cutout_props")
-        cutout.pop("cls")
-        cutout.pop("rgb")
-        # cutout.pop("local_contours")
-        cutout.pop("cropout_descriptive_stats")
-        cutout.pop("cutout_descriptive_stats")
-        # cutout.pop("color_distribution")
-        # Create and append df
-        if cutout["multi_species_USDA_symbol"] != None:
-            cutout["multi_species_USDA_symbol"] = ",".join(
-                cutout["multi_species_USDA_symbol"]
-            )
-        cutdf = pd.DataFrame.from_dict(cutout, orient="index").T
-        # cutdf = pd.DataFrame(cutout)  #, index=[0])
-        cutouts.append(cutdf)
-    # Concat and reset index of main df
-    if len(cutouts) > 0:
-        cutouts_df = pd.concat(cutouts)
-        cutouts_df = cutouts_df.reset_index()
-        cutouts_df.drop(columns="index", inplace=True)
-        cutouts_df.sort_values(
-            by=["image_id", "cutout_num"],
-            axis=0,
-            ascending=[True, True],
-            inplace=True,
-            kind="quicksort",
-            na_position="first",
-            ignore_index=True,
-            key=None,
-        )
-        if save_df:
-            cutouts_df.to_csv(csv_savepath, index=False)
-        return cutouts_df
+    #     # croput Descriptive stats
+    #     # ds = cutout["cutout_props"]["cropout_rgb_mean"]
+    #     # if ds is not None:
+    #     #     nd = dict()
+    #     #     for d in ds:
+    #     #         if type(ds[d]) != dict:
+    #     #             nd["cutout_" + d] = ds[d]
+    #     #         elif type(ds[d]) == dict:
+    #     #             chan_suff = d.split("_")[-1]
+    #     #             for chan in ds[d]:
+    #     #                 nd["cutout_" + chan_suff + "_" + chan] = ds[d][chan]
+    #     #     cutout.update(nd)
+    #     # else:
+    #     #     nd["cutout_"] = None
+
+    #     # Extend nested dicts to single column header
+    #     for ro in row:
+    #         rec = {ro: row[ro]}
+    #         cutout.update(rec)
+    #         for cl in cls:
+    #             spec = {cl: cls[cl]}
+    #             if cl == "rgb":
+    #                 r = {"r": str(spec["rgb"][0])}
+    #                 g = {"g": str(spec["rgb"][1])}
+    #                 b = {"b": str(spec["rgb"][2])}
+    #                 cutout.update(r)
+    #                 cutout.update(g)
+    #                 cutout.update(b)
+    #             cutout.update(spec)
+    #     # Remove duplicate nested dicts
+    #     cutout.pop("cutout_props")
+    #     cutout.pop("category")
+    #     cutout.pop("rgb")
+    #     # cutout.pop("local_contours")
+    #     cutout.pop("cropout_rgb_mean")
+    #     cutout.pop("cropout_rgb_std")
+    #     # cutout.pop("color_distribution")
+    #     # Create and append df
+    #     if cutout["multi_species_USDA_symbol"] != None:
+    #         cutout["multi_species_USDA_symbol"] = ",".join(
+    #             cutout["multi_species_USDA_symbol"]
+    #         )
+    #     cutdf = pd.DataFrame.from_dict(cutout, orient="index").T
+    #     # cutdf = pd.DataFrame(cutout)  #, index=[0])
+    #     cutouts.append(cutdf)
+    # # Concat and reset index of main df
+    # if len(cutouts) > 0:
+    #     cutouts_df = pd.concat(cutouts)
+    #     cutouts_df = cutouts_df.reset_index()
+    #     cutouts_df.drop(columns="index", inplace=True)
+    #     cutouts_df.sort_values(
+    #         by=["image_id", "cutout_num"],
+    #         axis=0,
+    #         ascending=[True, True],
+    #         inplace=True,
+    #         kind="quicksort",
+    #         na_position="first",
+    #         ignore_index=True,
+    #         key=None,
+    #     )
+    #     if save_df:
+    #         cutouts_df.to_csv(csv_savepath, index=False)
+    #     return cutouts_df
 
 
 def growth_stage(batch_date, plant_date_list):

@@ -6,7 +6,8 @@ LOGFILE="./pipeline.log"
 
 BATCHES=$1 # txt file of batches that you want to upload to cutouts
 
-DST="/mnt/research-projects/s/screberg/GROW_DATA/semifield-developed-images"
+DST="/mnt/research-projects/s/screberg/longterm_images/semifield-developed-images"
+# DST="/mnt/research-projects/s/screberg/GROW_DATA/semifield-developed-images"
 SRCPARENT="/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images"
 
 for line in `cat $BATCHES`; do
@@ -26,7 +27,6 @@ for line in `cat $BATCHES`; do
     asfm="$SRC/autosfm/reference"
 	meta_masks="$SRC/meta_masks"
 	metadata="$SRC/metadata"
-    jsonmetadata="$SRC/$line.json"
 
     if [ -d "$DSTimages" ]; then
         echo "Image directory exists. Skipping image copy." >> $LOGFILE
@@ -41,8 +41,6 @@ for line in `cat $BATCHES`; do
     cp -r $meta_masks $DST_BATCHDIR
     echo "Copying metadata" >> $LOGFILE
     cp -r $metadata $DST_BATCHDIR
-    echo "Copying .json file" >> $LOGFILE
-    cp $jsonmetadata $DST_BATCHDIR
     echo "Done copying to longterm storage for batch $line" >> $LOGFILE
     echo
 

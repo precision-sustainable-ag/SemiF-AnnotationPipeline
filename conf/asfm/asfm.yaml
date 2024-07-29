@@ -55,7 +55,7 @@ export_report: True
 # Electives
 downscale:
   enabled: True
-  factor: 0.5 # between (0, 1] 1 is highest accuracy. By default 0.5
+  factor: 1 # between (0, 1] 1 is highest accuracy. By default 0.5
 
 align_photos:
   downscale: 4 # Accuracy parameter, lower means higher accuracy [0, 1, 2, 4, or 8]. By default 1

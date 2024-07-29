@@ -645,10 +645,10 @@ class CutoutProps:
     area: Union[float, list]
     # area_bbox: Union[float, list]
     # area_convex: Union[float, list]
-    axis_major_length: Union[float, list]
-    axis_minor_length: Union[float, list]
-    centroid0: Union[float, list]
-    centroid1: Union[float, list]
+    # axis_major_length: Union[float, list]
+    # axis_minor_length: Union[float, list]
+    # centroid0: Union[float, list]
+    # centroid1: Union[float, list]
     eccentricity: Union[float, list]
     # extent: float
     solidity: Union[float, list]
@@ -659,8 +659,10 @@ class CutoutProps:
     blur_effect: float
     num_components: int
     # color_distribution: dict
-    cropout_descriptive_stats: dict
-    cutout_descriptive_stats: dict
+    cropout_rgb_mean: dict
+    cropout_rgb_std: dict
+    is_primary: bool = None
+    extends_border: bool = None
 
 
 # For Segmentation -------------------------------------------------------------------------------------
@@ -681,7 +683,6 @@ class SegmentData:
     species_info: str
     species: str
     bbox: tuple
-    bbox_size_th: int
 
 
 # Cutout -------------------------------------------------------------------------------------
@@ -689,30 +690,30 @@ class SegmentData:
 class Cutout:
     """Per cutout. Goes to PlantCutouts"""
 
-    data_root: str
+    # data_root: str
     season: str
+    datetime: datetime.datetime  # Datetime of original image creation
     batch_id: str
     image_id: str
-
-    bbox: list
-    datetime: datetime.datetime  # Datetime of original image creation
-    cutout_props: CutoutProps
-    hwc: list
     cutout_id: str
-    cutout_num: int = None
+    cutout_num: int
+    cutout_props: CutoutProps
+    cutout_height: int
+    cutout_width: int
+    category: dict
+    # hwc: list
+    # bbox: list
     cutout_path: str = None
-    exif_meta: dict = None
-    camera_info: dict = None
-    cls: str = None
-    is_primary: bool = False
-    extends_border: bool = False
+    # exif_meta: dict = None
+    # camera_info: dict = None
+    # is_primary: bool = False
+    # extends_border: bool = False
     # schema_version: str = SCHEMA_VERSION
-    synth: bool = False
+    # synth: bool = False
 
     def __post_init__(self):
         self.cutout_num = int(self.cutout_id.split("_")[-1])
-        if not self.synth:
-            self.cutout_path = str(Path(self.batch_id, self.cutout_id + ".png"))
+        self.cutout_path = str(Path(self.batch_id, self.cutout_id + ".png"))
 
     @property
     def array(self):
@@ -724,22 +725,28 @@ class Cutout:
     @property
     def config(self):
         _config = {
-            "data_root": self.data_root,
+            # "data_root": self.data_root,
             "season": self.season,
             "datetime": self.datetime,
             "batch_id": self.batch_id,
             "image_id": self.image_id,
             "cutout_id": self.cutout_id,
             "cutout_num": self.cutout_num,
-            "hwc": self.hwc,
-            "is_primary": self.is_primary,
-            "extends_border": self.extends_border,
-            "cutout_path": self.cutout_path,
-            "exif_meta": asdict(self.exif_meta),
-            "camera_info": asdict(self.camera_info),
-            "bbox": self.bbox,
-            "cls": self.cls,
             "cutout_props": self.cutout_props,
+            "cutout_height": self.cutout_height,
+            "cutout_width": self.cutout_width,
+            "category": self.category
+            # "hwc": self.hwc,
+            # "is_primary": self.is_primary,
+            # "extends_border": self.extends_border,
+            
+            # "cutout_path": self.cutout_path,
+
+            # "exif_meta": asdict(self.exif_meta),
+            # "camera_info": asdict(self.camera_info),
+            # "bbox": self.bbox,
+            # "cls": self.cls,
+            
         }
 
         return _config
@@ -970,9 +977,9 @@ CUTOUT_PROPS = [
     "area",  # float Area of the region i.e. number of pixels of the region scaled by pixel-area.
     # "area_bbox",  # float Area of the bounding box i.e. number of pixels of bounding box scaled by pixel-area.
     # "area_convex",  # float Are of the convex hull image, which is the smallest convex polygon that encloses the region.
-    "axis_major_length",  # float The length of the major axis of the ellipse that has the same normalized second central moments as the region.
-    "axis_minor_length",  # float The length of the minor axis of the ellipse that has the same normalized second central moments as the region.
-    "centroid",  # array Centroid coordinate tuple (row, col).
+    # "axis_major_length",  # float The length of the major axis of the ellipse that has the same normalized second central moments as the region.
+    # "axis_minor_length",  # float The length of the minor axis of the ellipse that has the same normalized second central moments as the region.
+    # "centroid",  # array Centroid coordinate tuple (row, col).
     "eccentricity",  # float Eccentricity of the ellipse that has the same second-moments as the region. The eccentricity is the ratio of the focal distance (distance between focal points) over the major axis length. The value is in the interval [0, 1). When it is 0, the ellipse becomes a circle.
     # "extent",  # float Ratio of pixels in the region to pixels in the total bounding box. Computed as area / (rows * cols)
     "solidity",  # float Ratio of pixels in the region to pixels of the convex hull image.

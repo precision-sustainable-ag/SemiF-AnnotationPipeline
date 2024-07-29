@@ -21,11 +21,10 @@ log = logging.getLogger(__name__)
 
 
 class Segment:
-    def __init__(self, img, data) -> None:
-        self.species = data.species
-        self.bbox_size_th = data.bbox_size_th
+    def __init__(self, img, species, bbox) -> None:
+        self.species = species
         self.img = img
-        self.bbox = data.bbox
+        self.bbox = bbox
         self.mask = None
         self.props = None
         self.green_per = None
@@ -188,15 +187,6 @@ class Segment:
     def is_cotyledon(self):
         pass
 
-    def is_small_bbox(self):
-        """
-        Return "cotlydon" for growth stage if bounding box is small
-        """
-        x1, y1, x2, y2 = self.bbox
-        width = x2 - x1
-        length = y2 - y1
-        area = width * length
-        return True if area < self.bbox_size_th else False
 
     def is_rgb_empty(self):
         """Returns true if rgb crop is empty"""

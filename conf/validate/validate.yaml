@@ -13,12 +13,12 @@ full_res_save_location: ${validate.validation_dir}/${general.batch_id}/full_res_
 # Bboxes
 plot_boxes: True
 bbox_save_location: ${validate.validation_dir}/${general.batch_id}/bboxes
-bbox_transparent_fc: True
+bbox_transparent_fc: False
 
 # Masks
 plot_masks: True
 mask_save_location: ${validate.validation_dir}/${general.batch_id}/masks
-mask_transparent_fc: True
+mask_transparent_fc: False
 colorize_semantic_mask: True
 
 
