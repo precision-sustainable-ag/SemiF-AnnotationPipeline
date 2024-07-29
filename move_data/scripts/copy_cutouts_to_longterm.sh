@@ -6,8 +6,10 @@ LOGFILE="./pipeline.log"
 
 BATCHES=$1 # txt file of cutout batches that you want to upload to semifield-cutouts
 
+
+DST="/mnt/research-projects/s/screberg/longterm_images/semifield-cutouts/"
+# DST="/mnt/research-projects/s/screberg/GROW_DATA/semifield-cutouts"
 SRCPARENT="/home/psa_images/SemiF-AnnotationPipeline/data/semifield-cutouts"
-DST="/mnt/research-projects/s/screberg/GROW_DATA/semifield-cutouts"
 
 for line in `cat $BATCHES`; do
     echo
