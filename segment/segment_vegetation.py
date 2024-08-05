@@ -1,3 +1,4 @@
+import os
 import json
 import logging
 import time
@@ -247,19 +248,19 @@ class CutoutProcessor:
         crop_year = self.get_crop_type(state_id, dt)
 
         # Handle specific cases based on state and crop year
-        if state_id == "MD" and crop_year == "weeds_2023":
+        if state_id == "MD" and crop_year == "weeds 2023":
             if USDA_symbol in ["ELIN3", "URPL2"]:
                 log.warning(f'Changing {USDA_symbol} to unknown ("plant") for cutout: {batch_id}/{cutout_id}.json')
                 log.critical(f"Remap mask {batch_id}/{cutout_id}.json {class_id} to {spec_info['plant']['class_id']}")
                 return spec_info["plant"]
 
-        elif state_id == "NC" and crop_year == "weeds_2022":
+        elif state_id == "NC" and crop_year == "weeds 2022":
             if USDA_symbol == "URPL2":
                 log.warning(f'Changing {USDA_symbol} to Texas Millet ("URTE2") for cutout: {batch_id}/{cutout_id}.json')
                 log.critical(f"Remap mask {batch_id}/{cutout_id}.json {class_id} to {spec_info['URTE2']['class_id']}")
                 return spec_info["URTE2"]
 
-        elif state_id == "TX" and crop_year in ["weeds_2023", "weeds_2024"]:
+        elif state_id == "TX" and crop_year in ["weeds 2023", "weeds 2024"]:
             if USDA_symbol in ["ECCO2", "URRE2", "URPL2"]:
                 log.warning(f'Changing {USDA_symbol} to unknown ("plant") for cutout: {batch_id}/{cutout_id}.json')
                 log.critical(f"Remap mask {batch_id}/{cutout_id}.json {class_id} to {spec_info['plant']['class_id']}")
@@ -522,8 +523,8 @@ class VegetationSegmentationPipeline:
             payloads = [{"imgdata": img, "idx": idx} for idx, img in enumerate(return_list)]
 
             log.info(f"Multi-Processing image data for batch {batch_dir.name}.")
-            procs = cpu_count() // 6
-            with ProcessPoolExecutor(max_workers=procs) as executor:
+            max_workers = int(len(os.sched_getaffinity(0)) / 5)
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
                 executor.map(self.cutout_processor.cutout_pipeline, payloads)
             log.info(f"Finished segmenting vegetation for batch {batch_dir.name}")
         else:
