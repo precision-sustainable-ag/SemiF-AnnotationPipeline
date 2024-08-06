@@ -34,11 +34,10 @@ class DirectoryInitializer:
         """Create necessary directories for storing processed data."""
         self.semantic_mask_dir = self.meta_mask_dir / "semantic_masks"
         self.instance_mask_dir = self.meta_mask_dir / "instance_masks"
-        self.vis_masks = self.meta_mask_dir / "vis_masks"
         self.cutout_batch_dir = self.cutout_dir / self.batch_id
 
         # Create directories if they do not exist
-        for directory in [self.cutout_batch_dir, self.semantic_mask_dir, self.instance_mask_dir, self.vis_masks]:
+        for directory in [self.cutout_batch_dir, self.semantic_mask_dir, self.instance_mask_dir]:
             directory.mkdir(parents=True, exist_ok=True)
 
     def get_images(self) -> List[Path]:
@@ -190,7 +189,7 @@ class MaskCreator:
         image_expanded = cv2.copyMakeBorder(image, im_pad_size, im_pad_size, im_pad_size, im_pad_size, cv2.BORDER_CONSTANT, value=[0, 0, 0])
         masked_image = np.copy(image_expanded)
         class_masked_image = np.zeros(masked_image.shape[0:2])
-        instance_masked_image = np.zeros(masked_image.shape[0:2])
+        instance_masked_image = np.zeros(masked_image.shape[0:2], dtype=np.uint16)
 
         self.update_annotations_with_absolute_coords(annotations)
 
@@ -338,25 +337,19 @@ class MaskCreator:
         crop_start_x = int(centerX + im_pad_size - sam_crop_size_x / 2)
         crop_end_x = int(centerX + im_pad_size + sam_crop_size_x / 2)
 
-        full_mask = np.zeros(class_masked_image.shape[0:2])
-
         for mask in masks:
+            full_mask = np.zeros(class_masked_image.shape[0:2])
             # Directly get the mask data from the tensor
-            mask_data = mask[0, :, :].cpu().numpy()
+            mask_data = mask.cpu()[0, :, :]
             
             # Update the relevant slice of full_mask
             full_mask[crop_start_y:crop_end_y, crop_start_x:crop_end_x] = mask_data
-            
-            mask_indices = np.where(full_mask)
-
             # Vectorized updates for class_masked_image and instance_masked_image
             class_id = annotation['category_class_id']
             class_value = class_id if class_id != 28 else 0
-            class_masked_image[mask_indices] = class_value
-            instance_masked_image[mask_indices] = index
+            class_masked_image[full_mask == 1] = class_value
+            instance_masked_image[full_mask == 1] = index + 1 if class_id != 28 else 0
 
-            # Reset full_mask for the next iteration
-            full_mask[crop_start_y:crop_end_y, crop_start_x:crop_end_x] = False
 
 
 class ImageProcessor:
@@ -376,7 +369,7 @@ class ImageProcessor:
         self.directory_initializer = directory_initializer
         self.instance_label_dir = directory_initializer.instance_mask_dir
         self.class_label_dir = directory_initializer.semantic_mask_dir
-        self.visualization_label_dir = directory_initializer.vis_masks
+
         self.species_info = species_info
         self.cfg = cfg
 
@@ -439,8 +432,6 @@ class ImageProcessor:
         Returns:
             Dict: Updated metadata with annotations and categories.
         """
-        metadata["cutout_ids"] = [i['cutout_id'] for i in annotations]
-        
         # Create a mapping of new annotations using bbox_xywh for quick lookup
         new_annotations_map = {tuple(ann['bbox_xywh']): ann for ann in annotations}
         
@@ -466,10 +457,8 @@ class ImageProcessor:
         log.info(f"Total unmatched annotations: {unmatched_count}")
         
         unique_category_ids = set({item['category_class_id'] for item in annotations})
-        
-        log.info(f"matching categories...")
-        # Find categories that match the unique category IDs
 
+        # Find categories that match the unique category IDs
         unique_category_dicts = [
             category_dict 
             for annot_category_id in unique_category_ids
@@ -494,6 +483,7 @@ class ImageProcessor:
         metadata = self.post_process_metadata(metadata, annotations)
 
         write_path = Path(self.directory_initializer.metadata_dir, image_id + ".json")
+        log.info(f"Saving metadata to {write_path}.")
         JSONReadWriter.save(write_path, metadata)
         
         
@@ -526,7 +516,7 @@ class ImageProcessor:
         self.save_metadata(annotations)
 
         mask_name = Path(image_path).stem + '.png'
-        log.info(f"Saving masks ({Path(image_path).stem}) to {self.visualization_label_dir.parent}")
+        log.info(f"Saving masks ({Path(image_path).stem}) to {self.instance_label_dir.parent}")
         cv2.imwrite(str(self.instance_label_dir / mask_name), instance_masked_image.astype(np.uint16), [cv2.IMWRITE_PNG_COMPRESSION, 1])
         cv2.imwrite(str(self.class_label_dir / mask_name), class_masked_image.astype(np.uint8), [cv2.IMWRITE_PNG_COMPRESSION, 1])
 
