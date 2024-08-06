@@ -42,8 +42,10 @@ pipeline:
   localize_plants: False
   remap_labels: False
   assign_species: False
-  segment_vegetation: True
-  reformat_fullsizedmetadata: True
+  segment_vegetation: False
+  reformat_fullsizedmetadata: False
+  SAM_segmentor: False
+  segment_cutouts: False
   validate: True
   repo_overview: False
   compare_blobs: False
