@@ -1,2 +1,12 @@
 multiprocess: True
 cpus_left: 5  
+
+sam:
+  multiprocess: True
+  number_gpus: 2
+  batch_size: 8
+  model_type: vit_h # vit_h vit_tiny
+  sam_checkpoint: ${data.utilsdir}/segmentation_models/sam/sam_hq_vit_h.pth
+
+cutouts:
+  multiprocess: True

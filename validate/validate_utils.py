@@ -302,6 +302,17 @@ def convert_mask_values(mask, color_mapping):
 
     return colored_mask
 
+# Generate pastel colors
+def generate_pastel_colors(n):
+    # Generate n pastel colors by blending random colors with white
+    base_colors = np.random.rand(n, 3)
+    pastel_colors = (base_colors + 1.0) / 2.0  # Mix with white (add and divide by 2)
+    return (pastel_colors * 255).astype(np.uint8)
+
+def generate_bright_colors(n):
+    # Generate n bright colors
+    base_colors = np.random.rand(n, 3) * 0.8 + 0.2  # Ensure brightness by keeping colors above 0.2
+    return (base_colors * 255).astype(np.uint8)
 
 def plot_masks(
     df,
@@ -327,8 +338,24 @@ def plot_masks(
         color_map = species_info2color_map(species_info)
         rgbmask = convert_mask_values(rgbmask, color_map)
 
-        bgrinmask = cv2.imread(instancepath)
-        rgbinstance = cv2.cvtColor(bgrinmask, cv2.COLOR_BGR2RGB)
+        mask = cv2.imread(instancepath, cv2.IMREAD_UNCHANGED)
+
+        # Initialize an empty image for colored output
+        colored_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
+
+        # Get unique instance values (excluding 0, which is the background)
+        unique_values = np.unique(mask)
+        unique_values = unique_values[unique_values != 0]
+
+        # Assign pastel colors to each unique instance
+        colors = generate_bright_colors(len(unique_values))
+
+        # Create a lookup table to map unique values to colors
+        lookup_table = np.zeros((np.max(unique_values) + 1, 3), dtype=np.uint8)
+        lookup_table[unique_values] = colors
+
+        # Apply the lookup table to the mask to create the colored mask
+        colored_mask = lookup_table[mask]
 
         fig, (ax1, ax2, ax3) = plt.subplots(
             1, 3, figsize=figsize, facecolor="none" if transparent_fc else "w"
@@ -340,7 +367,7 @@ def plot_masks(
         # Resize the image
         resized_rgbimg = cv2.resize(rgbimg, (new_width, new_height))
         resized_rgbmask = cv2.resize(rgbmask, (new_width, new_height))
-        resized_rgbinstance = cv2.resize(rgbinstance, (new_width, new_height))
+        resized_rgbinstance = cv2.resize(colored_mask, (new_width, new_height))
 
         ax1.imshow(resized_rgbimg)
         ax2.imshow(resized_rgbmask)

@@ -8,6 +8,9 @@ developed
 # Example results
 examples
 
+# Model files
+*.pth
+
 # Metashape license files
 **.lic
 test_permission
