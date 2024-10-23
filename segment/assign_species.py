@@ -2,7 +2,7 @@ import json
 import logging
 import time
 from pathlib import Path
-
+from pprint import pprint
 import geopandas
 import matplotlib.path as mplPath
 import numpy as np
@@ -94,13 +94,20 @@ def main(cfg: DictConfig) -> None:
                         )
 
                     else:
+                        poly_cls = None
                         log.warning(
                             f"No polygon or closest polygon (< {closest_distance_thresh} meter) was found. Exiting.{closest_distance}\n{poly_cls}\n{file}\n{point}"
                         )
-                        exit(1)
+                        log.info(f"Point: {point}")
+                        
+                        
                 else:
                     poly_cls = containing_polygon["species"].values[0]
-            spec_info = spec_dict["species"][poly_cls]
+            
+            if poly_cls is None:
+                spec_info = spec_dict["species"]['plant']
+            else:
+                spec_info = spec_dict["species"][poly_cls]
 
             bbox.assign_species(spec_info)
         # Save

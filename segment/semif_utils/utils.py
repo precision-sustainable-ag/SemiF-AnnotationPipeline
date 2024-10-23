@@ -11,15 +11,11 @@ from multiprocessing import Pool, cpu_count
 from pathlib import Path
 
 import cv2
-import extcolors
 import matplotlib.patches as patches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# import torch
-from colormap import rgb2hex
-from dacite import Config, from_dict
 from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 from PIL import Image
 from scipy import ndimage
@@ -59,17 +55,6 @@ def save_json(path, data):
 ######################################################
 
 
-def create_dataclasses(metadir, cfg):
-    labels = sorted([str(x) for x in (metadir).glob("*.json")])
-    return_list = []
-    procs = len(os.sched_getaffinity(0)) // cfg.segment.cpus_left
-    # procs = int(cpu_count() / 2)  # - cfg.segment.cpus_left
-    with Pool(processes=procs) as pool:
-        imap_unordered_it = pool.imap_unordered(get_image_meta, labels)
-        for x in imap_unordered_it:
-            return_list.append(x)
-    log.info(f"Converted metadata to {len(return_list)} dataclasses")
-    return return_list
 
 
 def get_bbox_info(csv_path):
@@ -130,21 +115,6 @@ def parse_dict(props_tabl):
             ndict[key] = None
     return ndict
 
-
-def get_image_meta(path):
-    with open(path) as f:
-        j = json.load(f)
-        imgdata = from_dict(
-            data_class=ImageData, data=j, config=Config(check_types=False)
-        )
-    return imgdata
-
-
-def get_cutout_meta(path):
-    with open(path) as f:
-        j = json.load(f)
-        cutout = from_dict(data_class=Cutout, data=j, config=Config(check_types=False))
-    return cutout
 
 
 # Flatten the nested JSON
@@ -849,136 +819,3 @@ def get_cutout_dir(batch_dir, cutout_dir):
     cutout_dir = Path(cutout_dir, batch)
     return cutout_dir
 
-
-######################################################
-################### COLOR STATS ######################
-######################################################
-
-
-def color_to_df(input, ignore_black=False):
-    if ignore_black:
-        colors_pre_list = str(input).replace("[(", "").split(", (")[0:-1]
-    else:
-        colors_pre_list = str(input).replace("([(", "").split(", (")[0:-1]
-    df_rgb = [i.split("), ")[0] + ")" for i in colors_pre_list]
-    df_percent = [i.split("), ")[1].replace(")", "") for i in colors_pre_list]
-
-    # convert RGB to HEX code
-    df_color_up = [
-        rgb2hex(
-            int(i.split(", ")[0].replace("(", "")),
-            int(i.split(", ")[1]),
-            int(i.split(", ")[2].replace(")", "")),
-        )
-        for i in df_rgb
-    ]
-
-    df = pd.DataFrame(
-        zip(df_color_up, df_rgb, df_percent), columns=["hex", "rgb", "occurence"]
-    )
-    return df
-
-
-def exact_color(
-    pilimg,
-    resize,
-    tolerance,
-    zoom,
-    save=False,
-    show=False,
-    ignore_black=False,
-    return_colors=False,
-    transparent=True,
-):
-    colors_x = extcolors.extract_from_image(pilimg, tolerance=tolerance, limit=13)
-    if ignore_black:
-        colors_x = [(colo, num) for colo, num in colors_x[0] if colo != (0, 0, 0)]
-    # crate dataframe
-
-    df_color = color_to_df(colors_x, ignore_black=True)
-    if return_colors and not save and not show:
-        return df_color
-    # Plotting and saving
-    if show or save:
-        # background
-        bg = "bg.png"
-        fig, ax = plt.subplots(figsize=(192, 108), dpi=10)
-        if not transparent:
-            fig.set_facecolor("white")
-        plt.savefig(bg, transparent=transparent)
-        plt.close(fig)
-        # resize
-        output_width = resize
-        img = Image.open(input_image)
-        wpercent = output_width / float(img.size[0])
-        hsize = int((float(img.size[1]) * float(wpercent)))
-        img = img.resize((output_width, hsize), Image.Resampling.LANCZOS)
-        # Change transparency of image in donut
-        if transparent and ignore_black:
-            datas = img.getdata()
-            newData = []
-            for item in datas:
-                if (
-                    item[0] == 0 and item[1] == 0 and item[2] == 0
-                ):  # finding black colour by its RGB value
-                    # storing a transparent value when we find a black colour
-                    newData.append((255, 255, 255, 0))
-                else:
-                    newData.append(item)  # other colours remain unchanged
-            img.putdata(newData)
-
-        # annotate text
-        list_color = list(df_color["hex"])
-        list_precent = [int(i) for i in list(df_color["occurence"])]
-        text_c = [
-            c + " " + str(round(p * 100 / sum(list_precent), 1)) + "%"
-            for c, p in zip(list_color, list_precent)
-        ]
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(160, 120), dpi=10)
-        # donut plot
-        wedges, text = ax1.pie(
-            list_precent,
-            labels=text_c,
-            labeldistance=1.05,
-            colors=list_color,
-            textprops={"fontsize": 150, "color": "black"},
-        )
-        plt.setp(wedges, width=0.3)
-        # add image in the center of donut plot
-        imagebox = OffsetImage(img, zoom=zoom)
-        ab = AnnotationBbox(imagebox, (0, 0), xycoords="data", frameon=False)
-        ax1.add_artist(ab)
-        # color palette
-        x_posi, y_posi, y_posi2 = 160, -170, -170
-        for c in list_color:
-            if list_color.index(c) <= 5:
-                y_posi += 180
-                rect = patches.Rectangle((x_posi, y_posi), 360, 160, facecolor=c)
-                ax2.add_patch(rect)
-                ax2.text(
-                    x=x_posi + 400, y=y_posi + 100, s=c, fontdict={"fontsize": 190}
-                )
-            else:
-                y_posi2 += 180
-                rect = patches.Rectangle(
-                    (x_posi + 1000, y_posi2), 360, 160, facecolor=c
-                )
-                ax2.add_artist(rect)
-                ax2.text(
-                    x=x_posi + 1400, y=y_posi2 + 100, s=c, fontdict={"fontsize": 190}
-                )
-        if not transparent:
-            fig.set_facecolor("white")
-        ax2.axis("off")
-        bg = plt.imread("bg.png")
-        plt.imshow(bg)
-        plt.tight_layout()
-        if save:
-            plt.savefig(
-                Path(input_image).name,
-                dpi=100,
-                bbox_inches="tight",
-                transparent=transparent,
-            )
-        if return_colors:
-            return colors_x

@@ -35,7 +35,7 @@ def main(cfg: DictConfig) -> None:
                 log.info(
                     f"Autosfm has already been run. All contents are available. Moving to next process."
                 )
-                exit(0)
+                return
 
         except Exception as e:
             log.exception(f"Failed to check asfm contents. Exiting")

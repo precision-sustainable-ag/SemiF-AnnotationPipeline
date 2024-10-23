@@ -12,7 +12,7 @@ from PIL import Image
 from scipy import stats
 from scipy.stats import kurtosis, skew
 from semif_utils.datasets import CUTOUT_PROPS, CutoutProps
-from semif_utils.utils import (apply_mask, exact_color, get_watershed,
+from semif_utils.utils import (apply_mask, get_watershed,
                                make_exg, make_exg_minus_exr, make_exr,
                                make_gli, make_kmeans, make_ndi, multiple_otsu,
                                otsu_thresh, parse_dict, read_json,
@@ -230,21 +230,6 @@ class GenCutoutProps:
             },
         }
 
-    def color_distribution(self, ignore_black=True):
-        """Ignores black (0) values and looks at the occurence of the top 12 most common RGB values."""
-        cos = exact_color(
-            Image.fromarray(self.cutout),
-            None,
-            self.color_dist_tol,
-            2,
-            save=False,
-            show=False,
-            ignore_black=ignore_black,
-            return_colors=True,
-            transparent=False,
-        )
-        coldict = cos.to_dict(orient="records")
-        return coldict
 
     def from_regprops_table(self, connectivity=2):
         """Generates list of region properties for each cutout mask"""
@@ -266,6 +251,10 @@ class GenCutoutProps:
         table = self.from_regprops_table()
         cutout_props = CutoutProps(**table)
         return cutout_props
+    
+    def to_regprops_table(self):
+        table = self.from_regprops_table()
+        return table
 
 
 class SegmentMask:

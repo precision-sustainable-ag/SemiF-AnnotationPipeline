@@ -84,7 +84,7 @@ class BoundingBoxAdjuster:
     """Static class to adjust and fix bounding box categories based on configuration."""
 
     @staticmethod
-    def fix_species_category(cfg: DictConfig, annotation: Dict, batch_id: str, dt: str, cutout_id: int, spec_info: Dict) -> Dict:
+    def fix_species_category(cfg: DictConfig, annotation: Dict, batch_id: str, dt: str, spec_info: Dict) -> Dict:
         """
         Adjust species category based on state and crop year. Accounts for weed ID or planting mistakes.
 
@@ -106,6 +106,7 @@ class BoundingBoxAdjuster:
         date_ranges = cfg.date_ranges
         batch_id = cfg.general.batch_id
         state_id = batch_id.split("_")[0]
+        cutout_id = annotation["cutout_id"]
         
         crop_year = BoundingBoxAdjuster.get_crop_year(date_ranges, state_id, dt)
         
@@ -122,8 +123,14 @@ class BoundingBoxAdjuster:
                 log.warning(f"Remap mask {batch_id}/{cutout_id}.json {class_id} to {spec_info['URTE2']['class_id']}")
                 return spec_info["URTE2"]
 
-        elif state_id == "TX" and crop_year in ["weeds 2023", "weeds 2024"]:
-            if USDA_symbol in ["ECCO2", "URRE2", "URPL2"]:
+        elif state_id == "TX" and crop_year == "weeds 2023":
+            if USDA_symbol == "ECCO2":
+                log.warning(f'Changing {USDA_symbol} to unknown ("plant") for cutout: {batch_id}/{cutout_id}.json')
+                log.warning(f"Remap mask {batch_id}/{cutout_id}.json {class_id} to {spec_info['plant']['class_id']}")
+                return spec_info["plant"]
+            
+        elif state_id == "TX" and crop_year == "weeds 2024":
+            if USDA_symbol in ["URRE2", "URPL2"]:
                 log.warning(f'Changing {USDA_symbol} to unknown ("plant") for cutout: {batch_id}/{cutout_id}.json')
                 log.warning(f"Remap mask {batch_id}/{cutout_id}.json {class_id} to {spec_info['plant']['class_id']}")
                 return spec_info["plant"]
@@ -395,7 +402,7 @@ class ImageProcessor:
         for idx, annotation in enumerate(annotations):
             annotation["image_id"] = image_id
             annotation["cutout_id"] = f"{image_id}_{idx}"
-            new_cat_id = BoundingBoxAdjuster.fix_species_category(self.cfg, annotation, batch_id, dt, idx, self.species_info)
+            new_cat_id = BoundingBoxAdjuster.fix_species_category(self.cfg, annotation, batch_id, dt, self.species_info)
             annotation["category_class_id"] = new_cat_id["class_id"]
     
         return annotations
@@ -416,7 +423,7 @@ class ImageProcessor:
             dt = annotation["DateTime"]
             image_id = annotation["image_id"]
             annotation["cutout_id"] = f"{image_id}_{idx}"
-            new_cat_id = BoundingBoxAdjuster.fix_species_category(self.cfg, annotation, batch_id, dt, idx, self.species_info)
+            new_cat_id = BoundingBoxAdjuster.fix_species_category(self.cfg, annotation, batch_id, dt, self.species_info)
             annotation["category_class_id"] = new_cat_id["class_id"]
     
         return annotations
@@ -773,7 +780,7 @@ def process_with_torch_multiprocessing(cfg: DictConfig):
     directory_initializer = DirectoryInitializer(cfg)
     species_info = JSONReadWriter.load(cfg.data.species)["species"]
     imgs = directory_initializer.get_images()
-    input_paths = [(image_path, str(directory_initializer.metadata_dir / f"{image_path.stem}.json")) for image_path in imgs]
+    input_paths = [(image_path, str(directory_initializer.metadata_dir / f"{image_path.stem}.json")) for image_path in imgs if Path(directory_initializer.metadata_dir, f"{image_path.stem}.json").exists()]
 
     # Split the input paths into chunks for each GPU
     num_gpus = cfg.segment.sam.number_gpus
@@ -782,7 +789,6 @@ def process_with_torch_multiprocessing(cfg: DictConfig):
     
     log.info(f"Chunk size: {chunk_size}")
     log.info(f"Chunk length: {len(chunks)}")
-
     # Launch multiple processes using torch.multiprocessing
     processes = []
     for gpu_id in range(num_gpus):
@@ -811,8 +817,11 @@ def process_sequentially(cfg: DictConfig):
 
     for image_path in imgs:
         log.info(f"Processing image: {image_path}")
-        json_path = str(directory_initializer.metadata_dir / f"{image_path.stem}.json")
-        input_paths = (image_path, json_path)
+        json_path = directory_initializer.metadata_dir / f"{image_path.stem}.json"
+        if not json_path.exists():
+            log.warning(f"Metadata file not found for image: {image_path}. Skipping.")
+            continue
+        input_paths = (image_path, str(json_path))
         processor.process_single_image(input_paths)
     log.info("Finished processing sequentially.")
 
