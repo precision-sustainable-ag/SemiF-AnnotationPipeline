@@ -3,12 +3,12 @@ import os
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Optional, List
-
+from typing import Optional, List, Dict
+import numpy as np
 import logging
 from omegaconf import DictConfig
 from tqdm import tqdm
-
+from semif_utils.metadata_schema import FULLSIZED_METADATA_SCHEMA
 log = logging.getLogger(__name__)
 
 class MetadataCleaner:
@@ -62,7 +62,49 @@ class MetadataCleaner:
 
 class CoordinateConverter:
     """Class to handle the conversion of local coordinates to [x, y, width, height] format."""
+    
+    @staticmethod
+    def calculate_bounding_box_area(global_coordinates):
+        """
+        This function takes a dictionary containing the global coordinates
+        of a bounding box and returns its area in square meters.
+        
+        Args:
+        global_coordinates (dict): A dictionary with the following keys:
+            "top_left" (list): [x, y] coordinates of the top left corner.
+            "top_right" (list): [x, y] coordinates of the top right corner.
+            "bottom_left" (list): [x, y] coordinates of the bottom left corner.
+            "bottom_right" (list): [x, y] coordinates of the bottom right corner.
+            
+        Returns:
+        float: Area of the bounding box in square meters.
+        """
+        top_left = np.array(global_coordinates['top_left'])
+        top_right = np.array(global_coordinates['top_right'])
+        bottom_left = np.array(global_coordinates['bottom_left'])
 
+        if top_left[0] == 0 and top_left[1] == 0 and top_right[0] == 0 and top_right[1] == 0 and bottom_left[0] == 0 and bottom_left[1] == 0:
+            return None
+
+        if len(top_left) != 2:
+            top_left = top_left[:2]
+        if len(top_right) != 2:
+            top_right = top_right[:2]
+        if len(bottom_left) != 2:
+            bottom_left = bottom_left[:2]
+            
+        # Calculate the width (distance between top_left and top_right)
+        width = np.linalg.norm(top_right - top_left)
+
+        # Calculate the height (distance between top_left and bottom_left)
+        height = np.linalg.norm(top_left - bottom_left)
+
+        # Calculate the area of the bounding box
+        area = width * height
+        # Convert square meters to square centimeters
+        area_cm2 = area * 10000
+        return area_cm2
+    
     @staticmethod
     def convert_to_xywh(local_coordinates: dict, image_width: int, image_height: int) -> List[int]:
         """
@@ -132,13 +174,25 @@ class CategoryManager:
         class_id = data["category"]["class_id"]
         data["cutout_id"] = data.pop("bbox_id", None)
         cutout_id = data["cutout_id"]
-        crop_year = DateRangeChecker.get_crop_type(state_id, dt, date_ranges)
+        crop_year = DateRangeChecker.get_crop_type(state_id, dt, date_ranges).replace(" ", "_")
+        
 
+        if state_id == "MD" and crop_year == "weeds_2023" and USDA_symbol in ["ELIN3", "URPL2"]: # ELIN3 is Goosegrass and URPL2 is Broadleaf signalgrass
+            log.warning(f'Changing {USDA_symbol} to unknown ("plant") for cutout: {batch_id}/{cutout_id}.json')
+            log.critical(f"Remap mask {batch_id}/{cutout_id}.json {class_id} to {spec_info['plant']['class_id']}")
+            data["category"] = spec_info["plant"]
+        
         # Adjust categories based on specific rules
         if state_id == "NC" and crop_year == "weeds_2022" and USDA_symbol == "URPL2":
             log.warning(f'Changing {USDA_symbol} to Texas Millet ("URTE2") for cutout: {batch_id}/{cutout_id}.json')
             log.critical(f"Remap mask {batch_id}/{cutout_id}.json {class_id} to {spec_info['URTE2']['class_id']}")
             data["category"] = spec_info["URTE2"]
+
+        # Adjust categories based on specific rules
+        if state_id == "NC" and crop_year == "cover_crops_2023/2024" and USDA_symbol == "TRAE":
+            log.warning(f'Changing {USDA_symbol} to unknown ("plant") for cutout: {batch_id}/{cutout_id}.json')
+            log.critical(f"Remap mask {batch_id}/{cutout_id}.json {class_id} to {spec_info['plant']['class_id']}")
+            data["category"] = spec_info["plant"]
 
         if state_id == "TX" and crop_year == "weeds_2023" and USDA_symbol == "ECCO2":
             log.warning(f'Changing {USDA_symbol} to unknown ("plant") for cutout: {batch_id}/{cutout_id}.json')
@@ -221,7 +275,7 @@ class AnnotationCleaner:
             dict: Cleaned and reformatted annotation.
         """
         # Remove unnecessary keys from annotation
-        for key in ["local_centroid", "global_centroid", "global_coordinates", "instance_id", "image_id"]:
+        for key in ["local_centroid", "global_centroid", "instance_id", "image_id"]:
             annotation.pop(key, None)
 
         try:
@@ -231,6 +285,13 @@ class AnnotationCleaner:
             )
         except Exception as e:
             log.error("Error converting coordinates in file: %s", e)
+
+        try:   
+            annotation["bbox_area_cm2"] = CoordinateConverter.calculate_bounding_box_area(annotation["global_coordinates"])
+            annotation.pop("global_coordinates", None)
+        except Exception as e:
+            log.error(f"Error calculating bounding box area: {e}")
+            return None
 
         annotation.pop("local_coordinates", None)
 
@@ -315,6 +376,38 @@ class AnnotationProcessor:
         except Exception as e:
             log.error("Failed to save file %s: %s", meta, e)
 
+    def validate_metadata_structure(self, json_data, reference_structure=FULLSIZED_METADATA_SCHEMA) -> bool:
+        """
+        Validate that the JSON data matches the reference structure exactly, 
+        with no extra or missing keys.
+        
+        Args:
+        - json_data (dict): The JSON data to validate.
+        - reference_structure (dict): The reference JSON structure.
+        
+        Returns:
+        - bool: True if the structure matches exactly, False otherwise.
+        """
+        if isinstance(json_data, dict) and isinstance(reference_structure, dict):
+            # Check for extra or missing keys
+            if set(json_data.keys()) != set(reference_structure.keys()):
+                log.debug(f"Key mismatch. JSON keys: {set(json_data.keys())}, Reference keys: {set(reference_structure.keys())}")
+                return False
+            # Recursively validate each key
+            for key in json_data:
+                if not self.validate_metadata_structure(json_data[key], reference_structure[key]):
+                    return False
+        elif isinstance(json_data, list) and isinstance(reference_structure, list) and len(reference_structure) > 0:
+            # Validate each item in the list
+            for item in json_data:
+                if not self.validate_metadata_structure(item, reference_structure[0]):
+                    return False
+        else:
+            # We reached a primitive type; no further validation needed
+            return True
+        
+        return True
+    
     def process_file(self, meta: Path) -> None:
         """
         Process a single metadata file by cleaning the metadata, processing annotations,
@@ -326,31 +419,36 @@ class AnnotationProcessor:
         log.info("Processing file: %s", meta)
         try:
             with open(meta, "r") as file:
-                data = json.load(file)
-            data = MetadataCleaner.clean_metadata(data)
+                metadata = json.load(file)
+            metadata = MetadataCleaner.clean_metadata(metadata)
+            matches = self.validate_metadata_structure(metadata)
+            if matches:
+                log.info("Metadata already formatted correctly.")
+                return None
+
 
             # Convert bboxes to annotations
-            data["annotations"] = data.pop("bboxes")
-            annotations = data["annotations"]
+            metadata["annotations"] = metadata.pop("bboxes")
+            annotations = metadata["annotations"]
 
             categories = []
             reformatted_annotations = []
 
             for annotation in annotations:
                 # Clean and reformat each annotation
-                annotation = AnnotationCleaner.clean_annotation(annotation, data, self.category_filepath, self.date_ranges)
+                annotation = AnnotationCleaner.clean_annotation(annotation, metadata, self.category_filepath, self.date_ranges)
 
                 if "cutout_exists" not in annotation:
-                    annotation["cutout_exists"] = self._cutout_exists(data["batch_id"], annotation["cutout_id"])
+                    annotation["cutout_exists"] = self._cutout_exists(metadata["batch_id"], annotation["cutout_id"])
 
                 reformatted_annotations.append(annotation)
                 categories.append(annotation.pop("category", None))
 
-            data["annotations"] = reformatted_annotations
-            data["categories"] = self.get_unique_categories(categories)
+            metadata["annotations"] = reformatted_annotations
+            metadata["categories"] = self.get_unique_categories(categories)
 
             # Save the processed metadata
-            self.save_metadata(meta, data)
+            self.save_metadata(meta, metadata)
             
         except Exception as e:
             log.exception("Failed to process file %s:", meta)
@@ -373,7 +471,7 @@ def main(cfg: DictConfig) -> None:
     Args:
         cfg (DictConfig): Configuration object with necessary parameters.
     """
-    log.info("Starting AnnotationProcessor with configuration: %s", cfg)
+    log.info("Starting AnnotationProcessor.")
     processor = AnnotationProcessor(cfg)
     processor.process_all_files_sequentially()
     log.info("Finished processing files")
