@@ -122,6 +122,56 @@ class GenCutoutProps:
     def all_zero_props(self) -> Tuple[List[float], List[float]]:
         """Handle the case where all pixel values are zero."""
         return [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
+    
+    def calculate_bbox_area_cm2(self, fullsized_metadata, data):
+        
+        if "cutout_id" in data:
+            cutout_id = data.get("cutout_id")
+        elif "bbox_id" in data:
+            cutout_id = data.get("bbox_id")
+    
+        # Parse the "annotations" or "bboxes" key
+        annotations = fullsized_metadata.get("annotations", fullsized_metadata.get("bboxes", []))
+        
+        # Find the matching "cutout_id" or "bbox_id"
+        matching_annotation = None
+        for ann in annotations:
+            if ann.get("cutout_id") == cutout_id or ann.get("bbox_id") == cutout_id:
+                matching_annotation = ann
+                # print("yes")
+                break
+
+        if matching_annotation:
+            log.debug(f"Matching annotation found for cutout_id: {cutout_id}")
+        else:
+            log.error(f"Matching annotation not found for cutout_id: {cutout_id}.")
+        
+        if not matching_annotation:
+            log.error(f"Matching annotation not found for cutout_id: {cutout_id}.")
+            return None
+        
+        # Calculate the bounding box area in square centimeters
+        if "global_coordinates" in matching_annotation:
+            global_coordinates = matching_annotation["global_coordinates"]
+            top_left = np.array(global_coordinates['top_left'])
+            top_right = np.array(global_coordinates['top_right'])
+            bottom_left = np.array(global_coordinates['bottom_left'])
+            # Calculate the width (distance between top_left and top_right)
+            top_left = top_left[:2]
+            top_right = top_right[:2]
+            bottom_left = bottom_left[:2]
+            width = float(np.linalg.norm(top_right - top_left))
+            # Calculate the height (distance between top_left and bottom_left)
+            height = float(np.linalg.norm(top_left - bottom_left))
+            # Calculate the area of the bounding box
+            area = width * height
+            # Convert square meters to square centimeters
+            area_cm2 = area * 10000
+            # data["cutout_props"]["bbox_area_cm2"] = area_cm2
+            return area_cm2
+        else:
+            log.error(f"Global coordinates not found in matching annotation for cutout_id: {cutout_id}.")
+
 
 
 class CutoutProcessor:
@@ -152,10 +202,12 @@ class CutoutProcessor:
         image_id = data['image_id']
         image_path = self.get_corresponding_image_file(image_id, mask=False)
         mask_path = self.get_corresponding_image_file(image_id, mask=True)
+        metadata_path = self.get_corresponding_image_file(image_id, mask=False, metadata=True)
 
         if image_path.exists() and mask_path.exists():
             image = self.load_image(str(image_path))
             mask = self.load_mask(str(mask_path))
+            
             self.generate_and_save_products(image, mask, data, image_id)
 
     def process_images_concurrently(self) -> None:
@@ -187,9 +239,10 @@ class CutoutProcessor:
 
     def generate_and_save_products(self, image: np.ndarray, mask: np.ndarray, metadata: List[Dict], image_id: str) -> None:
         annotations = metadata['annotations']
+
         """Generate and save cutouts, cutout masks, and bounding box crops."""
         for i, annotation in enumerate(annotations):
-            if annotation['cutout_exists']:
+            # if annotation['cutout_exists'] is False:
                 bbox = annotation['bbox_xywh']
                 x, y, w, h = bbox
                 mask_segment = mask[y:y+h, x:x+w]
@@ -207,16 +260,18 @@ class CutoutProcessor:
                 # Calculate properties
                 cutout_props = GenCutoutProps(image_crop, mask_segment, cutout)
                 properties = cutout_props.from_regprops_table(annotation["is_primary"], colorchecker=True if class_id == 28 else False)
-                
+                properties["bbox_area_cm2"] = cutout_props.calculate_bbox_area_cm2(metadata, annotation)
                 
                 cutout_metadata = self.format_metadata(metadata, annotation, properties)
                 # Save properties to a JSON file
                 self.save_metadata(cutout_metadata)
 
-    def get_corresponding_image_file(self, image_id: str, mask=False) -> Path:
+    def get_corresponding_image_file(self, image_id: str, mask=False, metadata=False) -> Path:
         """Find the corresponding file from a list using the image_id."""
         if mask:
             return Path(self.cfg.batchdata.meta_masks, "semantic_masks", f"{image_id}.png")
+        elif metadata:
+            return Path(self.cfg.batchdata.metadata, f"{image_id}.json")
         else:
             return Path(self.cfg.batchdata.images, f"{image_id}.jpg")
 
