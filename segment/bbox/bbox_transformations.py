@@ -123,7 +123,15 @@ class BBoxFilter:
                     ]
                 )
                 centroids = np.array([_box.global_centroid for _box in all_boxes])
-                distances = ((centroids - centers[:, :2]) ** 2).sum(axis=-1)
+                distances = 0
+                try:
+                    distances = ((centroids - centers[:, :2]) ** 2).sum(axis=-1)
+                except ValueError as e:
+                    log.exception(f"Error calculating distances: {str(e)}")
+                    log.error(f"Centroids: {centroids}")
+                    log.error(f"Centers: {centers}")
+                    log.error(f"Centers [:, :2]: {centers[:, :2]}")
+                    continue
                 min_idx = np.argmin(distances)
                 all_boxes[min_idx].is_primary = True
                 if all_boxes[min_idx].bbox_id not in self.primary_box_ids:
@@ -219,6 +227,7 @@ class BBoxMapper:
                     if camera.label in image_id_to_chunks:
                         image_id_to_chunks[camera.label].append(chunk)
 
+        surface = chunk.model
         for image in tqdm(self.images, desc="Mapping: Projecting 2D to 3D"):
             image_id = image.image_id
 
@@ -229,31 +238,39 @@ class BBoxMapper:
 
             for bbox in image.bboxes:
                 global_coordinates = None
-                for chunk in chunks:
-                    try:
-                        global_coordinates = self.map_local_to_global(
-                            bbox, image_id, chunk
+                # for chunk in chunks:
+                try:
+                    global_coordinates = self.map_local_to_global(
+                        bbox, image_id, chunk, surface
+                    )
+                    if global_coordinates:
+                        bbox.update_global_coordinates(global_coordinates)
+                        # break
+                except Exception as e:
+                    global_coordinates = BoxCoordinates(
+                        np.array((0,0)),
+                        np.array((0,0)),
+                        np.array((0,0)),
+                        np.array((0,0))
                         )
-                        if global_coordinates:
-                            bbox.update_global_coordinates(global_coordinates)
-                            break
-                    except Exception as e:
-                        log.warning(
-                            f"Error mapping bbox for image_id {image_id} using chunk {chunk}. Reason: {str(e)}\nGlobal coordinates: {global_coordinates}."
-                        )
+                    
+                    bbox.update_global_coordinates(global_coordinates)
+                    log.warning(
+                        f"Error mapping bbox for image_id {image_id} using chunk {chunk}. Reason: {str(e)}\nGlobal coordinates: {global_coordinates}."
+                    )
                 if not global_coordinates:
                     log.critical(
                         f"Failed to map bbox for image_id {image_id} using any chunk."
                     )
 
-    def map_local_to_global(self, bbox, image_id, chunk):
+    def map_local_to_global(self, bbox, image_id, chunk, surface):
         camera = next((cam for cam in chunk.cameras if cam.label == image_id), None)
         if not camera:
             raise ValueError(
                 f"No camera found for image_id {image_id} in chunk {chunk}."
             )
 
-        surface = chunk.model
+        # surface = chunk.model
         mapped_coordinates = []
 
         for co, coords in zip(
