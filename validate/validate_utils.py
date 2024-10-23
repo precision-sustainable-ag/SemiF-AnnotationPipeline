@@ -338,24 +338,7 @@ def plot_masks(
         color_map = species_info2color_map(species_info)
         rgbmask = convert_mask_values(rgbmask, color_map)
 
-        mask = cv2.imread(instancepath, cv2.IMREAD_UNCHANGED)
-
-        # Initialize an empty image for colored output
-        colored_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
-
-        # Get unique instance values (excluding 0, which is the background)
-        unique_values = np.unique(mask)
-        unique_values = unique_values[unique_values != 0]
-
-        # Assign pastel colors to each unique instance
-        colors = generate_bright_colors(len(unique_values))
-
-        # Create a lookup table to map unique values to colors
-        lookup_table = np.zeros((np.max(unique_values) + 1, 3), dtype=np.uint8)
-        lookup_table[unique_values] = colors
-
-        # Apply the lookup table to the mask to create the colored mask
-        colored_mask = lookup_table[mask]
+        instance_mask = cv2.imread(instancepath, cv2.IMREAD_UNCHANGED)
 
         fig, (ax1, ax2, ax3) = plt.subplots(
             1, 3, figsize=figsize, facecolor="none" if transparent_fc else "w"
@@ -367,7 +350,7 @@ def plot_masks(
         # Resize the image
         resized_rgbimg = cv2.resize(rgbimg, (new_width, new_height))
         resized_rgbmask = cv2.resize(rgbmask, (new_width, new_height))
-        resized_rgbinstance = cv2.resize(colored_mask, (new_width, new_height))
+        resized_rgbinstance = cv2.resize(instance_mask, (new_width, new_height))
 
         ax1.imshow(resized_rgbimg)
         ax2.imshow(resized_rgbmask)
