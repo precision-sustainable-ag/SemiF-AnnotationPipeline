@@ -132,6 +132,7 @@ class BatchProcessor:
         self.results = {}
         # Extract unique batches and states
         self.batches = set(folder.split("/")[0] for folder in self.folders if folder)
+        self.batches = [batch for batch in self.batches if "_" in batch]
         self.states = set(batch.split("_")[0] for batch in self.batches if "_" in batch)
         # Date ranges for each "season" by state
         self.date_ranges = {

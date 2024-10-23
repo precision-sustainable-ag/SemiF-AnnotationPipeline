@@ -45,6 +45,7 @@ def main(cfg: DictConfig) -> None:
         try:
             log.info(f"Writing missing items to {cfg.logs.unprocessed}.")
             with open(cfg.logs.unprocessed, "w") as f:
+                f.write("Missing items for each batch:\n")
                 for _, row in df.iterrows():
                     f.write(f"{row.batch}: {', '.join(sorted(row.missing))}\n")
         except Exception as e:
