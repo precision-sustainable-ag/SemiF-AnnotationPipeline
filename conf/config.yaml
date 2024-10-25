@@ -21,12 +21,12 @@ hydra:
 general:
   # season: summer_weeds_2022
   # season: summer_cash_crops_2023
-  season: summer_weeds_2023 # Before 2023-08-09 for TX summer weeds 2023 and all other locations
+  # season: summer_weeds_2023 # Before 2023-08-09 for TX summer weeds 2023 and all other locations
   # season: summer_weeds_2023_TXpos2 # Everything after 2023-08-29 for TX summer weeds 2023
   # season: cool_season_covers_2022_2023
   # season: cool_season_cover_2022_2023_MD_pos_2
   # season: cool_season_cover_2022_2023_MD_pos_3 # used only for MD_2023-03-16
-  # season: cool_season_covers_2023_2024
+  season: cool_season_covers_2023_2024
   # season: summer_weeds_2024
 #----------------------------------------------------
   metashape_key: ??? # Do not put key in the config since the file is committed to GitHub
@@ -38,17 +38,18 @@ general:
 # Select sections of pipeline to run
 pipeline:
   download_data: False
+  move_bbotv3_data: False
   autosfm_pipeline: False
-  localize_plants: False
+  localize_plants: True
   remap_labels: False
   assign_species: False
-  segment_vegetation: False
   reformat_fullsizedmetadata: False
-  SAM_segmentor: False
-  segment_cutouts: False
-  validate: True
-  repo_overview: False
-  compare_blobs: False
+  segment_vegetation: False
+  # SAM_segmentor: False # needs refinement, DO NOT USE
+  # segment_cutouts: False # needs refinement, DO NOT USE
+  validate_batch: True
+  repo_overview: False # optional
+  compare_blobs: False # optional
   
 # Other job/naming options (currently not used)
 job:
@@ -84,6 +85,7 @@ data:
   repo_database: ${general.workdir}/repo_overview
   database_parquet: ${data.repo_database}/database
   longterm_storage : /mnt/research-projects/s/screberg/longterm_images
+  longterm_storage2: /mnt/research-projects/s/screberg/longterm_images2
 
 pipeline_keys: ${general.workdir}/keys/pipeline_keys.yaml
   
