@@ -2,4 +2,6 @@
 # Image directory
 semifield-developed-images
 semifield-cutouts
+# Model files and checkpoints
+semifield-tools
 temp

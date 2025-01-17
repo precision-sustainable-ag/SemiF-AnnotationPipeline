@@ -2,6 +2,9 @@
 assets/** */
 *.txt
 *.sh
+# Data and metrics
+datasets
+metrics
 # Hydra outputs
 **outputs
 developed
