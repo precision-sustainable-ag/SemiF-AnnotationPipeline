@@ -32,9 +32,9 @@ def main(cfg: DictConfig) -> None:
     csv_savepath = Path(detectiondir, "detections.csv")
 
     # Use detection results if they already exists
-    plant_detdir = Path(cfg.data.batchdir, "plant-detections")
+    plant_detdir = Path(cfg.data.batchdir, "plant-detections", "processed")
     if plant_detdir.exists() and any(plant_detdir.iterdir()):
-        detection_dir = Path(cfg.data.batchdir, "plant-detections")
+        detection_dir = Path(cfg.data.batchdir, "plant-detections", "processed")
         detections = [x for x in detection_dir.glob("*.csv")]
         dfs = []
         for det in detections:
@@ -49,6 +49,9 @@ def main(cfg: DictConfig) -> None:
                 "conf",
                 "class",
                 "classname",
+                "classifier_class",
+                "classifier_classname",
+                "classifier_confidence",
             ]
             present_columns = df.columns
             all_present = set(columns_names).issubset(present_columns)

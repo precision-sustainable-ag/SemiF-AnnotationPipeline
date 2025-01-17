@@ -143,6 +143,7 @@ class ParseYOLOCsv:
     def create_bboxes(self):
         bounding_boxes = dict()
         df = pd.read_csv(self.label_path)
+        df = df[df["classifier_classname"] == "target_weed"]
 
         for image in self.image_list:
             image_id = image["id"]
