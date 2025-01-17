@@ -26,7 +26,8 @@ general:
   # season: cool_season_covers_2022_2023
   # season: cool_season_cover_2022_2023_MD_pos_2
   # season: cool_season_cover_2022_2023_MD_pos_3 # used only for MD_2023-03-16
-  season: cool_season_covers_2023_2024
+  # season: cool_season_covers_2023_2024
+  season: cool_season_covers_2024_2025
   # season: summer_weeds_2024
 #----------------------------------------------------
   metashape_key: ??? # Do not put key in the config since the file is committed to GitHub
@@ -39,15 +40,19 @@ general:
 pipeline:
   download_data: False
   move_bbotv3_data: False
-  autosfm_pipeline: False
-  localize_plants: True
+  
+  classify_nontarget_weeds: False
+  merge_overlapping_bboxes: False
+
+  autosfm_pipeline: True
+  localize_plants: False
   remap_labels: False
   assign_species: False
   reformat_fullsizedmetadata: False
   segment_vegetation: False
   # SAM_segmentor: False # needs refinement, DO NOT USE
   # segment_cutouts: False # needs refinement, DO NOT USE
-  validate_batch: True
+  validate_batch: False
   repo_overview: False # optional
   compare_blobs: False # optional
   
@@ -61,6 +66,7 @@ blob_names: # directory names in SemiF-AP/data that mimic blob container structu
   upload: semifield-upload
   developed: semifield-developed-images
   utils: semifield-utils
+  tools: semifield-tools
   cutout: semifield-cutouts
   model: semifield-models
 
@@ -70,7 +76,7 @@ data:
   datadir: ${general.workdir}/data
   developeddir: ${data.datadir}/${blob_names.developed}
   cutoutdir: ${data.datadir}/${blob_names.cutout}
-  modeldir: ${data.datadir}/${blob_names.model}
+  modeldir: ${data.datadir}/${blob_names.tools}/models
   utilsdir: ${data.datadir}/${blob_names.utils}
   # Logs
   logdir: ${general.workdir}/logs
@@ -113,58 +119,93 @@ date_ranges:
     weeds 2022:
       start: "2022-03-04"
       end: "2022-09-17"
+      bbot_version: v2.0
     cover crops 2022/2023:
       start: "2022-10-20"
       end: "2023-04-25"
+      bbot_version: v2.0
     cash crops 2023:
       start: "2023-05-12"
       end: "2023-07-07"
+      bbot_version: v2.0
     weeds 2023:
       start: "2023-07-17"
       end: "2023-09-17"
+      bbot_version: v2.0
     cover crops 2023/2024:
       start: "2023-09-18"
       end: "2024-05-16"
+      bbot_version: v2.0
     weeds 2024:
       start: "2024-07-08"
       end: "2024-09-08"
+      bbot_version: v3.0
+    cover crops 2024/2025:
+      start: "2024-10-05"
+      end: "2025-03-14"
+      bbot_version: v3.0
 
   NC:
     weeds 2022:
       start: "2022-03-04"
       end: "2022-09-23"
+      bbot_version: v2.0
     cover crops 2022/2023:
       start: "2022-10-11"
       end: "2023-03-30"
+      bbot_version: v2.0
     cash crops 2023:
       start: "2023-06-06"
       end: "2023-07-25"
+      bbot_version: v2.0
     weeds 2023:
       start: "2023-08-21"
       end: "2023-10-10"
+      bbot_version: v2.0
     cover crops 2023/2024:
       start: "2023-10-11"
       end: "2024-03-14"
+      bbot_version: v2.0
     weeds 2024:
       start: "2024-07-08"
       end: "2024-10-08"
+      bbot_version: v3.0
+    cover crops 2024/2025:
+      start: "2024-12-02"
+      end: "2025-03-14"
+      bbot_version: v3.1
 
   TX:
     weeds 2022:
       start: "2022-03-04"
       end: "2022-10-24"
+      bbot_version: v2.0
     cover crops 2022/2023:
       start: "2022-10-25"
       end: "2023-04-04"
+      bbot_version: v2.0
     cash crops 2023:
       start: "2023-05-08"
       end: "2023-08-01"
+      bbot_version: v2.0
     weeds 2023:
       start: "2023-08-04"
       end: "2023-10-19"
+      bbot_version: v2.0
     cover crops 2023/2024:
       start: "2023-10-20"
       end: "2024-03-01"
+      bbot_version: v2.0
     weeds 2024:
       start: "2024-03-26"
       end: "2024-09-08"
+      bbot_version: v2.0
+
+models:
+  nontarget_weed_classifiers:
+    NC:
+      cool_season_covers_2022_2023: ${data.modeldir}/nontarget_weed_classifiers/NC/cool_season_covers_2023_2024/batch32_imgsz128_5468_n/weights/best.pt
+      cool_season_covers_2023_2024: ${data.modeldir}/nontarget_weed_classifiers/NC/cool_season_covers_2023_2024/batch32_imgsz128_5468_n/weights/best.pt
+    MD:
+      cool_season_covers_2022_2023: ${data.modeldir}/nontarget_weed_classifiers/MD/cool_season_covers_2023_2024/batch16_imgsz128_4279_n4/weights/best.pt
+      cool_season_covers_2023_2024: ${data.modeldir}/nontarget_weed_classifiers/MD/cool_season_covers_2023_2024/batch16_imgsz128_4279_n4/weights/best.pt

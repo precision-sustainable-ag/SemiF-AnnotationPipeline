@@ -48,6 +48,7 @@ for line in $(cat $BATCHES); do
     asfm="$SRC/autosfm/reference"
     meta_masks="$SRC/meta_masks"
     metadata="$SRC/metadata"
+    detections="$SRC/autosfm/detections.csv"
 
     # Copy images only if not already present in destination
     if [ -d "$DSTimages" ]; then
@@ -66,6 +67,9 @@ for line in $(cat $BATCHES); do
 
     echo "Copying metadata to $DST_BATCHDIR" >> $LOGFILE
     cp -r $metadata $DST_BATCHDIR
+
+    echo "Copying detection csv to $DST_BATCHDIR" >> $LOGFILE
+    cp $detections $DST_BATCHDIR
 
     echo "Done copying to longterm storage for batch $line" >> $LOGFILE
     echo

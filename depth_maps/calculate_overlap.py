@@ -9,7 +9,7 @@ from tqdm import tqdm
 from pathlib import Path
 from collections import defaultdict
 
-compatible_major_version = "2.0"
+compatible_major_version = "2.1"
 found_major_version = ".".join(Metashape.app.version.split('.')[:2])
 if found_major_version != compatible_major_version:
     raise Exception("Incompatible Metashape version: {} != {}".format(found_major_version, compatible_major_version))
@@ -25,7 +25,7 @@ def create_footprints():
     # project_path = Path("/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/MD_2024-07-08/autosfm_good/project/MD_2024-07-08.psx")
     # project_path = Path("/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/MD_2022-06-27/autosfm/project/MD_2022-06-27.psx")
     # project_path = Path("/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/MD_2024-07-03/autosfm/project/MD_2024-07-03.psx")
-    project_path = Path("/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/NC_2024-07-15/autosfm_df1_apd2_744/project/NC_2024-07-15.psx")
+    project_path = Path("/home/psa_images/SemiF-AnnotationPipeline/data/semifield-developed-images/NC_2024-12-02/autosfm/project/NC_2024-12-02.psx")
     doc.open(str(project_path), read_only=False, ignore_lock=True)
     if not len(doc.chunks):
         raise Exception("No chunks!")
