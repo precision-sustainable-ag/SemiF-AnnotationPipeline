@@ -43,8 +43,7 @@ class SfM:
             else:
                 unique_aligned_cameras.add(camera.label)
 
-        for camera in cameras_to_remove:
-            self.doc.chunk.remove(camera)
+        self.doc.chunk.remove(cameras_to_remove)
 
         log.info(f"Unaligned cameras in current chunk: {len(self.get_unaligned_cameras())}")
         log.info(f"Final number of cameras in current chunk after realignment: {len(self.doc.chunk.cameras)}")
@@ -418,7 +417,8 @@ class SfM:
 
         new_chunk.addPhotos(photos)
 
-        self.detect_markers(chunk=len(self.doc.chunks) - 1)
+        if self.cfg.asfm.detect_markers:
+            self.detect_markers(chunk=len(self.doc.chunks) - 1)
         self.import_reference(chunk=len(self.doc.chunks) - 1)
 
         log.info("Matching and Aligning photos again.")
@@ -430,24 +430,6 @@ class SfM:
         log.info("Setting active chunk.")
         self.doc.chunk = self.doc.chunks[-1]
 
-    def _remove_duplicate_and_unaligned_cameras(self):
-        """Removes duplicate aligned cameras and unaligned cameras from the chunk."""
-        unique_aligned_cameras = set()
-        cameras_to_remove = []
-
-        for camera in self.doc.chunk.cameras:
-            if camera.transform is None:
-                cameras_to_remove.append(camera)
-            elif camera.label in unique_aligned_cameras:
-                cameras_to_remove.append(camera)
-            else:
-                unique_aligned_cameras.add(camera.label)
-
-        for camera in cameras_to_remove:
-            self.doc.chunk.remove(camera)
-
-        log.info(f"Unaligned cameras in current chunk: {len(self.get_unaligned_cameras())}")
-        log.info(f"Final number of cameras in current chunk after realignment: {len(self.doc.chunk.cameras)}")
 
 
     def build_depth_map(self, progress_callback: Callable = percentage_callback):
