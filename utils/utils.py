@@ -139,3 +139,8 @@ def trans_cutout(img):
 
 def convert_to_dict(row):
     return ast.literal_eval(row["bbox"])
+
+def chunk_list(lst, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(lst), n):
+        yield lst[i : i + n]

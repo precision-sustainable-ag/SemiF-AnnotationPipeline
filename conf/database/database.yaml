@@ -1,5 +1,21 @@
 db_path: "/Users/jbshah/_p/test/longterm_images/test.db"
+bulk_insert: True
+skip_batches:
+  - "MD_2022-06-21"
+batch_size: 500
 
-table_names:
-  cutouts: "semif_cutouts"
-  developed_images: "semif_developed_images"
+developed_images:
+  table_name: "semif_developed_images"
+  bulk_insert_paths:
+    - "/mnt/research-projects/s/screberg/longterm_images/semifield-developed-images/*/metadata/*.json"
+    - "/mnt/research-projects/s/screberg/GROW_DATA/semifield-developed-images/*/metadata/*.json"
+    - "/mnt/research-projects/s/screberg/longterm_images2/semifield-developed-images/*/metadata/*.json"
+  json_keys:
+    - "exif_meta"
+    - "camera_info"
+    - "annotations"
+    - "categories"
+
+cutouts:
+  table_name: "semif_cutouts"
+
