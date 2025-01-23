@@ -15,14 +15,17 @@ dependencies:
   - scikit-learn
   - scikit-image
   - ultralytics
-  - pytorch=2.5.0
-  - torchvision=0.20.0
+#  - pytorch=2.5.0  # doesn't support arm64 architecture
+#  - torchvision=0.20.0  # doesn't support arm64 architecture
   - geopandas
   - dacite
   - pip
+  - sqlite
   - pip:
       - azure-core==1.31.0
       - azure-storage-blob==12.23.1
       # - metashape==2.1.3
       - rawpy==0.23.1
       - seaborn==0.13.2
+      - torch==2.5.0
+      - torchvision==0.20.0

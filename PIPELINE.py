@@ -16,6 +16,7 @@ sys.path.append("inspect")
 sys.path.append("repo_overview")
 sys.path.append("validate")
 sys.path.append("analyze_blobs")
+sys.path.append("database")
 
 log = logging.getLogger(__name__)
 

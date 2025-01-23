@@ -6,6 +6,7 @@ defaults:
 # ancillary configs
   - segment: segment
   - validate: validate
+  - database: database
   - override hydra/job_logging: custom # custom logging 
   - _self_
 
@@ -55,6 +56,7 @@ pipeline:
   validate_batch: False
   repo_overview: False # optional
   compare_blobs: False # optional
+  database: True
   
 # Other job/naming options (currently not used)
 job:

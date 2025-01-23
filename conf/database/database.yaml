@@ -1,0 +1,5 @@
+db_path: "/Users/jbshah/_p/test/longterm_images/test.db"
+
+table_names:
+  cutouts: "semif_cutouts"
+  developed_images: "semif_developed_images"
