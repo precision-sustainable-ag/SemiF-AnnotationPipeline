@@ -7,6 +7,7 @@ batch_size: 500
 developed_images:
   table_name: "semif_developed_images"
   bulk_insert_paths:
+#    - "/Users/jbshah/_p/test/longterm_images/semifield-developed-images/*/metadata/*.json"
     - "/mnt/research-projects/s/screberg/longterm_images/semifield-developed-images/*/metadata/*.json"
     - "/mnt/research-projects/s/screberg/GROW_DATA/semifield-developed-images/*/metadata/*.json"
     - "/mnt/research-projects/s/screberg/longterm_images2/semifield-developed-images/*/metadata/*.json"
@@ -18,4 +19,11 @@ developed_images:
 
 cutouts:
   table_name: "semif_cutouts"
-
+  bulk_insert_paths:
+#    - "/Users/jbshah/_p/test/longterm_images/semifield-cutouts/*/*.json"
+    - "/mnt/research-projects/s/screberg/longterm_images/semifield-cutouts/*/*.json"
+    - "/mnt/research-projects/s/screberg/GROW_DATA/semifield-cutouts/*/*.json"
+    - "/mnt/research-projects/s/screberg/longterm_images2/semifield-cutouts/*/*.json"
+  json_keys:
+    - "cutout_props"
+    - "category"

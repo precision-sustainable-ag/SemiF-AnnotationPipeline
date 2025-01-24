@@ -4,6 +4,7 @@ import glob
 import logging
 import os
 import sys
+from datetime import datetime
 from multiprocessing import Pool, cpu_count
 from omegaconf import DictConfig
 from tqdm import tqdm
@@ -82,7 +83,8 @@ class Database:
                 exif_meta TEXT,
                 camera_info TEXT,
                 annotations TEXT,
-                categories TEXT
+                categories TEXT,
+                version TEXT
             );
             """
             self.cursor.execute(developed_table)
@@ -101,105 +103,78 @@ class Database:
                     row[json_key] = json.dumps(row[json_key])
                 data.append(row)
         return data
-    def bulk_insert_developed_table(self):
 
-        paths = self.cfg.developed_images.bulk_insert_paths
+    def bulk_insert(self, table_name, paths, json_keys):
         json_files = []
         for path in paths:
+            log.info(f"reading json files in {path}")
             json_files.extend([json_file for json_file in glob.glob(path,
                                                                     recursive=True)
                                if os.path.basename(os.path.dirname(
                     os.path.dirname(json_file))) not in self.skip_batches])
-        multiproc_input = [(x, self.cfg.developed_images.json_keys) for x
-                      in chunk_list(json_files,self.batch_size)]
-        log.info(f"Bulk inserting {len(json_files)} images")
+        multiproc_input = [(x, json_keys) for x
+                           in chunk_list(json_files, self.batch_size)]
         num_processes = cpu_count()
+        log.info(f"Reading {len(json_files)} records using {num_processes} "
+                 f"processes")
         with Pool(num_processes) as pool:
             res = list(tqdm(pool.map(Database._process_chunk, multiproc_input)))
-        data = []
-        for item in res:
-            data.extend(item)
-        log.info(f"data size: {sys.getsizeof(data)}")
 
-def add_cutouts_data(json_file, db_name, table_name):
-    """
-    Adds data from the JSON file to the existing SQLite table.
-    Assumes the table already exists and has matching columns.
-    """
-    conn = sqlite3.connect(db_name)
-    cursor = conn.cursor()
+        if table_name == self.dev_img_table:
+            for item in tqdm(res, desc=f"{self.batch_size} images: "):
+                self._insert_dev_images(table_name,item)
+        elif table_name == self.cutouts_table:
+            for item in tqdm(res, desc=f"{self.batch_size} cutouts: "):
+                self._insert_cutouts(table_name,item)
 
-    with open(json_file, 'r') as f:
-        row = json.loads(f.read())
-        # print(row)
-        cutout_props_json = json.dumps(row['cutout_props'])
-        category_json = json.dumps(row['category'])
-        placeholders = ', '.join(['?' for _ in row])
-        # print(f"INSERT INTO {table_name} VALUES ({placeholders})",
-        #     tuple(row.values()))
-        cursor.execute(f"""
-                INSERT INTO {table_name} (
-                    season, datetime, bbot_version, batch_id, image_id, cutout_id, 
-                    cutout_num, cutout_height, cutout_width, lens_model, validated, 
-                    cutout_props, category
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-            row['season'], row['datetime'], row['bbot_version'],
-            row['batch_id'],
-            row['image_id'], row['cutout_id'], row['cutout_num'],
-            row['cutout_height'],
-            row['cutout_width'], row['lens_model'], row['validated'],
-            cutout_props_json, category_json
-        ))
-    conn.commit()
-    conn.close()
+    def _insert_dev_images(self, table_name, data):
+        if self.batch_size < 10000:
+            for row in data:
+                try:
+                    self.cursor.execute(f"""
+                                    INSERT INTO {table_name} (
+                                        season, datetime, bbot_version,batch_id, image_id,
+                                        validated, exif_meta, camera_info, annotations, categories, version
+                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                """, (
+                        row['season'], row['datetime'], row['bbot_version'],
+                        row['batch_id'], row['image_id'], row['validated'],
+                        row['exif_meta'], row['camera_info'], row['annotations'],
+                        row['categories'], row['version']
+                    ))
+                except Exception as e:
+                    log.warning(f"{row['image_id']}, {row['batch_id']} - {e}")
+        else:
+            data = [list(i.values()) for i in data]
+            try:
+                self.cursor.executemany(f"""
+                                INSERT INTO {table_name} (
+                                    season, datetime, bbot_version,batch_id, image_id,
+                                    validated, exif_meta, camera_info, 
+                                    annotations, categories, version
+                                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            """, data)
+            except Exception as e:
+                log.warning(f"db execute many - {e}")
+        self.connection.commit()
 
-
-def add_dev_img_data(json_file, db_name, table_name):
-    """
-    Adds data from the JSON file to the existing SQLite table.
-    Assumes the table already exists and has matching columns.
-    """
-    conn = sqlite3.connect(db_name)
-    cursor = conn.cursor()
-
-    with open(json_file, 'r') as f:
-        row = json.loads(f.read())
-        print(row)
-        exif_meta = json.dumps(row['exif_meta'])
-        camera_info = json.dumps(row['camera_info'])
-        annotations = json.dumps(row['annotations'])
-        categories = json.dumps(row['categories'])
-        placeholders = ', '.join(['?' for _ in row])
-        # print(f"INSERT INTO {table_name} VALUES ({placeholders})",
-        #     tuple(row.values()))
-        cursor.execute(f"""
-                INSERT INTO {table_name} (
-                     season, datetime, bbot_version,batch_id, image_id,
-                     validated, exif_meta, camera_info, annotations, categories
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-            row['season'], row['datetime'], row['bbot_version'],
-            row['batch_id'],
-            row['image_id'], row['validated'],
-            exif_meta, camera_info, annotations, categories
-        ))
-    conn.commit()
-    conn.close()
-
-
-#
-# create_tables('/Users/jbshah/_p/test/longterm_images/test.db')
-#
-# # add_cutouts_data('/Users/jbshah/_p/test/longterm_images/semifield'
-# #                   '-cutouts/NC_2023-07-10/NC_1688995625_0.json',
-# #                   '/Users/jbshah/_p/test/longterm_images/test.db',
-# #                   'semif_cutouts')
-#
-# add_dev_img_data('/Users/jbshah/_p/test/longterm_images/semifield-developed'
-#                  '-images/NC_2023-07-10/metadata/NC_1688995625.json',
-#                   '/Users/jbshah/_p/test/longterm_images/test.db',
-#                   'semif_developed_images')
+    def _insert_cutouts(self, table_name, data):
+        for row in tqdm(data):
+            self.cursor.execute(f"""
+                            INSERT INTO {table_name} (
+                                season, datetime, bbot_version, batch_id, image_id, cutout_id, 
+                                cutout_num, cutout_height, cutout_width, lens_model, validated, 
+                                cutout_props, category
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                row['season'], row['datetime'], row['bbot_version'],
+                row['batch_id'],
+                row['image_id'], row['cutout_id'], row['cutout_num'],
+                row['cutout_height'],
+                row['cutout_width'], row['lens_model'], row['validated'],
+                row['cutout_props'], row['category']
+            ))
+        self.connection.commit()
 
 def main(cfg: DictConfig) -> None:
     db = Database(cfg.database)
@@ -207,4 +182,14 @@ def main(cfg: DictConfig) -> None:
     db.create_cutouts_table()
 
     if cfg.database.bulk_insert:
-        db.bulk_insert_developed_table()
+        # db.bulk_insert_developed_table()
+
+        developed_images_cfg = cfg.database.developed_images
+        db.bulk_insert(developed_images_cfg.table_name,
+                       developed_images_cfg.bulk_insert_paths,
+                       developed_images_cfg.json_keys)
+
+        # cutouts_cfg = cfg.database.cutouts
+        # db.bulk_insert(cutouts_cfg.table_name,
+        #                cutouts_cfg.bulk_insert_paths,
+        #                cutouts_cfg.json_keys)
