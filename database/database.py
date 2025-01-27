@@ -63,7 +63,8 @@ class Database:
                 lens_model TEXT,
                 validated BOOLEAN,
                 cutout_props TEXT,
-                category TEXT
+                category TEXT,
+                cutout_version TEXT
             );
             """
             log.info(f"Table {self.cutouts_table} created")
@@ -107,7 +108,7 @@ class Database:
     def bulk_insert(self, table_name, paths, json_keys):
         json_files = []
         for path in paths:
-            log.info(f"reading json files in {path}")
+            log.info(f"listing json files in {path}")
             json_files.extend([json_file for json_file in glob.glob(path,
                                                                     recursive=True)
                                if os.path.basename(os.path.dirname(
@@ -122,59 +123,100 @@ class Database:
 
         if table_name == self.dev_img_table:
             for item in tqdm(res, desc=f"{self.batch_size} images: "):
-                self._insert_dev_images(table_name,item)
+                self._insert_dev_images(table_name, item)
         elif table_name == self.cutouts_table:
             for item in tqdm(res, desc=f"{self.batch_size} cutouts: "):
-                self._insert_cutouts(table_name,item)
+                self._insert_cutouts(table_name, item)
+
+    def _insert_one_dev_image(self, table_name, row):
+        try:
+            self.cursor.execute(f"""
+                            INSERT INTO {table_name} (
+                                season, datetime, bbot_version, batch_id, image_id, cutout_id, 
+                                cutout_num, cutout_height, cutout_width, lens_model, validated, 
+                                cutout_props, category, cutout_version
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                row['season'], row['datetime'], row['bbot_version'],
+                row['batch_id'], row['image_id'], row['validated'],
+                row['exif_meta'], row['camera_info'],
+                row['annotations'],
+                row['categories'], row['version']
+            ))
+        except sqlite3.Error as e:
+            log.error(
+                f"{row['image_id']}, {row['batch_id']}, {row['cutout_id']} - {e}")
 
     def _insert_dev_images(self, table_name, data):
         if self.batch_size < 10000:
-            for row in data:
-                try:
-                    self.cursor.execute(f"""
-                                    INSERT INTO {table_name} (
-                                        season, datetime, bbot_version,batch_id, image_id,
-                                        validated, exif_meta, camera_info, annotations, categories, version
-                                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                                """, (
-                        row['season'], row['datetime'], row['bbot_version'],
-                        row['batch_id'], row['image_id'], row['validated'],
-                        row['exif_meta'], row['camera_info'], row['annotations'],
-                        row['categories'], row['version']
-                    ))
-                except Exception as e:
-                    log.warning(f"{row['image_id']}, {row['batch_id']} - {e}")
+            for row in tqdm(data):
+                self._insert_one_dev_image(table_name, row)
+            self.connection.commit()
         else:
-            data = [list(i.values()) for i in data]
+            bulk_data = [list(i.values()) for i in data]
             try:
+                self.connection.execute("BEGIN TRANSACTION")
                 self.cursor.executemany(f"""
                                 INSERT INTO {table_name} (
                                     season, datetime, bbot_version,batch_id, image_id,
                                     validated, exif_meta, camera_info, 
                                     annotations, categories, version
                                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                            """, data)
-            except Exception as e:
-                log.warning(f"db execute many - {e}")
+                            """, bulk_data)
+            except sqlite3.Error as e:
+                self.connection.rollback()
+                log.warning(
+                    f"Error bulk inserting, inserting {len(bulk_data)} rows individually")
+                for row in tqdm(data):
+                    self._insert_one_dev_image(table_name, row)
+                self.connection.commit()
         self.connection.commit()
 
-    def _insert_cutouts(self, table_name, data):
-        for row in tqdm(data):
+    def _insert_one_cutout(self, table_name, row):
+        try:
             self.cursor.execute(f"""
                             INSERT INTO {table_name} (
                                 season, datetime, bbot_version, batch_id, image_id, cutout_id, 
                                 cutout_num, cutout_height, cutout_width, lens_model, validated, 
-                                cutout_props, category
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                cutout_props, category, cutout_version
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
                 row['season'], row['datetime'], row['bbot_version'],
                 row['batch_id'],
                 row['image_id'], row['cutout_id'], row['cutout_num'],
-                row['cutout_height'],
-                row['cutout_width'], row['lens_model'], row['validated'],
-                row['cutout_props'], row['category']
+                row['cutout_height'], row['cutout_width'], row['lens_model'],
+                row['validated'], row['cutout_props'], row['category'],
+                row['cutout_version']
             ))
-        self.connection.commit()
+        except sqlite3.Error as e:
+            log.error(
+                f"{row['image_id']}, {row['batch_id']}, {row['cutout_id']} - {e}")
+
+    def _insert_cutouts(self, table_name, data):
+        if self.batch_size < 10000:
+            for row in tqdm(data):
+                self._insert_one_cutout(table_name, row)
+            self.connection.commit()
+        else:
+            bulk_data = [list(i.values()) for i in data]
+            try:
+                self.connection.execute("BEGIN TRANSACTION")
+                self.cursor.executemany(f"""
+                                        INSERT INTO {table_name} (
+                                            season, datetime, bbot_version, batch_id, image_id, cutout_id, 
+                                            cutout_num, cutout_height, cutout_width, lens_model, validated, 
+                                            cutout_props, category, cutout_version
+                                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                                """, bulk_data)
+                self.connection.commit()
+            except sqlite3.Error as e:
+                self.connection.rollback()
+                log.warning(
+                    f"Error bulk inserting, inserting {len(bulk_data)} rows individually")
+                for row in tqdm(data):
+                    self._insert_one_cutout(table_name, row)
+                self.connection.commit()
+
 
 def main(cfg: DictConfig) -> None:
     db = Database(cfg.database)
@@ -189,7 +231,7 @@ def main(cfg: DictConfig) -> None:
                        developed_images_cfg.bulk_insert_paths,
                        developed_images_cfg.json_keys)
 
-        # cutouts_cfg = cfg.database.cutouts
-        # db.bulk_insert(cutouts_cfg.table_name,
-        #                cutouts_cfg.bulk_insert_paths,
-        #                cutouts_cfg.json_keys)
+        cutouts_cfg = cfg.database.cutouts
+        db.bulk_insert(cutouts_cfg.table_name,
+                       cutouts_cfg.bulk_insert_paths,
+                       cutouts_cfg.json_keys)
