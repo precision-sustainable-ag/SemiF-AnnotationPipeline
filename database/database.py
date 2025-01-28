@@ -28,9 +28,13 @@ class Database:
         self.dev_img_table = cfg.developed_images.table_name
 
     def __del__(self):
+        log.info(f"DB size uncleaned: {os.path.getsize(self.db_name)}")
         if self.connection:
+            self.cursor.execute("vacuum;")
+            self.connection.commit()
             self.connection.close()
             self.connection = None
+            log.info(f"DB size cleaned: {os.path.getsize(self.db_name)}")
 
     def _check_table(self, table_name):
         check_table_query = f"PRAGMA table_info({table_name});"
@@ -120,13 +124,14 @@ class Database:
                  f"processes")
         with Pool(num_processes) as pool:
             res = list(tqdm(pool.map(Database._process_chunk, multiproc_input)))
-
+        log.info(f"Inserting records into the database")
         if table_name == self.dev_img_table:
-            for item in tqdm(res, desc=f"{self.batch_size} images: "):
+            for item in tqdm(res, desc=f"{self.batch_size} images inserted: "):
                 self._insert_dev_images(table_name, item)
         elif table_name == self.cutouts_table:
-            for item in tqdm(res, desc=f"{self.batch_size} cutouts: "):
+            for item in tqdm(res, desc=f"{self.batch_size} cutouts inserted: "):
                 self._insert_cutouts(table_name, item)
+        self._check_table(table_name)
 
     def _insert_one_dev_image(self, table_name, row):
         try:
@@ -145,7 +150,7 @@ class Database:
             ))
         except sqlite3.Error as e:
             log.error(
-                f"{row['image_id']}, {row['batch_id']}, {row['cutout_id']} - {e}")
+                f"{row['batch_id']}, {row['image_id']} - {e}")
 
     def _insert_dev_images(self, table_name, data):
         if self.batch_size < 10000:
@@ -190,7 +195,7 @@ class Database:
             ))
         except sqlite3.Error as e:
             log.error(
-                f"{row['image_id']}, {row['batch_id']}, {row['cutout_id']} - {e}")
+                f"{row['batch_id']}, {row['image_id']}, {row['cutout_id']} - {e}")
 
     def _insert_cutouts(self, table_name, data):
         if self.batch_size < 10000:
@@ -235,3 +240,6 @@ def main(cfg: DictConfig) -> None:
         db.bulk_insert(cutouts_cfg.table_name,
                        cutouts_cfg.bulk_insert_paths,
                        cutouts_cfg.json_keys)
+
+        db._check_table(developed_images_cfg.table_name)
+        db._check_table(cutouts_cfg)
