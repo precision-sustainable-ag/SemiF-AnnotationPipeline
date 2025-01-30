@@ -32,7 +32,7 @@ general:
   # season: summer_weeds_2024
 #----------------------------------------------------
   metashape_key: ??? # Do not put key in the config since the file is committed to GitHub
-  batch_id: ???
+  batch_id: "NC_2023-07-10"
   # Main working directory 
   workdir: ${hydra:runtime.cwd}  # where the code is executed
   cpu_denominator: 4
@@ -45,7 +45,7 @@ pipeline:
   classify_nontarget_weeds: False
   merge_overlapping_bboxes: False
 
-  autosfm_pipeline: True
+  autosfm_pipeline: False
   localize_plants: False
   remap_labels: False
   assign_species: False

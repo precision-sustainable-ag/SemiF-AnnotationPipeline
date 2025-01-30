@@ -30,6 +30,7 @@ class Database:
     def __del__(self):
         log.info(f"DB size uncleaned: {os.path.getsize(self.db_name)}")
         if self.connection:
+            self.connection.commit()
             self.cursor.execute("vacuum;")
             self.connection.commit()
             self.connection.close()
@@ -112,11 +113,18 @@ class Database:
     def bulk_insert(self, table_name, paths, json_keys):
         json_files = []
         for path in paths:
-            log.info(f"listing json files in {path}")
-            json_files.extend([json_file for json_file in glob.glob(path,
-                                                                    recursive=True)
-                               if os.path.basename(os.path.dirname(
-                    os.path.dirname(json_file))) not in self.skip_batches])
+            if table_name == self.dev_img_table:
+                log.info(f"listing json files in {path}")
+                json_files.extend([json_file for json_file in glob.glob(path,
+                                                                        recursive=True)
+                                   if os.path.basename(os.path.dirname(
+                        os.path.dirname(json_file))) not in self.skip_batches])
+            elif table_name == self.cutouts_table:
+                log.info(f"listing json files in {path}")
+                json_files.extend([json_file for json_file in glob.glob(path,
+                                                                        recursive=True)
+                                   if os.path.basename(
+                        os.path.dirname(json_file)) not in self.skip_batches])
         multiproc_input = [(x, json_keys) for x
                            in chunk_list(json_files, self.batch_size)]
         num_processes = cpu_count()
@@ -137,10 +145,10 @@ class Database:
         try:
             self.cursor.execute(f"""
                             INSERT INTO {table_name} (
-                                season, datetime, bbot_version, batch_id, image_id, cutout_id, 
-                                cutout_num, cutout_height, cutout_width, lens_model, validated, 
-                                cutout_props, category, cutout_version
-                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                season, datetime, bbot_version,batch_id, image_id,
+                                    validated, exif_meta, camera_info, 
+                                    annotations, categories, version
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (
                 row['season'], row['datetime'], row['bbot_version'],
                 row['batch_id'], row['image_id'], row['validated'],
@@ -222,24 +230,61 @@ class Database:
                     self._insert_one_cutout(table_name, row)
                 self.connection.commit()
 
+    def pipeline_insert(self, batch_id, table_config):
+        json_files = []
+        for path in table_config.bulk_insert_paths:
+            if len(json_files) == 0 and table_config.table_name == self.dev_img_table:
+                json_files = [json_file for json_file in
+                              glob.glob(path, recursive=True)
+                              if os.path.basename(os.path.dirname(
+                        os.path.dirname(json_file))) == batch_id]
+                log.info(f"Found {len(json_files)} image metadata in {path}")
+            elif len(
+                    json_files) == 0 and table_config.table_name == self.cutouts_table:
+                json_files = [json_file for json_file in
+                              glob.glob(path, recursive=True)
+                              if os.path.basename(
+                        os.path.dirname(json_file)) == batch_id]
+                log.info(f"Found {len(json_files)} cutout metadata in {path}")
+            else:
+                break
+
+        multiproc_input = [(x, table_config.json_keys) for x
+                           in chunk_list(json_files, self.batch_size)]
+        num_processes = cpu_count()
+        log.info(f"Reading {len(json_files)} records using {num_processes} "
+                 f"processes")
+        with Pool(num_processes) as pool:
+            res = list(tqdm(pool.map(Database._process_chunk, multiproc_input)))
+        for item in tqdm(res, desc=f"{self.batch_size} records inserted: "):
+            for row in item:
+                if table_config.table_name == self.cutouts_table:
+                    self._insert_one_cutout(table_config.table_name, row)
+                elif table_config.table_name == self.dev_img_table:
+                    self._insert_one_dev_image(table_config.table_name, row)
+
 
 def main(cfg: DictConfig) -> None:
     db = Database(cfg.database)
     db.create_developed_table()
     db.create_cutouts_table()
+    developed_images_cfg = cfg.database.developed_images
+    cutouts_cfg = cfg.database.cutouts
 
     if cfg.database.bulk_insert:
         # db.bulk_insert_developed_table()
 
-        developed_images_cfg = cfg.database.developed_images
         db.bulk_insert(developed_images_cfg.table_name,
                        developed_images_cfg.bulk_insert_paths,
                        developed_images_cfg.json_keys)
-
-        cutouts_cfg = cfg.database.cutouts
         db.bulk_insert(cutouts_cfg.table_name,
                        cutouts_cfg.bulk_insert_paths,
                        cutouts_cfg.json_keys)
+    else:
+        db.pipeline_insert(cfg.general.batch_id,
+                           developed_images_cfg)
+        db.pipeline_insert(cfg.general.batch_id,
+                           cutouts_cfg)
 
-        db._check_table(developed_images_cfg.table_name)
-        db._check_table(cutouts_cfg)
+    db._check_table(developed_images_cfg.table_name)
+    db._check_table(cutouts_cfg.table_name)

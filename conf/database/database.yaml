@@ -1,5 +1,6 @@
-db_path: "/Users/jbshah/_p/test/longterm_images/test.db"
-bulk_insert: True
+db_path: "/mnt/research-projects/s/screberg/longterm_images2/semifield-database/agir.db"
+#db_path: "/Users/jbshah/_p/test/test.db"
+bulk_insert: False
 skip_batches:
   - "MD_2022-06-21"
 batch_size: 500
