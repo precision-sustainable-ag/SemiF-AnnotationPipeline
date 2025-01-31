@@ -5,6 +5,7 @@ defaults:
   - inspect: inspect
 # ancillary configs
   - segment: segment
+  - convert: default
   - validate: validate
   - override hydra/job_logging: custom # custom logging 
   - _self_
@@ -48,7 +49,8 @@ pipeline:
   localize_plants: False
   remap_labels: False
   assign_species: False
-  reformat_fullsizedmetadata: True
+  convert: True
+  reformat_fullsizedmetadata: False
   segment_vegetation: False
   # SAM_segmentor: False # needs refinement, DO NOT USE
   # segment_cutouts: False # needs refinement, DO NOT USE

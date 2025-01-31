@@ -1,26 +1,18 @@
 import copy
 import json
 import logging
-import operator
-import os
-import platform
-import random
-from dataclasses import asdict, replace
+from dataclasses import replace
 from datetime import datetime
-from multiprocessing import Pool, cpu_count
 from pathlib import Path
+import re
 
 import cv2
-import matplotlib.patches as patches
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 from PIL import Image
 from scipy import ndimage
 from scipy import ndimage as ndi
-from semif_utils.datasets import Cutout, ImageData
 from skimage import filters, measure, morphology, segmentation
 from skimage.color import label2rgb
 from skimage.exposure import rescale_intensity
@@ -33,68 +25,12 @@ from tqdm import tqdm
 
 log = logging.getLogger(__name__)
 
-######################################################
-################### GENERAL ##########################
-######################################################
-
 
 def read_json(path):
     # Opening JSON file
     with open(path) as json_file:
         data = json.load(json_file)
     return data
-
-
-def save_json(path, data):
-    with open(path, "w") as f:
-        json.dump(data, f, indent=4, default=str)
-
-
-######################################################
-################## GET METADATA ######################
-######################################################
-
-
-
-
-def get_bbox_info(csv_path):
-    df = pd.read_csv(csv_path).drop(columns=["Unnamed: 0"])
-    bbox_dict = df.groupby(by="imgname", sort=True).apply(
-        lambda x: x.to_dict(orient="records")
-    )
-    img_list = list(bbox_dict.keys())
-    return bbox_dict, img_list
-
-
-def get_site_id(imagedir):
-    # Must be in TX_2022-12-31 format
-    imgstem = Path(imagedir).stem
-    siteid = imgstem.split("_")[0]
-    return siteid
-
-
-def creation_date(path_to_file):
-    """
-    Try to get the date that a file was created, falling back to when it was
-    last modified if that isn't possible.
-    See http://stackoverflow.com/a/39501288/1709587 for explanation.
-    """
-    if platform.system() == "Windows":
-        return os.path.getctime(path_to_file)
-    else:
-        stat = os.stat(path_to_file)
-        try:
-            return stat.st_birthtime
-        except AttributeError:
-            # We're probably on Linux. No easy way to get creation dates here,
-            # so we'll settle for when its content was last modified.
-            return stat.st_mtime
-
-
-def get_upload_datetime(imagedir):
-    creation_dt = creation_date(imagedir)
-    creation_dt = datetime.fromtimestamp(creation_dt).strftime("%Y-%m-%d_%H:%M:%S")
-    return creation_dt
 
 
 def parse_dict(props_tabl):
@@ -189,132 +125,6 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         df.to_csv(csv_savepath, index=False)
     return df
     
-
-    #     cutout = asdict(get_cutout_meta(meta))
-    #     row = cutout["cutout_props"]
-    #     cls = cutout["category"]
-
-    #     # croput Descriptive stats
-    #     # ds = cutout["cutout_props"]["cropout_rgb_mean"]
-    #     # print(ds)
-    #     # if ds is not None:
-    #     #     nd = dict()
-    #     #     for d in ds:
-    #     #         if type(ds[d]) != dict:
-    #     #             nd["cropout_" + d] = ds[d]
-    #     #         elif type(ds[d]) == dict:
-    #     #             chan_suff = d.split("_")[-1]
-    #     #             for chan in ds[d]:
-    #     #                 nd["cropout_" + chan_suff + "_" + chan] = ds[d][chan]
-    #     #     cutout.update(nd)
-    #     # else:
-    #         # nd["cropout_rgb_mean"] = None
-
-    #     # croput Descriptive stats
-    #     # ds = cutout["cutout_props"]["cropout_rgb_mean"]
-    #     # if ds is not None:
-    #     #     nd = dict()
-    #     #     for d in ds:
-    #     #         if type(ds[d]) != dict:
-    #     #             nd["cutout_" + d] = ds[d]
-    #     #         elif type(ds[d]) == dict:
-    #     #             chan_suff = d.split("_")[-1]
-    #     #             for chan in ds[d]:
-    #     #                 nd["cutout_" + chan_suff + "_" + chan] = ds[d][chan]
-    #     #     cutout.update(nd)
-    #     # else:
-    #     #     nd["cutout_"] = None
-
-    #     # Extend nested dicts to single column header
-    #     for ro in row:
-    #         rec = {ro: row[ro]}
-    #         cutout.update(rec)
-    #         for cl in cls:
-    #             spec = {cl: cls[cl]}
-    #             if cl == "rgb":
-    #                 r = {"r": str(spec["rgb"][0])}
-    #                 g = {"g": str(spec["rgb"][1])}
-    #                 b = {"b": str(spec["rgb"][2])}
-    #                 cutout.update(r)
-    #                 cutout.update(g)
-    #                 cutout.update(b)
-    #             cutout.update(spec)
-    #     # Remove duplicate nested dicts
-    #     cutout.pop("cutout_props")
-    #     cutout.pop("category")
-    #     cutout.pop("rgb")
-    #     # cutout.pop("local_contours")
-    #     cutout.pop("cropout_rgb_mean")
-    #     cutout.pop("cropout_rgb_std")
-    #     # cutout.pop("color_distribution")
-    #     # Create and append df
-    #     if cutout["multi_species_USDA_symbol"] != None:
-    #         cutout["multi_species_USDA_symbol"] = ",".join(
-    #             cutout["multi_species_USDA_symbol"]
-    #         )
-    #     cutdf = pd.DataFrame.from_dict(cutout, orient="index").T
-    #     # cutdf = pd.DataFrame(cutout)  #, index=[0])
-    #     cutouts.append(cutdf)
-    # # Concat and reset index of main df
-    # if len(cutouts) > 0:
-    #     cutouts_df = pd.concat(cutouts)
-    #     cutouts_df = cutouts_df.reset_index()
-    #     cutouts_df.drop(columns="index", inplace=True)
-    #     cutouts_df.sort_values(
-    #         by=["image_id", "cutout_num"],
-    #         axis=0,
-    #         ascending=[True, True],
-    #         inplace=True,
-    #         kind="quicksort",
-    #         na_position="first",
-    #         ignore_index=True,
-    #         key=None,
-    #     )
-    #     if save_df:
-    #         cutouts_df.to_csv(csv_savepath, index=False)
-    #     return cutouts_df
-
-
-def growth_stage(batch_date, plant_date_list):
-    """Gets rough approximation of growth stage by comparing the batch upload date
-    with a list of "planting dates" in config.planting. Uses a threshold value,
-    "coty_thresh" to differentiate between cotyledon and vegetative.
-    Returns growth stage and planting date.
-    "" Classifies growth stage and approximates planting date by comparing the
-    batch upload date with a list of "planting dates" in config.planting.
-
-    Input:
-    batch_date(str)      -  Gathered from cfg.general.batch_id.strip("_)[0] (ex. 2022-06-28)
-    plant_date_list(list)-  List of dates, by location, taken from cfg.planting that
-                            represent all planting dates by locations
-
-    Returns:
-    pl_dt(int)           -  Planting date in config that is closest to, but not more recent than,
-                            the batch date. Planting dates before the batch date are excluded.
-    g_stage(str)         -  Growth stage classification based on numbers of days after planting date
-                            (subject to change).
-    """
-
-    batch_date = datetime.strptime(batch_date, "%Y-%m-%d")
-    plant_date_list = [datetime.strptime(x, "%Y-%m-%d") for x in plant_date_list]
-    # Remove plant dates that are newer than batch date
-    plant_date_list = [x for x in plant_date_list if x <= batch_date]
-    # Difference and get indices
-    deltas = [abs(ti - batch_date) for ti in plant_date_list]
-    min_index, min_delta = min(enumerate(deltas), key=operator.itemgetter(1))
-
-    pl_dt = plant_date_list[min_index].strftime("%Y-%m-%d")
-    days_after_planting = min_delta.days
-    if days_after_planting < 2:
-        g_stage = "seed"
-    elif days_after_planting < 10:
-        g_stage = "cotyledon"
-    elif days_after_planting < 20:
-        g_stage = "seedling"
-    else:
-        g_stage = "vegetative"
-    return g_stage, pl_dt, days_after_planting
-
 
 def is_green(green_sum, image_shape, percent_thresh=0.2):
     """Returns true if number of green pixels is
@@ -701,121 +511,157 @@ def crop_cutouts(img, add_padding=False):
     return array
 
 
-# ------------------- Helper functions --------------------------------
-# def bbox_iou(box1, box2):
-#     box1 = torch.tensor([box1], dtype=torch.float)
-#     box2 = torch.tensor([box2], dtype=torch.float)
-#     iou = bops.box_iou(box1, box2)
-#     return iou
+## For metadata converters
 
 
-def get_img_bbox(x, y, imgshape):
-    pot_h, pot_w, _ = imgshape
-    x0, x1, y0, y1 = x, x + pot_w, y, y + pot_h
-    bbox = [x0, y0, x1, y1]  # top right corner, bottom left corner
-    return bbox
 
-
-def center2topleft(x, y, background_imgshape):
-    """Gets top left coordinates of an image from center point coordinate"""
-    back_h, back_w, _ = background_imgshape
-    y = y - int(back_h / 2)
-    x = x - int(back_w / 2)
-    return x, y
-
-
-def transform_position(points, imgshape, spread_factor):
-    """Applies random jitter factor to points and transforms them to top left image coordinates."""
-    y, x = points
-
-    x, y = x + random.randint(-spread_factor, spread_factor), y + random.randint(
-        -int(spread_factor / 3), int(spread_factor / 3)
-    )
-
-    x, y = center2topleft(x, y, imgshape)
-
-    return x, y
-
-
-def center_on_background(y, x, back_shape, fore_shape):
-    # pot positions and shape top left corner
-    back_h, back_w, _ = back_shape
-    fore_h, fore_w, _ = fore_shape
-    newx = int(((back_w - fore_w) / 2) + x)
-    newy = int(((back_h - fore_h) / 2) + y)
-    return newx, newy
-
-
-def img2RGBA(img):
-    alpha = np.sum(img, axis=-1) > 0
-    alpha = np.uint8(alpha * 255)
-    img = np.dstack((img, alpha))
-    return img
-
-
-class Point(object):
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-
-
-class Rect(object):
-    def __init__(self, p1, p2):
-        """Store the top, bottom, left and right values for points
-        p1 and p2 are the (corners) in either order
-        """
-        self.left = min(p1.x, p2.x)
-        self.right = max(p1.x, p2.x)
-        self.bottom = min(p1.y, p2.y)
-        self.top = max(p1.y, p2.y)
-
-
-def overlap(r1, r2):
-    """Overlapping rectangles overlap both horizontally & vertically"""
-    return range_overlap(r1.left, r1.right, r2.left, r2.right) and range_overlap(
-        r1.bottom, r1.top, r2.bottom, r2.top
-    )
-
-
-def range_overlap(a_min, a_max, b_min, b_max):
-    """Neither range is completely greater than the other"""
-    return (a_min <= b_max) and (b_min <= a_max)
-
-
-def dict_to_json(dic, path):
-    json_path = Path(path)
-    with open(json_path, "w") as j:
-        json.dump(dic, j, indent=4, default=str)
-
-
-def clean_data(data):
-    """Convert absolute pot and background paths to relative.
-    Takes the last two components of a path object for each.
-
-    Takes in and returns a dictionary of dataclass to be
-    stored in json and db.
+def calculate_bbox_area_cm2(image_height_m, image_width_m, cutout_height, cutout_width, fullres_width, fullres_height):
     """
-    data["background"]["background_path"] = "/".join(
-        Path(data["background"]["background_path"]).parts[-2:]
-    )
-    pots = data["pots"]
-    for pot in pots:
-        pot["pot_path"] = "/".join(Path(pot["pot_path"]).parts[-2:])
+    Calculate bbox area in cm² using cutout dimensions (pixels) and global bounding box coordinates (meters).
+    
+    Args:
+        global_coordinates (dict): Global bounding box coordinates with 'top_left' and 'bottom_right' in meters.
+        cutout_height (int): The height of the cutout in pixels.
+        cutout_width (int): The width of the cutout in pixels.
+        fullres_width (int): Full-resolution image width in pixels.
+        fullres_height (int): Full-resolution image height in pixels.
+        
+    Returns:
+        float: Bounding box area in cm².
+    """
+    
+    # Calculate the pixel-to-meter scaling factors
+    pixel_width_m = image_width_m / fullres_width
+    pixel_height_m = image_height_m / fullres_height
 
-    for cutout in data["cutouts"]:
-        cutout["cutout_path"] = "/".join(Path(cutout["cutout_path"]).parts[-2:])
+    # Convert cutout width and height from pixels to meters
+    cutout_width_m = cutout_width * pixel_width_m
+    cutout_height_m = cutout_height * pixel_height_m
 
-    return data
+    # Calculate the area in cm² (1 m² = 10,000 cm²)
+    bbox_area_cm2 = cutout_width_m * cutout_height_m * 10000  # Convert m² to cm²
+    return bbox_area_cm2
 
+def match_season_to_date_ranges(season, date_ranges_seasons):
+    """
+    Matches a single season string to its corresponding date range season from a list.
+    Args:
+    - season (str): The season string to match (e.g., 'cool_season_covers_2022_2023').
+    - date_ranges_seasons (list of str): A list of date range season strings (e.g., ['weeds 2022', 'cover crops 2022/2023']).
+    Returns:
+    - str: The matched date range season or None if no match is found.
+    """
+    # Extract the year or year range from the season string
+    year_match = re.search(r'\d{4}(?:[_/]\d{4})?', season)
+    if not year_match:
+        return None
+    season_year = year_match.group().replace('_', '/')
+    # Identify the crop type from the season string
+    crop_type = None
+    if 'weeds' in season:
+        crop_type = 'weeds'
+    elif 'cover' in season:
+        crop_type = 'cover crops'
+    elif 'cash' in season:
+        crop_type = 'cash crops'
+    # Find the closest match in the date_ranges_seasons
+    for entry in date_ranges_seasons:
+        # Extract the year or year range from the entry
+        entry_year_match = re.search(r'\d{4}(?:[/]\d{4})?', entry)
+        if entry_year_match:
+            entry_year = entry_year_match.group()
+            if season_year == entry_year and crop_type in entry:
+                return entry
+    return None
 
-def save_dataclass_json(data_dict, path):
-    json_path = Path(path)
-    with open(json_path, "w") as j:
-        json.dump(data_dict, j, indent=4, default=str)
+def match_single_date_range_to_season(date_range_season, seasons):
+    """
+    Matches a single date range season to its corresponding season from a list.
 
+    Args:
+    - date_range_season (str): The date range season to match (e.g., 'cover crops 2022/2023').
+    - seasons (list of str): A list of season strings (e.g., ['cool_season_covers_2022_2023']).
 
-def get_cutout_dir(batch_dir, cutout_dir):
-    batch = Path(batch_dir).name
-    cutout_dir = Path(cutout_dir, batch)
-    return cutout_dir
+    Returns:
+    - str: The matched season or None if no match is found.
+    """
+    # Extract the year or year range from the date_range_season
+    year_match = re.search(r'\d{4}(?:[/]\d{4})?', date_range_season)
+    if not year_match:
+        return None
+    
+    date_range_year = year_match.group().replace('/', '_')
 
+    # Identify the crop type from the date_range_season
+    crop_type = None
+    if 'weeds' in date_range_season:
+        crop_type = 'weeds'
+    elif 'cover crops' in date_range_season:
+        crop_type = 'cover'
+    elif 'cash crops' in date_range_season:
+        crop_type = 'cash'
+    
+    # Find the closest match in the seasons
+    for season in seasons:
+        # Extract the year or year range from the season
+        season_year_match = re.search(r'\d{4}(?:[_]\d{4})?', season)
+        if season_year_match:
+            season_year = season_year_match.group()
+            if date_range_year == season_year and crop_type in season:
+                return season
+
+    return None
+
+def find_date_range_season(input_date, location, date_ranges):
+    """
+    Finds the specific date range season that contains the given date for a specific location.
+
+    Args:
+    - input_date (str): The date to check (in "YYYY-MM-DD" format).
+    - location (str): The location key (e.g., "MD", "NC", "TX").
+    - date_ranges (dict): The nested dictionary containing date range information.
+
+    Returns:
+    - str: The matched date range season or None if no match is found.
+    """
+    input_date_obj = datetime.strptime(input_date, "%Y-%m-%d")
+    
+
+    location_ranges = date_ranges.get(location, {})
+    for season, details in location_ranges.items():
+        start_date = datetime.strptime(details["start"], "%Y-%m-%d")
+        end_date = datetime.strptime(details["end"], "%Y-%m-%d")
+        if start_date <= input_date_obj <= end_date:
+            return season
+
+    return None
+
+def read_json_file(json_file: Path) -> dict:
+    """Read a JSON file and return its contents as a dictionary."""
+    with open(json_file, 'r') as f:
+        return json.load(f)
+    
+def get_process_all_dict(semif_utils_dir):
+    data_schema_storage_dict = {
+            "GROW_semifield-developed": {
+                "storage": "GROW_DATA",
+                "data_type": "semifield-developed-images", 
+                "schema_path": Path(semif_utils_dir, "fullsized_schema.json")
+                },
+            "longterm_semifield-developed": {
+                "storage": "longterm_images",
+                "data_type": "semifield-developed-images", 
+                "schema_path": Path(semif_utils_dir, "fullsized_schema.json")
+                },
+            "GROW_semifield-cutouts": {
+                "storage": "GROW_DATA",
+                "data_type": "semifield-cutouts", 
+                "schema_path": Path(semif_utils_dir, "cutout_schema.json")
+                },
+            "longterm_semifield-cutouts": {
+                "storage": "longterm_images",
+                "data_type": "semifield-cutouts", 
+                "schema_path": Path(semif_utils_dir, "cutout_schema.json")
+                },
+                }
+    return data_schema_storage_dict
