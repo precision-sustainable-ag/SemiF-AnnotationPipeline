@@ -12,6 +12,7 @@ from pprint import  pprint
 from semif_utils.segment_species import Segment
 from semif_utils.segment_utils import GenCutoutProps, generate_new_color
 from semif_utils.utils import apply_mask, cutoutmeta2csv, reduce_holes
+from semif_utils.utils import calculate_bbox_area_cm2
 import concurrent.futures
 import os
 import random
@@ -22,13 +23,30 @@ def calculate_bbox_stats_per_species(metadata_jsons: Path, remap_species_info: D
     """
     Calculate bounding box area statistics per species.
     """
+    metadata_dicts = []
     bbox_areas_per_species = defaultdict(list)
     for metadata_json in metadata_jsons:
         log.debug(f"Processing {metadata_json}")
         metadata = load_json(metadata_json)
         annotations = metadata["annotations"]
 
+        
+        fullres_width = metadata["exif_meta"].get('ImageWidth')
+        fullres_height = metadata["exif_meta"].get('ImageLength')
+        image_height_m = metadata["camera_info"]["fov"].get('height')
+        image_width_m  = metadata["camera_info"]["fov"].get('width')
         for annotation in annotations:
+            bbox_xywh = annotation.get('bbox_xywh')
+
+            cutout_width = bbox_xywh[2]
+            cutout_height = bbox_xywh[3]
+            
+            
+            annotation["bbox_area_cm2"] = calculate_bbox_area_cm2(
+                image_height_m, image_width_m, 
+                cutout_height, cutout_width, 
+                fullres_width, fullres_height
+                )
             global_boxarea = annotation["bbox_area_cm2"]
             # if global_boxarea is None:
             #     continue
@@ -36,6 +54,8 @@ def calculate_bbox_stats_per_species(metadata_jsons: Path, remap_species_info: D
             annotation_cat = remap_species_info[category_class_id]
             
             bbox_areas_per_species[annotation_cat["common_name"]].append(global_boxarea)
+        
+        metadata_dicts.append(metadata)
 
     bbox_stats = {}
     for species, areas in bbox_areas_per_species.items():
@@ -54,7 +74,7 @@ def calculate_bbox_stats_per_species(metadata_jsons: Path, remap_species_info: D
             "mean": np.mean(valid_areas),
             "25th_percentile": np.percentile(valid_areas, 25)
         }
-    return bbox_stats
+    return bbox_stats, metadata_dicts
 
 def calculate_outlier_thresholds(bbox_stats) -> Dict:
     """
@@ -270,11 +290,11 @@ def process_metadata_file(args: Tuple[Path, Path, str, Dict, Dict, Path, Path, P
     """
     Process a single metadata JSON file.
     """
-    (metadata_path, image_dir, season, remap_species_info, 
+    (metadata, image_dir, season, remap_species_info, 
      outlier_thresholds, cutout_dir, semantic_mask_dir, instance_mask_dir) = args
-
-    log.debug(f"Processing {metadata_path}")
-    metadata = load_json(metadata_path)
+    metadata_path = Path("data", "semifield-developed-images", metadata["batch_id"], "metadata", metadata["image_id"] + ".json")
+    log.debug(f'Processing {metadata["image_id"]}')
+    # metadata = load_json(metadata_path)
     img_path = image_dir / f"{metadata['image_id']}.jpg"
     log.debug(f"Loading image {img_path}")
     rgb_array = load_rgb_image(img_path)
@@ -349,7 +369,7 @@ def run_sequential(args_list: List[Tuple]):
     Run the processing sequentially (for loop).
     """
     for args in args_list:
-        log.info(f"Processing {args[0]}")
+        log.info(f"Processing {args[0]['image_id']}")
         process_metadata_file(args)
 
 
@@ -381,16 +401,16 @@ def main(cfg: DictConfig) -> None:
         directory.mkdir(parents=True, exist_ok=True)
 
     metadata_paths = sorted(metadata_dir.glob("*.json"))
-    bbox_stats = calculate_bbox_stats_per_species(metadata_paths, remap_species_info)
+    bbox_stats, metadata_dicts = calculate_bbox_stats_per_species(metadata_paths, remap_species_info)
     outlier_thresholds = calculate_outlier_thresholds(bbox_stats)
 
     random.shuffle(metadata_paths)
     
     # Prepare arguments for parallel/sequential execution
     args_list = [
-        (metadata_path, image_dir, season, remap_species_info, outlier_thresholds, 
+        (metadata, image_dir, season, remap_species_info, outlier_thresholds, 
          cutout_dir, semantic_mask_dir, instance_mask_dir)
-        for metadata_path in metadata_paths
+        for metadata in metadata_dicts
     ]
 
     # Run sequentially or in parallel based on the `parallel` argument
