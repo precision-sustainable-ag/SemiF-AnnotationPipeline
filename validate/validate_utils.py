@@ -37,7 +37,7 @@ def batch_df(batch_id, cutout_dir, batch_dir):
     )
     return df
 
-def filter_unique_images_with_multiple_classes(df, column_a="image_id", column_b="class_id"):
+def filter_unique_images_with_multiple_classes(df, column_a="image_id", column_b="category_class_id"):
     # Group by column_a and count unique values in column_b
     unique_counts = df.groupby(column_a)[column_b].nunique()
     
@@ -53,7 +53,7 @@ def validation_sample_df(df: pd.DataFrame, sample_sz=10, random_state=42, drop_i
 
     filtered_df = filter_unique_images_with_multiple_classes(df)
     species_dfs = []
-    unique_classes = df["common_name"].unique()
+    unique_classes = df["category_common_name"].unique()
     
     if sample_sz < len(unique_classes):
         class_sample_size = 1
@@ -61,7 +61,7 @@ def validation_sample_df(df: pd.DataFrame, sample_sz=10, random_state=42, drop_i
         class_sample_size = sample_sz // len(unique_classes)
 
     for uniq_cls in unique_classes:
-        class_df = df[df["common_name"]== uniq_cls]
+        class_df = df[df["category_common_name"]== uniq_cls]
         class_df = class_df.drop_duplicates(subset="image_id")
 
         if class_df.shape[0] < class_sample_size:
@@ -74,10 +74,10 @@ def validation_sample_df(df: pd.DataFrame, sample_sz=10, random_state=42, drop_i
     sample_filtered_sz = 10
 
     filtered_dfs = []
-    unique_filtered_classes = filtered_df["common_name"].unique()
+    unique_filtered_classes = filtered_df["category_common_name"].unique()
     
     for uniq_filt_cls in unique_filtered_classes:
-        filt_class_df = filtered_df[filtered_df["common_name"]== uniq_filt_cls]
+        filt_class_df = filtered_df[filtered_df["category_common_name"]== uniq_filt_cls]
         filt_class_df = filt_class_df.drop_duplicates(subset="image_id")
     
         if filt_class_df.shape[0] < sample_filtered_sz:
@@ -325,10 +325,13 @@ def plot_masks(
 ):
     unique_images_df = df.drop_duplicates(subset="image_paths")
     for _, row in tqdm(unique_images_df.iterrows(), total=unique_images_df.shape[0]):
-        imgpath = row["image_paths"]
+        imgpath = Path(row["image_paths"])
         maskpath = row["semantic_masks"]
-        instancepath = row["instance_masks"]
-        bgr = cv2.imread(imgpath)
+        meta_path = str(imgpath).replace(f"images/{imgpath.name}", f"metadata/{imgpath.stem}.json")
+        bboxes, labels = get_detection_data(meta_path)
+        
+        # instancepath = row["instance_masks"]
+        bgr = cv2.imread(str(imgpath))
         rgbimg = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
 
         bgrsemmask = cv2.imread(maskpath)
@@ -338,7 +341,7 @@ def plot_masks(
         color_map = species_info2color_map(species_info)
         rgbmask = convert_mask_values(rgbmask, color_map)
 
-        instance_mask = cv2.imread(instancepath, cv2.IMREAD_UNCHANGED)
+        # instance_mask = cv2.imread(instancepath, cv2.IMREAD_UNCHANGED)
 
         fig, (ax1, ax2, ax3) = plt.subplots(
             1, 3, figsize=figsize, facecolor="none" if transparent_fc else "w"
@@ -350,20 +353,42 @@ def plot_masks(
         # Resize the image
         resized_rgbimg = cv2.resize(rgbimg, (new_width, new_height))
         resized_rgbmask = cv2.resize(rgbmask, (new_width, new_height))
-        resized_rgbinstance = cv2.resize(instance_mask, (new_width, new_height))
+        resized_bboxes = resize_bboxes(bboxes, original_width, original_height, new_width, new_height)
+        # resized_rgbinstance = cv2.resize(instance_mask, (new_width, new_height))
 
+        fontsize = (
+            fig.get_figwidth() + fig.get_figheight()
+        ) * 0.5  # Adjust the scaling factor as desired
+        
         ax1.imshow(resized_rgbimg)
         ax2.imshow(resized_rgbmask)
-        ax3.imshow(resized_rgbinstance)
+        ax3.imshow(resized_rgbmask)
 
         ax1.axis(False)
         ax2.axis(False)
         ax3.axis(False)
+        for i, bbox in enumerate(resized_bboxes):
+                xmin, ymin, xmax, ymax = bbox
+                w = xmax - xmin
+                h = ymax - ymin
+
+                # add bounding boxes to the image
+                # Make line width dynamic based on bbox size
+                box = patches.Rectangle(
+                    (xmin, ymin),
+                    w,
+                    h,
+                    linewidth=0.5,
+                    edgecolor="red",
+                    facecolor="none",
+                )
+
+                ax3.add_patch(box)
 
         if include_suptitles:
             imgdf = df[df["image_paths"]== imgpath]
-            uniq_common_names = ", ".join(imgdf["common_name"].unique())
-            uniq_meta_class_ids = ", ".join(imgdf["class_id"].unique().astype(str))
+            uniq_common_names = ", ".join(imgdf["category_common_name"].unique())
+            uniq_meta_class_ids = ", ".join(imgdf["category_class_id"].unique().astype(str))
             uniq_mask_class_ids = ", ".join([str(x) for x in np.unique(bgrsemmask[..., 0]) if x != 0])
             
             fontsize = (
@@ -374,7 +399,7 @@ def plot_masks(
             ax2.title.set_text(f"Unique mask class_ids: \n{uniq_mask_class_ids}")
             ax2.title.set_fontsize(fontsize)
             ax3.title.set_text(f"Unique metadata class_ids: \n{uniq_meta_class_ids}")
-            ax3.title.set_fontsize(fontsize)
+            # ax3.title.set_fontsize(fontsize)
 
         plt.tight_layout()
         save_location = Path(save_location)
@@ -456,9 +481,9 @@ def plot_cutouts(
     dpi=300,
 ):
     unique_images_df = df.drop_duplicates(subset="image_paths")
-    unique_cnames = unique_images_df["common_name"].unique()
+    unique_cnames = unique_images_df["category_common_name"].unique()
     for species in tqdm(unique_cnames, total=unique_cnames.shape[0]):
-        sdf = unique_images_df[unique_images_df["common_name"] == species]
+        sdf = unique_images_df[unique_images_df["category_common_name"] == species]
 
         if len(sdf) == 0:
             continue
@@ -487,7 +512,7 @@ def plot_cutouts(
             ax2.imshow(cutimg, alpha=1)
 
             if title:
-                species = row["common_name"]
+                species = row["category_common_name"]
                 fontsize = (
                     fig.get_figwidth() + fig.get_figheight()
                 ) * 0.5  # Adjust the scaling factor as desired
@@ -497,7 +522,7 @@ def plot_cutouts(
                 ax2.set_title(species, fontsize=fontsize)
 
             fig.tight_layout()
-            new_save_location = Path(save_location, row["common_name"])
+            new_save_location = Path(save_location, row["category_common_name"])
             new_save_location.mkdir(exist_ok=True, parents=True)
             cutout_stem = f"{row['cutout_id']}" + "_cutout_plot"
 
