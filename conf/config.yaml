@@ -5,6 +5,7 @@ defaults:
   - inspect: inspect
 # ancillary configs
   - segment: segment
+  - convert: default
   - validate: validate
   - override hydra/job_logging: custom # custom logging 
   - _self_
@@ -26,8 +27,8 @@ general:
   # season: cool_season_covers_2022_2023
   # season: cool_season_cover_2022_2023_MD_pos_2
   # season: cool_season_cover_2022_2023_MD_pos_3 # used only for MD_2023-03-16
-  # season: cool_season_covers_2023_2024
-  season: cool_season_covers_2024_2025
+  season: cool_season_covers_2023_2024
+  # season: cool_season_covers_2024_2025
   # season: summer_weeds_2024
 #----------------------------------------------------
   metashape_key: ??? # Do not put key in the config since the file is committed to GitHub
@@ -38,16 +39,17 @@ general:
 
 # Select sections of pipeline to run
 pipeline:
-  download_data: False
-  move_bbotv3_data: False
+  download_data: False # For downloading data from the azure blob
+  move_bbotv3_data: False # For moving data from the LTS lockers
   
   classify_nontarget_weeds: False
   merge_overlapping_bboxes: False
 
-  autosfm_pipeline: True
+  autosfm_pipeline: False
   localize_plants: False
   remap_labels: False
   assign_species: False
+  convert: True
   reformat_fullsizedmetadata: False
   segment_vegetation: False
   # SAM_segmentor: False # needs refinement, DO NOT USE
@@ -118,7 +120,7 @@ date_ranges:
   MD:
     weeds 2022:
       start: "2022-03-04"
-      end: "2022-09-17"
+      end: "2022-10-17"
       bbot_version: v2.0
     cover crops 2022/2023:
       start: "2022-10-20"

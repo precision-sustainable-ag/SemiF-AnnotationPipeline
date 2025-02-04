@@ -1324,7 +1324,7 @@
         "LOPEM2": {
             "class_id": 47,
             "USDA_symbol": "LOPEM2",
-            "EPPO": " LOLMU",
+            "EPPO": "LOLMU",
             "group": "Monocot",
             "class": "Liliopsida",
             "subclass": "Commelinidae",

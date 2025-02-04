@@ -1,0 +1,11 @@
+versions:
+  fullsized: 1.0
+  cutouts: 1.0
+test:
+  data_type: fullsized # cutouts or fullsized
+  enabled: false
+  batch_id: NC_2022-10-11
+  sample:
+    seed: 42
+    sample_size: 10
+  

@@ -34,8 +34,7 @@ def main(cfg: DictConfig) -> None:
     # Use detection results if they already exists
     plant_detdir = Path(cfg.data.batchdir, "plant-detections", "processed")
     if plant_detdir.exists() and any(plant_detdir.iterdir()):
-        detection_dir = Path(cfg.data.batchdir, "plant-detections", "processed")
-        detections = [x for x in detection_dir.glob("*.csv")]
+        detections = [x for x in plant_detdir.glob("*.csv")]
         dfs = []
         for det in detections:
             # df = pd.read_csv(det)
@@ -65,8 +64,37 @@ def main(cfg: DictConfig) -> None:
         df.to_csv(csv_savepath)
         log.info(f"Combined detections and saved to: \n{csv_savepath}")
     else:
-        log.error("No detections present. Exiting.")
-        exit(1)
+        log.warning("No non_target detections present. Using regular detections.")
+        detection_dir = Path(cfg.data.batchdir, "plant-detections")
+        detections = [x for x in detection_dir.glob("*.csv")]
+        dfs = []
+        for det in detections:
+            # df = pd.read_csv(det)
+            df = process_csv(det)
+            columns_names = [
+                "bounding_box_id",
+                "xmin",
+                "ymin",
+                "xmax",
+                "ymax",
+                "conf",
+                "class",
+                "classname",
+                # "classifier_class",
+                # "classifier_classname",
+                # "classifier_confidence",
+            ]
+            present_columns = df.columns
+            all_present = set(columns_names).issubset(present_columns)
+            if not all_present:
+                continue
+
+            df["imgname"] = det.stem + ".jpg"
+            df = df.rename(columns={"classname": "name"})
+            dfs.append(df)
+        df = pd.concat(dfs, ignore_index=True)
+        df.to_csv(csv_savepath)
+        log.info(f"Combined detections and saved to: \n{csv_savepath}")
 
     end = time.time()
     log.info(f"Localize plants completed in {end - start} seconds.")
