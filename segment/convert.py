@@ -46,19 +46,20 @@ def process_json_folder_to_csv(folder_path, output_csv_path):
     log.info(f"CSV saved at {output_csv_path}")
 
 class BatchProcessor:
-    def __init__(self, cfg: DictConfig, data_type ="semfield-developed-images") -> None:
+    def __init__(self, cfg: DictConfig, data_type ="semifield-developed-images") -> None:
         self.cfg = cfg
         self.batch_id = cfg.general.batch_id if not cfg.convert.test.enabled else cfg.convert.test.batch_id
-        self.data_type = self._set_data_type(data_type)
-        self.root_batch_dir = Path("data") / self.data_type
         self.test_config = cfg.convert.test
+        self.data_type = self._set_data_type(data_type)
+        self.root_batch_dir = Path("data", self.data_type)
         self.sample_config = self.test_config.sample if self.test_config.enabled else None
 
     def _set_data_type(self, data_type: str) -> None:
-        if self.test_config.enabled:
+        if self.test_config.enabled == True:
             self.data_type = "semifield-cutouts" if "cutout" in self.cfg.convert.test.data_type else "semifield-developed-images"
         else:
             self.data_type = data_type
+        return self.data_type
         
     def _get_batch(self) -> list:
         # batches = sorted(self.root_batch_dir.glob("*"))
