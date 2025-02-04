@@ -129,16 +129,24 @@ def holeconfig_from_bboxarea(boxarea: float) -> Tuple[int, int, int]:
         """
         if boxarea is None:
             return 500, 500, 3   
-        elif boxarea < 1: # About the size of a button
+        
+        elif boxarea < 0.1: # About the size of a button
             return 100, 100, 1
-        elif boxarea < 10: # About the size of a postage stamp
+        
+        elif boxarea < 1: # About the size of a postage stamp
             return 500, 500, 3
-        elif boxarea < 100: # About the size of a notecard
+        
+        elif boxarea < 10: # About the size of a notecard
             return 1000, 1000, 7
-        elif boxarea < 1000: # About the size of A4 paper
+        
+        elif boxarea < 100: # About the size of A4 paper
             return 5000, 5000, 9
-        else:
+        
+        elif boxarea < 1000: # About the size of A4 paper
             return 10000, 10000, 11
+        
+        else:
+            return 10000, 10000, 13
 
 def initialize_segmentation_predictor(cfg: DictConfig) -> MaskPredictor:
     """
@@ -191,13 +199,41 @@ def predict_mask_for_cutout(
     mask = predictor.predict(rgb_crop)
     # Assign mask the correct class ID
     mask = mask.astype(np.uint8)
+
+    # Check if the mask is nearly full
+    total_pixels = mask.size
+    positive_pixels = np.count_nonzero(mask == 1)
+    positive_ratio = positive_pixels / total_pixels
+
+    # If more than 95% of the mask is positive, it is likely oversegmented.
+    if positive_ratio > 0.95:
+        log.warning(f"Cutout {bbox_id}: mask is nearly full ({positive_ratio*100:.2f}% positive). Attempting correction of image shaped {mask.shape[:2]}.")
+
+        # Option 1: Apply morphological erosion to reduce the mask area.
+        erosion_kernel = np.ones((5, 5), np.uint8)
+        mask = cv2.erode(mask, erosion_kernel, iterations=1)
+
+        # Check again after erosion.
+        positive_pixels = np.count_nonzero(mask == 1)
+        positive_ratio = positive_pixels / total_pixels
+        if positive_ratio > 0.95:
+            log.warning(f"Cutout {bbox_id}: mask remains nearly full after erosion. Skipping cutout.")
+            # Return an empty mask so that downstream processing can decide to skip this cutout.
+            return np.zeros_like(mask, dtype=np.uint8)
     
     # Post-processing: reduce holes and smooth the mask.
     min_object_size, min_hole_size, median_kernel = holeconfig_from_bboxarea(global_boxarea)
 
     mask = reduce_holes(mask, min_object_size, min_hole_size).astype(np.uint8)
 
-    mask[mask == 1] = category["class_id"]
+    category_class_id = category["class_id"]
+    
+    # If the category is a "colorchecker", set the mask to 0
+    if category_class_id == 28:
+        mask[mask == 1] = 0
+    else:
+        mask[mask == 1] = category_class_id
+    
     mask = cv2.medianBlur(mask.astype(np.uint8), median_kernel)
 
     return mask
