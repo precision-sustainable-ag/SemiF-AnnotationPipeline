@@ -51,27 +51,6 @@ def parse_dict(props_tabl):
             ndict[key] = None
     return ndict
 
-
-
-# Flatten the nested JSON
-def flatten_json(y):
-    out = {}
-
-    def flatten(x, name=''):
-        if type(x) is dict:
-            for a in x:
-                flatten(x[a], name + a + '_')
-        elif type(x) is list:
-            i = 0
-            for a in x:
-                flatten(a, name + str(i) + '_')
-                i += 1
-        else:
-            out[name[:-1]] = x
-
-    flatten(y)
-    return out
-
 # Function to rename columns dynamically
 def rename_columns(columns):
     rename_map = {
@@ -107,6 +86,17 @@ def rename_columns(columns):
             new_columns.append(col)
     return new_columns
 
+def flatten_json(nested_json, separator='_', prefix=''):
+    """Recursively flatten a nested JSON."""
+    flattened = {}
+    for key, value in nested_json.items():
+        new_key = f"{prefix}{separator}{key}" if prefix else key
+        if isinstance(value, dict):
+            flattened.update(flatten_json(value, separator, new_key))
+        else:
+            flattened[new_key] = value
+    return flattened
+
 def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
     # Get all json files
     metas = [x for x in Path(cutoutdir, batch_id).glob("*.json")]
@@ -117,10 +107,9 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         # Get dictionaries
         with open(meta) as f:
             j = json.load(f)
-        data = flatten_json(j)
-        cutouts.append(data)
+            data = flatten_json(j)
+            cutouts.append(data)
     df = pd.DataFrame(cutouts)
-    df.columns = rename_columns(list(df.columns))
     if save_df:
         df.to_csv(csv_savepath, index=False)
     return df
