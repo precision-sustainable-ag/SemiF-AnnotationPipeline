@@ -83,10 +83,10 @@ class GenCutoutProps:
         self.img = img  # RGB
         self.mask = mask
         self.cutout = apply_mask(self.img, self.mask, "black")
-        self.green_thresh = 100  # TODO change to normalized based on size of image
-        self.green_sum = int(np.sum(self.green_mask()))
-        self.is_green = True if self.green_sum > self.green_thresh else False
-        self.color_dist_tol = 12
+        # self.green_thresh = 100  # TODO change to normalized based on size of image
+        # self.green_sum = int(np.sum(self.green_mask()))
+        # self.is_green = True if self.green_sum > self.green_thresh else False
+        # self.color_dist_tol = 12
 
     def get_blur_effect(self):
         # 0 for no blur, 1 for maximal blur
@@ -176,30 +176,37 @@ class GenCutoutProps:
         # Split the image into individual channels
         r, g, b = cv2.split(rgb_image)
 
-        all_zeros = not np.any(rgb_image)
+        # Check if the image is completely black
+        if not np.any(rgb_image):
+            return self.all_zero_props()
 
-        # Create a mask to identify non-black pixels
         mask = None
-
         if ignore_zeros:
+            # Create a binary mask where any nonzero pixel is marked as 255
             mask = cv2.bitwise_or(cv2.bitwise_or(b, g), r)
-            #     # Mask out zero values for descriptive stats
-        if all_zeros:
-            all_zero_result = self.all_zero_props()
-            return all_zero_result
-        else:
-            # Calculate the mean, count, standard deviation, minimum, and maximum values for each channel
-            b_mean, b_std = cv2.meanStdDev(b, mask=mask)
-            g_mean, g_std = cv2.meanStdDev(g, mask=mask)
-            r_mean, r_std = cv2.meanStdDev(r, mask=mask)
+            mask = (mask > 0).astype(np.uint8) * 255
 
-            del rgb_image
-            del b, g, r
-            del mask
+        # Compute mean and standard deviation for each channel using the mask if provided.
+        b_mean, b_std = cv2.meanStdDev(b, mask=mask)
+        g_mean, g_std = cv2.meanStdDev(g, mask=mask)
+        r_mean, r_std = cv2.meanStdDev(r, mask=mask)
 
-            rgb_mean = [float(r_mean[0][0]), float(g_mean[0][0]), float(b_mean[0][0])]
-            rgb_std = [float(r_std[0][0]), float(g_std[0][0]), float(b_std[0][0])]
-            return rgb_mean, rgb_std
+        # (The explicit deletion is optional, Python's GC will handle this.)
+        del rgb_image, b, g, r, mask
+
+        # Return the results in RGB order
+        # Normalize the results by dividing by 255 so that values are in [0, 1].
+        rgb_mean = [
+            float(r_mean[0][0]) / 255,
+            float(g_mean[0][0]) / 255,
+            float(b_mean[0][0]) / 255,
+        ]
+        rgb_std = [
+            float(r_std[0][0]) / 255,
+            float(g_std[0][0]) / 255,
+            float(b_std[0][0]) / 255,
+        ]
+        return rgb_mean, rgb_std
 
     def all_zero_props(self):
         return {
@@ -233,24 +240,19 @@ class GenCutoutProps:
 
     def from_regprops_table(self, connectivity=2):
         """Generates list of region properties for each cutout mask"""
-        labels = measure.label(self.mask, connectivity=connectivity)
-        props = [measure.regionprops_table(labels, properties=CUTOUT_PROPS)]
+        # labels = measure.label(self.mask, connectivity=connectivity)
+        # props = [measure.regionprops_table(labels, properties=CUTOUT_PROPS)]
         # Parse regionprops_table
-        nprops = [parse_dict(d) for d in props][0]
-        nprops["green_sum"] = self.green_sum
+        # nprops = [parse_dict(d) for d in props][0]
+        nprops = {}
+        # nprops["green_sum"] = self.green_sum
         nprops["blur_effect"] = self.get_blur_effect()
         nprops["num_components"] = self.num_connected_components()
-
         rgb_mean, rgb_std = self.analyze_image(self.img)
         nprops["cropout_rgb_mean"] = rgb_mean
         nprops["cropout_rgb_std"] = rgb_std
 
         return nprops
-
-    def to_dataclass(self):
-        table = self.from_regprops_table()
-        cutout_props = CutoutProps(**table)
-        return cutout_props
     
     def to_regprops_table(self):
         table = self.from_regprops_table()

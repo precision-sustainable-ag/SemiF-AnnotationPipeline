@@ -1,13 +1,11 @@
 import getpass
 import logging
 import sys
-import traceback
 
 import hydra
 from hydra.utils import get_method
 from omegaconf import DictConfig, OmegaConf
-
-from utils.utils import remove_batch, write_batch
+import os
 
 sys.path.append("move_data")
 sys.path.append("autoSfM")
@@ -28,6 +26,8 @@ def run_PIPELINE(cfg: DictConfig) -> None:
 
     tasks = [k for k, v in cfg.pipeline.items() if v]
     for tsk in tasks:
+        if tsk == "autosfm_pipeline":
+            os.sched_setaffinity(0, {2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22})
         log.info(f"Starting {cfg.general.get(tsk)} as {whoami}")
         try:
             task = get_method(f"{tsk}.main")

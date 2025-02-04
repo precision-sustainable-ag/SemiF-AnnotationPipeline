@@ -5,7 +5,7 @@ import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import List, Optional, Union
-
+from shapely.geometry import Polygon
 import cv2
 import exifread
 import numpy as np
@@ -203,7 +203,6 @@ class BBox:
         centroid_x = (coords.bottom_right[0] + coords.bottom_left[0]) / 2.0
         centroid_y = (coords.bottom_left[1] + coords.top_left[1]) / 2.0
         centroid = np.array([centroid_x, centroid_y])
-
         return centroid
 
     def get_area(self, coordinates: BoxCoordinates) -> float:
@@ -236,16 +235,17 @@ class BBox:
         self.global_centroid = self.get_centroid(self.global_coordinates)
 
     def bb_iou(self, comparison_box, type="global"):
-        """Function to calculate the IoU of this bounding box
-           with another bbox 'comparison_box'.
-
+        """Calculate the IoU of this bounding box with another bbox 'comparison_box',
+        accounting for rotated bounding boxes by using all four corners.
+        
         Args:
             comparison_box (BBox): Another bounding box
-            type (str, optional): IoU in global or local coordinates. Defaults to "global".
-
+            type (str, optional): Use 'global' or 'local' coordinates. Defaults to "global".
+        
         Returns:
             float: IoU of the two boxes
         """
+        # Choose the coordinate set based on type
         if type == "global":
             _boxA = self.global_coordinates
             _boxB = comparison_box.global_coordinates
@@ -255,40 +255,34 @@ class BBox:
         else:
             raise ValueError(f"Type {type} not supported.")
 
-        boxA = [
-            _boxA.top_left[0],
-            -_boxA.top_left[1],
-            _boxA.bottom_right[0],
-            -_boxA.bottom_right[1],
-        ]
-        boxB = [
-            _boxB.top_left[0],
-            -_boxB.top_left[1],
-            _boxB.bottom_right[0],
-            -_boxB.bottom_right[1],
-        ]
+        # Create polygons from the four corners.
+        # Make sure the corners are ordered consistently.
+        polyA = Polygon([
+            _boxA.top_left,
+            _boxA.top_right,
+            _boxA.bottom_right,
+            _boxA.bottom_left
+        ])
+        polyB = Polygon([
+            _boxB.top_left,
+            _boxB.top_right,
+            _boxB.bottom_right,
+            _boxB.bottom_left
+        ])
 
-        # determine the (x, y)-coordinates of the intersection rectangle
-        xA = max(boxA[0], boxB[0])
-        yA = max(boxA[1], boxB[1])
-        xB = min(boxA[2], boxB[2])
-        yB = min(boxA[3], boxB[3])
+        # Check if the polygons intersect at all
+        if not polyA.intersects(polyB):
+            return 0.0
 
-        # compute the area of intersection rectanglee
-        interArea = abs(max((xB - xA, 0)) * max((yB - yA), 0))
-        if interArea == 0:
-            return 0
-        # compute the area of both the prediction and ground-truth
-        # rectangles
-        boxAArea = abs((boxA[2] - boxA[0]) * (boxA[3] - boxA[1]))
-        boxBArea = abs((boxB[2] - boxB[0]) * (boxB[3] - boxB[1]))
+        # Calculate the intersection and union areas
+        inter_area = polyA.intersection(polyB).area
+        union_area = polyA.union(polyB).area
 
-        # compute the intersection over union by taking the intersection
-        # area and dividing it by the sum of prediction + ground-truth
-        # areas - the interesection area
-        iou = interArea / float(boxAArea + boxBArea - interArea)
+        # Avoid division by zero just in case
+        if union_area == 0:
+            return 0.0
 
-        # return the intersection over union value
+        iou = inter_area / union_area
         return iou
 
     def assign_species(self, species):

@@ -11,7 +11,6 @@ import cv2
 import numpy as np
 import pandas as pd
 from semif_utils.datasets import BBox, BoxCoordinates, CameraInfo, RemapImage
-from semif_utils.utils import growth_stage
 from tqdm import tqdm
 
 
