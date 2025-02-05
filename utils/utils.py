@@ -8,8 +8,19 @@ import cv2
 import numpy as np
 import pandas as pd
 import yaml
+from dataclasses import dataclass
 
-from utils.data import PipelineKeys
+@dataclass
+class PipelineKeys:
+    account_url: str
+    down_dev: str
+    up_dev: str
+    down_cut: str
+    up_cut: str
+    down_upload: str
+    up_upload: str
+
+    ms_lic: str
 
 
 def filter_and_select_dates(
