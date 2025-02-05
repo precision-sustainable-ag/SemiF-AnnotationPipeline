@@ -19,6 +19,7 @@ dependencies:
   - geopandas
   - dacite
   - pip
+  - sqlite
   - pip:
       - torch==2.5.0
       - torchvision==0.20.0

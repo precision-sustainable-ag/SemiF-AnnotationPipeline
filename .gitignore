@@ -41,3 +41,6 @@ autoSfM/package/dependencies/*
 **venv.bak/
 
 **.DS_Store
+
+# idea
+**/.idea/

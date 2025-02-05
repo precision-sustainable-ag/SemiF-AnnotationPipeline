@@ -7,6 +7,7 @@ defaults:
   - segment: segment
   - convert: default
   - validate: validate
+  - database: database
   - override hydra/job_logging: custom # custom logging 
   - _self_
 
@@ -32,7 +33,7 @@ general:
   # season: summer_weeds_2024
 #----------------------------------------------------
   metashape_key: ??? # Do not put key in the config since the file is committed to GitHub
-  batch_id: ???
+  batch_id: "NC_2023-07-10"
   # Main working directory 
   workdir: ${hydra:runtime.cwd}  # where the code is executed
   cpu_denominator: 4
@@ -57,6 +58,7 @@ pipeline:
   validate_batch: False
   repo_overview: False # optional
   compare_blobs: False # optional
+  database: True
   
 # Other job/naming options (currently not used)
 job:
