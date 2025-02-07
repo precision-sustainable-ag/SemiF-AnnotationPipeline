@@ -243,7 +243,7 @@ def preview_cutout_results(
             plt.close()
 
 
-def get_detection_data(jsonpath):
+def get_detection_data(jsonpath, simple_labels=False):
     meta = read_metadata(jsonpath)
     categories = meta["categories"]
 
@@ -272,7 +272,7 @@ def get_detection_data(jsonpath):
         class_id = bbox_category["class_id"]
         common_name = bbox_category["common_name"]
 
-        label = f"{common_name} ({class_id})"
+        label = f"{common_name} ({class_id})" if not simple_labels else f"{class_id}"
         labels.append(label)
 
     return boxes, labels
@@ -317,6 +317,307 @@ def resize_bboxes(bboxes, original_width, original_height, new_width, new_height
         resized_bboxes.append((resized_x, resized_y, resized_w, resized_h))
 
     return resized_bboxes
+
+def get_bboxes_validation_images(
+    df,
+    processed_images,
+    show_labels=True,
+    resize_factor=0.2,  # Factor to resize the image
+):
+    """Draws bounding boxes directly on images using OpenCV.
+
+    Args:
+        df (pandas dataframe): DataFrame containing image paths and bounding boxes.
+        processed_images (set): Set of image IDs that have already been reviewed.
+        show_labels (bool, optional): Whether to display labels. Defaults to True.
+        transparent_fc (bool, optional): If True, uses transparent face color. Defaults to True.
+        resize_factor (float, optional): Factor by which the image should be resized. Defaults to 0.2.
+
+    Returns:
+        list: List of images with bounding boxes drawn.
+    """
+    annotated_images = []
+    unique_images_df = df.drop_duplicates(subset="image_paths").sort_values("image_id")
+
+    for _, row in tqdm(unique_images_df.iterrows(), total=unique_images_df.shape[0]):
+        if row["image_id"] in processed_images and "bbox" in row["product"]:
+            print(f"Skipping {row['image_id']} as it has already been reviewed.")
+            continue
+        image_path = Path(row["image_paths"])
+        assert image_path.exists(), f"Image path does not exist: {image_path}"
+
+        meta_path = str(image_path).replace(f"images/{image_path.name}", f"metadata/{image_path.stem}.json")
+        assert Path(meta_path).exists(), f"Metadata path does not exist: {meta_path}"
+
+        # Load bounding boxes and labels
+        bboxes, labels = get_detection_data(meta_path)
+        if len(bboxes) == 0:
+            continue
+
+        # Read image using OpenCV
+        image = cv2.imread(str(image_path))
+        original_height, original_width = image.shape[:2]
+
+        # Resize image while maintaining aspect ratio
+        new_width = int(original_width * resize_factor)
+        new_height = int(original_height * resize_factor)
+        resized_image = cv2.resize(image, (new_width, new_height))
+
+        # Resize bounding boxes to match resized image
+        resized_bboxes = resize_bboxes(bboxes, original_width, original_height, new_width, new_height)
+
+        # Draw bounding boxes on image
+        for i, bbox in enumerate(resized_bboxes):
+            xmin, ymin, xmax, ymax = map(int, bbox)
+            
+            # Draw rectangle (bounding box)
+            cv2.rectangle(resized_image, (xmin, ymin), (xmax, ymax), (0, 0, 255), 2)  # Red color
+
+            if show_labels and labels is not None:
+                label_text = str(labels[i])
+                font_scale = 0.6  # Scale label text dynamically
+                thickness = 2
+                text_size = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
+
+                text_x = xmin
+                text_y = max(ymin - 10, 10)  # Position label above the bbox
+
+                # Draw background rectangle for text (optional, improves readability)
+                cv2.rectangle(
+                    resized_image,
+                    (text_x, text_y - text_size[1] - 5),
+                    (text_x + text_size[0] + 5, text_y + 5),
+                    (0, 0, 255),  # Red background
+                    -1  # Filled rectangle
+                )
+
+                # Put text label on the bounding box
+                cv2.putText(
+                    resized_image, label_text, (text_x, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), thickness
+                )
+
+        # Append processed image to the list
+        annotated_images.append((resized_image, row))
+
+    return annotated_images
+
+def get_mask_validation_images(
+    df,
+    processed_images,
+    species_info=None,
+    resize_factor=0.2,  # Factor to resize images and masks
+    include_suptitles=True
+):
+    """Generates images with masks and bounding boxes using OpenCV.
+
+    Args:
+        df (pandas dataframe): DataFrame containing image paths and mask paths.
+        processed_images (set): Set of image IDs that have already been reviewed.
+        species_info (dict, optional): Species info for mask color mapping.
+        resize_factor (float, optional): Factor by which the image should be resized. Defaults to 0.2.
+        include_suptitles (bool, optional): Whether to overlay text info on images.
+
+    Returns:
+        list: List of annotated images.
+    """
+    annotated_images = []
+    unique_images_df = df.drop_duplicates(subset="image_paths")
+    
+    for _, row in tqdm(unique_images_df.iterrows(), total=unique_images_df.shape[0]):
+        if row["image_id"] in processed_images and "mask" in row["product"]:
+            print(f"Skipping {row['image_id']} as it has already been reviewed.")
+            continue
+        imgpath = Path(row["image_paths"])
+        maskpath = row["semantic_masks"]
+        assert imgpath.exists(), f"Image path does not exist: {imgpath}"
+        assert Path(maskpath).exists(), f"Mask path does not exist: {maskpath}"
+
+        meta_path = str(imgpath).replace(f"images/{imgpath.name}", f"metadata/{imgpath.stem}.json")
+        bboxes, labels = get_detection_data(meta_path, simple_labels=True)
+
+        # Read images and masks
+        image = cv2.imread(str(imgpath))
+        mask = cv2.imread(str(maskpath))
+
+        # Convert BGR to RGB
+        # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        # mask = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
+
+        # Apply species-specific color map to mask
+        color_map = species_info2color_map(species_info)
+        mask = convert_mask_values(mask, color_map)
+
+        original_height, original_width = image.shape[:2]
+
+        # Resize images & masks while keeping proportions
+        new_width = int(original_width * resize_factor)
+        new_height = int(original_height * resize_factor)
+        resized_image = cv2.resize(image, (new_width, new_height), interpolation=cv2.INTER_NEAREST)
+        resized_mask = cv2.resize(mask, (new_width, new_height))
+        resized_bboxes = resize_bboxes(bboxes, original_width, original_height, new_width, new_height)
+
+        # Create a side-by-side visualization (original, mask, mask+bboxes)
+        combined_image = np.hstack([resized_image, resized_mask, resized_mask.copy()])
+
+        # Overlay bounding boxes on the third section (mask with bboxes)
+        for i, bbox in enumerate(resized_bboxes):
+            xmin, ymin, xmax, ymax = map(int, bbox)
+
+            # Draw bounding box in red
+            cv2.rectangle(combined_image[:, new_width*2:], (xmin, ymin), (xmax, ymax), (0, 0, 255), 8)
+
+            # Label the bounding box
+            if labels is not None:
+                label_text = str(labels[i])
+                font_scale = 1.5
+                thickness = 2
+                text_size = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
+
+                text_x = xmin
+                text_y = max(ymin - 10, 10)  # Place label above bbox
+
+                # Draw background for text
+                cv2.rectangle(
+                    combined_image[:, new_width*2:],
+                    (text_x, text_y - text_size[1] - 5),
+                    (text_x + text_size[0] + 5, text_y + 5),
+                    (0, 0, 255),  # Red background
+                    -1  # Filled rectangle
+                )
+
+                # Overlay text
+                cv2.putText(
+                    combined_image[:, new_width*2:], label_text, (text_x, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), thickness
+                )
+
+        # Overlay textual metadata on the first image if enabled
+        if include_suptitles:
+            imgdf = df[df["image_paths"] == str(imgpath)]
+            uniq_common_names = ", ".join(imgdf["category_common_name"].unique())
+            uniq_meta_class_ids = ", ".join(imgdf["category_class_id"].unique().astype(str))
+            uniq_mask_class_ids = ", ".join([str(x) for x in np.unique(mask[..., 0]) if x != 0])
+
+            metadata_texts = [
+                f"Common Names: {uniq_common_names}",
+                f"Mask Class IDs: {uniq_mask_class_ids}",
+                f"Metadata Class IDs: {uniq_meta_class_ids}"
+            ]
+
+            for idx, text in enumerate(metadata_texts):
+                cv2.putText(
+                    combined_image, text, (10, 30 + (idx * 25)),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2
+                )
+
+        # Append processed image to the list
+        annotated_images.append((combined_image, row))
+
+    return annotated_images
+
+def get_cutout_validate_images(
+    df,
+    processed_images,
+    resize_factor=0.2,  # Factor to resize images
+    title=True
+):
+    """Generates cutout visualizations using OpenCV.
+
+    Args:
+        df (pandas dataframe): DataFrame containing image paths and cutouts.
+        resize_factor (float, optional): Factor by which the image should be resized. Defaults to 0.2.
+        title (bool, optional): Whether to overlay species name.
+
+    Returns:
+        list: List of annotated images.
+    """
+    annotated_images = []
+    unique_images_df = df.drop_duplicates(subset="image_paths")
+
+    unique_cnames = unique_images_df["category_common_name"].unique()
+    
+    for species in tqdm(unique_cnames, total=unique_cnames.shape[0]):
+        sdf = unique_images_df[unique_images_df["category_common_name"] == species]
+
+        if len(sdf) == 0:
+            continue
+
+        for _, row in sdf.iterrows():
+            if row["image_id"] in processed_images and "cutout" in row["product"]:
+                print(f"Skipping {row['image_id']} as it has already been reviewed.")
+                continue
+            cutimgp = row["cutout_paths"]
+            cropimgp = row["cutout_paths"].replace(".png", ".jpg")
+            cutmaskp = row["cutout_paths"].replace(".png", "_mask.png")
+
+            assert Path(cutimgp).exists(), f"Cutout image path does not exist: {cutimgp}"
+            assert Path(cropimgp).exists(), f"Crop image path does not exist: {cropimgp}"
+            assert Path(cutmaskp).exists(), f"Mask image path does not exist: {cutmaskp}"
+
+            # Load images and mask
+            crop_img = cv2.imread(cropimgp)
+            cut_img = cv2.imread(cutimgp)
+            cut_mask = cv2.imread(cutmaskp, cv2.IMREAD_GRAYSCALE)
+
+            # Convert to RGB
+            # crop_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB)
+            # cut_img = cv2.cvtColor(cut_img, cv2.COLOR_BGR2RGB)
+
+            # Apply mask to cutout
+            cut_img = apply_mask(cut_img, cut_mask, "black")
+
+            # Resize images while keeping proportions
+            original_height, original_width = crop_img.shape[:2]
+            original_area = original_height * original_width
+            print(original_height, original_width)
+            print(original_area)
+            
+            if original_area < 10000:
+                resize_factor = 2.0
+                
+            
+            new_width = int(original_width * resize_factor)
+            new_height = int(original_height * resize_factor)
+
+            resized_crop_img = cv2.resize(crop_img, (new_width, new_height))
+
+            resized_cut_img = cv2.resize(cut_img, (new_width, new_height))
+    
+            
+            # Create side-by-side visualization
+            combined_image = np.hstack([resized_crop_img, resized_cut_img])
+
+            # Overlay species name as a title
+            if title:
+                label_text = row["category_common_name"]
+                font_scale = 0.8
+                thickness = 2
+                text_size = cv2.getTextSize(label_text, cv2.FONT_HERSHEY_SIMPLEX, font_scale, thickness)[0]
+
+                text_x = 10
+                text_y = 30
+
+                # Draw background rectangle for text
+                cv2.rectangle(
+                    combined_image,
+                    (text_x - 5, text_y - text_size[1] - 5),
+                    (text_x + text_size[0] + 5, text_y + 5),
+                    (0, 0, 0),  # Black background
+                    -1  # Filled rectangle
+                )
+
+                # Put text label on the image
+                cv2.putText(
+                    combined_image, label_text, (text_x, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), thickness
+                )
+
+            # Append processed image to the list
+            annotated_images.append((combined_image, row))
+
+    return annotated_images
+
 
 def plot_bboxes(
     df,
