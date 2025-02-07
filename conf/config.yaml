@@ -33,7 +33,7 @@ general:
   # season: summer_weeds_2024
 #----------------------------------------------------
   metashape_key: ??? # Do not put key in the config since the file is committed to GitHub
-  batch_id: "NC_2023-07-10"
+  batch_id: ???
   # Main working directory 
   workdir: ${hydra:runtime.cwd}  # where the code is executed
   cpu_denominator: 4
@@ -56,6 +56,7 @@ pipeline:
   # SAM_segmentor: False # needs refinement, DO NOT USE
   # segment_cutouts: False # needs refinement, DO NOT USE
   validate_batch: False
+  update_and_move: True # Requires user input to proceed
   repo_overview: False # optional
   compare_blobs: False # optional
   database: True
