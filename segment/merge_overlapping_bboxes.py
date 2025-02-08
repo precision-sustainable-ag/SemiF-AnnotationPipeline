@@ -3,11 +3,77 @@ import numpy as np
 from pathlib import Path
 from omegaconf import DictConfig
 import logging
+import networkx as nx
 
 log = logging.getLogger(__name__)
 
+
+
+def merge_bboxes_with_class(bboxes, iou_threshold=0.5):
+    """
+    Merge bounding boxes while carrying the class along.
+    Input:
+      - bboxes: a list of dictionaries. Each dictionary must have:
+          'xmin', 'ymin', 'xmax', 'ymax', 'conf', 'class', 'classname'
+      - iou_threshold: threshold for considering boxes overlapping.
+      
+    For each merged group:
+      - The coordinates are merged (taking the min and max over the group).
+      - If any box in the group is a "colorchecker", then the merged box is marked as a colorchecker.
+      - Otherwise, it remains a "plant".
+    """
+    n = len(bboxes)
+    G = nx.Graph()
+    G.add_nodes_from(range(n))
+
+    # Build graph: add an edge if boxes overlap or one is contained in the other.
+    for i in range(n):
+        for j in range(i + 1, n):
+            box_i = [bboxes[i]['xmin'], bboxes[i]['ymin'], bboxes[i]['xmax'], bboxes[i]['ymax']]
+            box_j = [bboxes[j]['xmin'], bboxes[j]['ymin'], bboxes[j]['xmax'], bboxes[j]['ymax']]
+            if (iou(box_i, box_j) >= iou_threshold or 
+                is_contained(box_i, box_j) or 
+                is_contained(box_j, box_i)):
+                G.add_edge(i, j)
+
+    merged_boxes = []
+    # Process each connected component (group of boxes to merge)
+    for component in nx.connected_components(G):
+        comp_boxes = [bboxes[i] for i in component]
+        # Merge the coordinates
+        xmin = min(b['xmin'] for b in comp_boxes)
+        ymin = min(b['ymin'] for b in comp_boxes)
+        xmax = max(b['xmax'] for b in comp_boxes)
+        ymax = max(b['ymax'] for b in comp_boxes)
+        # Decide on class: if any box is "colorchecker", mark as such.
+        classes = [b['classname'] for b in comp_boxes]
+        if "colorchecker" in classes:
+            classname = "colorchecker"
+            cls = 1  # assuming numeric class 1 = colorchecker
+        else:
+            classname = "plant"
+            cls = 0
+
+        # For confidence, you might choose max, average, etc. Here we use max.
+        conf = max(b['conf'] for b in comp_boxes)
+        merged_box = {
+            'xmin': xmin,
+            'ymin': ymin,
+            'xmax': xmax,
+            'ymax': ymax,
+            'conf': conf,
+            'class': cls,
+            'classname': classname
+        }
+        merged_boxes.append(merged_box)
+    return merged_boxes
+
+
 def iou(box1, box2):
-    """Calculate the Intersection over Union (IoU) of two bounding boxes in (xmin, ymin, xmax, ymax) format."""
+    """
+    Compute Intersection over Union for two bounding boxes.
+    Each box is in the format: [xmin, ymin, xmax, ymax]
+    """
     xmin1, ymin1, xmax1, ymax1 = box1
     xmin2, ymin2, xmax2, ymax2 = box2
 
@@ -69,53 +135,59 @@ def merge_boxes(boxes, threshold=0.5):
     return merged_boxes
 
 
-def process_csv_file(csv_path, iou_threshold=0.5):
-    """Process a single CSV, merge target bounding boxes, and retain non-target rows."""
-    # Read the CSV
-    df = pd.read_csv(csv_path)
-
-    if df.empty:
-        log.warning(f"No detections found in: {csv_path}")
-        return
+def process_csv_file(csv_path, output_dir, iou_threshold=0.5):
+    """
+    Read a CSV file with bounding boxes, merge overlapping boxes while carrying
+    the class information (only two classes: plant and colorchecker), and write back.
     
-    # Separate target and non-target rows
-    target_df = df[df['classifier_classname'] == 'target_weed']
-    nontarget_df = df[df['classifier_classname'] != 'target_weed']
-    # drop null bounding boxes
-    target_df = target_df.dropna(subset=['xmax', 'xmin', 'ymax', 'ymin'])
-    nontarget_df = nontarget_df.dropna(subset=['xmax', 'xmin', 'ymax', 'ymin'])
-
-    # if 'NC_1697554540' in str(csv_path):
-    #     print(target_df)
+    The CSV is expected to have the columns:
+      bounding_box_id, xmin, ymin, xmax, ymax, conf, class, classname
+    """
     try:
-        # Extract target bounding boxes as (xmin, ymin, xmax, ymax)
-        target_boxes = target_df[['xmin', 'ymin', 'xmax', 'ymax']].values.tolist()
+        df = pd.read_csv(csv_path)
     except Exception as e:
-        print(csv_path)
-        print(df)
-        log.error(f"Error processing CSV: {csv_path}")
-        log.error(e)
-        exit(1)
-    # Merge the target bounding boxes
-    merged_boxes = merge_boxes(target_boxes, threshold=iou_threshold)
+        log.error(f"Error reading CSV {csv_path}: {e}")
+        return
 
-    # Create a DataFrame for the merged target boxes
-    merged_target_df = pd.DataFrame(merged_boxes, columns=['xmin', 'ymin', 'xmax', 'ymax'])
+    # Check required columns
+    required_cols = ['bounding_box_id', 'xmin', 'ymin', 'xmax', 'ymax', 'conf', 'class', 'classname']
+    for col in required_cols:
+        if col not in df.columns:
+            log.error(f"CSV {csv_path} is missing required column '{col}'")
+            return
 
-    # Retain other relevant columns from the original target_df (like 'confidence' or 'class')
-    other_columns = target_df.drop(['xmin', 'ymin', 'xmax', 'ymax'], axis=1).reset_index(drop=True)
-    merged_target_df = pd.concat([merged_target_df, other_columns], axis=1)
+    # Ensure numeric columns are numbers
+    for col in ['xmin', 'ymin', 'xmax', 'ymax', 'conf']:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    df = df.dropna(subset=['xmin', 'ymin', 'xmax', 'ymax'])
 
-    # Combine the merged target rows with the original non-target rows
-    final_df = pd.concat([merged_target_df, nontarget_df], ignore_index=True)
+    # Convert the DataFrame to a list of dictionaries (each representing one bbox)
+    bboxes = df.to_dict(orient='records')
+    if not bboxes:
+        log.warning(f"No valid bounding boxes found in {csv_path}")
+        return
 
-    # Save the updated CSV back to the same path
-    final_df.to_csv(csv_path, index=False)
-    log.info(f"Processed and saved merged CSV: {csv_path}")
+    merged_bboxes = merge_bboxes_with_class(bboxes, iou_threshold=iou_threshold)
+    
+    # If merging changed the number of boxes (i.e. some were merged together),
+    # we keep only the class information (as carried by our merging function).
+    merged_df = pd.DataFrame(merged_bboxes)
 
-def process_all_csvs_in_directory(directory_path, iou_threshold=0.5):
+    # Optionally, you can reassign new bounding_box_id values.
+    merged_df.insert(0, 'bounding_box_id', range(len(merged_df)))
+    
+    try:
+        csv_path = output_dir / csv_path.name 
+        merged_df.to_csv(csv_path, index=False)
+        log.info(f"Processed and saved merged boxes to {csv_path}")
+    except Exception as e:
+        log.error(f"Error writing CSV {csv_path}: {e}")
+
+def process_all_csvs_in_directory(directory_path, output_dir, iou_threshold=0.5):
     """Process all CSV files in the given directory."""
     directory = Path(directory_path)
+
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     # Find all CSV files in the directory
     csv_files = list(directory.rglob("*.csv"))
@@ -123,12 +195,13 @@ def process_all_csvs_in_directory(directory_path, iou_threshold=0.5):
 
     # Process each CSV file
     for csv_file in csv_files:
-        process_csv_file(csv_file, iou_threshold)
+        process_csv_file(csv_file, output_dir, iou_threshold)
 
 def main(cfg: DictConfig) -> None:
     """Main function to process CSVs in a directory."""
-    csv_directory = Path(cfg.batchdata.plant_dects, "processed")  # Directory containing CSV files
+    csv_directory = Path(cfg.batchdata.plant_dects)  # Directory containing CSV files
+    output_dir = Path(cfg.batchdata.plant_dects, "merged")  # Directory for saving merged CSVs
     iou_threshold = 0.5  # Default IoU threshold for merging
 
     # Process all CSVs in the specified directory
-    process_all_csvs_in_directory(csv_directory, iou_threshold)
+    process_all_csvs_in_directory(csv_directory,output_dir, iou_threshold)

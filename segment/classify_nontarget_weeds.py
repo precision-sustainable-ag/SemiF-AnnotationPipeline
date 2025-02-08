@@ -46,14 +46,17 @@ class DetectionProcessor:
             results.to_csv(output_path, index=False)
             return  # Skip if no detections are found
 
+        # Read the image once and get dimensions
         image = cv2.imread(str(image_path))
-        height, width, _ = image.shape  # Get image dimensions
+        height, width, _ = image.shape
 
         # Add new columns to store classifier predictions
         results['classifier_class'] = None
         results['classifier_classname'] = None
         results['classifier_confidence'] = None
 
+        cropped_images = []
+        indices = []
 
         for idx, row in results.iterrows():
             # Convert normalized bbox coordinates to pixel coordinates
@@ -68,19 +71,38 @@ class DetectionProcessor:
                 min(width, x_max), min(height, y_max)
             )
 
-            cropped_image = self.crop_image(image, bbox)
-            prediction, conf = self.classify(cropped_image)
+            cropped = self.crop_image(image, bbox)
+            cropped_images.append(cropped)
+            indices.append(idx)
+        
+         # Perform batched inference.
+        # Note: Removing 'stream=True' may be necessary so that the model can batch the inputs.
+        batch_results = self.model(cropped_images, imgsz=128)
 
-            # Store classifier results in the DataFrame
+
+        # Iterate over the results and assign predictions back to the DataFrame
+        for idx, result in zip(indices, batch_results):
+            # Extract top prediction and its confidence
+            prediction = result.probs.top1
+            conf = result.probs.top1conf.cpu().numpy()
+
             results.at[idx, 'classifier_class'] = prediction
             if self.state == "NC":
                 results.at[idx, 'classifier_classname'] = "target_weed" if prediction == 1 else "non_target_weed"
-            if self.state == "MD":
-                results.at[idx, 'classifier_classname'] = "target_weed" if prediction != 5 else "non_target_weed"
-            
+            elif self.state == "MD":
+                pred_map = {
+                    0: "clover",
+                    1: "colorchecker",
+                    2: "grass",
+                    3: "hairy_vetch",
+                    4: "horseweed",
+                    5: "non_target_weed",
+                    6: "winter_pea"
+                    }
+                results.at[idx, 'classifier_classname'] = pred_map[prediction]
             results.at[idx, 'classifier_confidence'] = conf
 
-        # Save updated results to a new CSV file, retaining all original information
+        # Save the updated results
         output_path = self.output_dir / csv_file.name
         results.to_csv(output_path, index=False)
 
@@ -120,7 +142,7 @@ def select_model(cfg: DictConfig) -> Path:
 # Example usage
 def main(cfg: DictConfig) -> None:
     batch_id = cfg.general.batch_id
-    csv_dir = Path(cfg.batchdata.plant_dects)
+    csv_dir = Path(cfg.batchdata.plant_dects, "merged")
     image_dir = Path(cfg.batchdata.images)
     output_dir = Path(cfg.batchdata.plant_dects, "processed")
     output_dir.mkdir(parents=True, exist_ok=True)
