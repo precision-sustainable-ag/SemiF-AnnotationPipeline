@@ -107,6 +107,9 @@ class BBoxComponents:
                     local_coordinates=box_coordinates,
                     cls=bbox["cls"],
                     is_normalized=bbox["is_normalized"],
+                    classifier_classname=bbox["classifier_classname"],
+                    classifier_confidence=bbox["classifier_confidence"],
+
                 )
                 boxes.append(box)
 

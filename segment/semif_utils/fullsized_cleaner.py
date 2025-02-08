@@ -61,6 +61,7 @@ class AnnotationCleaner:
             self._get_is_primary,
             self._get_overlapping_cutout_ids,
             self._get_cutout_exists,
+            self._get_non_target_weed,
         ]
         self.class_ids = []
 
@@ -224,7 +225,14 @@ class AnnotationCleaner:
             if self.metadata_path not in self.missing_cutout_ids:
                 self.missing_cutout_ids.add(self.metadata_path)
                 log.error(f"cutout_exists key not found in annotation. {self.metadata_path} .")
-
+        
+    def _get_non_target_weed(self) -> None:
+        """Get the non_target_weed from the annotation."""
+        non_target_weed = self.annotation.get("non_target_weed")
+        non_target_weed_pred_conf = self.annotation.get("non_target_weed_pred_conf")
+        self.annotation["non_target_weed"] = non_target_weed
+        self.annotation["non_target_weed_pred_conf"] = non_target_weed_pred_conf
+        
 class FullsizedMetadataCleaner:
     """Class to clean and reformat metadata files systematically."""
     

@@ -135,6 +135,8 @@ class ParseYOLOCsv:
                 "bottom_right": bottom_right,
                 "cls": cls,
                 "is_normalized": True,
+                "classifier_classname": line["classifier_classname"],
+                "classifier_confidence": line["classifier_confidence"],
             }
             boxes.append(bbox)
 
@@ -143,8 +145,6 @@ class ParseYOLOCsv:
     def create_bboxes(self):
         bounding_boxes = dict()
         df = pd.read_csv(self.label_path)
-        if "classifier_classname" in df.columns:
-            df = df[df["classifier_classname"] == "target_weed"]
 
         for image in self.image_list:
             image_id = image["id"]

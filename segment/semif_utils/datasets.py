@@ -98,6 +98,8 @@ class BBox:
     bbox_id: str
     image_id: str
     cls: str
+    classifier_classname: str
+    classifier_confidence: float
     cutout_exists: Optional[bool] = field(default=False)
     instance_rgb_id: List[int] = field(default=None)
     local_coordinates: BoxCoordinates = field(init=True, default_factory=init_empty)
@@ -162,6 +164,8 @@ class BBox:
             "cls": self.cls,
             "overlapping_bbox_ids": [box.bbox_id for box in self._overlapping_bboxes],
             "num_overlapping_bboxes": len(self._overlapping_bboxes),
+            "non_target_weed": self.classifier_classname,
+            "non_target_weed_pred_conf": self.classifier_confidence,
         }
         return _config
 
@@ -381,6 +385,8 @@ class CameraInfo:
 class Box:
     bbox_id: str
     image_id: str
+    non_target_weed: str
+    non_target_weed_pred_conf: float
     is_primary: Optional[bool]
     cutout_exists: Optional[bool]  # = field(default=False)
     local_centroid: list

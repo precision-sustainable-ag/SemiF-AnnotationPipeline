@@ -310,8 +310,8 @@ def get_segment_props(seg: Segment, rgb_crop: np.ndarray, box: dict, bbox_area_c
     seg_props["is_primary"] = box["is_primary"]
     seg_props["extends_border"] = seg.get_extends_borders(seg.mask)
     seg_props["bbox_area_cm2"] = bbox_area_cm2
-    seg_props["non_target_weed"] = None
-    seg_props["non_target_weed_pred_conf"] = None
+    seg_props["non_target_weed"] = box["non_target_weed"]
+    seg_props["non_target_weed_pred_conf"] = box["non_target_weed_pred_conf"]
     return seg_props
 
 def get_bbot_version(batch_id: str, date_ranges: Dict[str, Any]) -> Optional[str]:
@@ -513,12 +513,17 @@ def process_metadata_file(args: Tuple[Path, Path, str, Dict, Dict, Path, Path, P
             # Create a segmentation object for the cutout.
             seg = Segment(rgb_crop, species=annotation_cat, bbox=(x1, y1, x2, y2))
             lower_bound, upper_bound = outlier_thresholds.get(annotation_cat["common_name"], (0, np.inf))
-
-            # Generate and post-process the mask.
-            # seg.mask = generate_mask_for_cutout(seg, rgb_crop, annotation["cutout_id"], global_boxarea, lower_bound, upper_bound, annotation_cat, (x1, y1, x2, y2))
             
-            # Use the learning-based predictor to generate the mask.
-            seg.mask = predict_mask_for_cutout(predictor, rgb_crop, annotation["cutout_id"], global_boxarea, lower_bound, upper_bound, annotation_cat)
+            if category_class_id == 29:
+                # Generate and post-process the mask.
+                seg.mask = generate_mask_for_cutout(seg, rgb_crop, annotation["cutout_id"], global_boxarea, lower_bound, upper_bound, annotation_cat, (x1, y1, x2, y2))
+            else:
+                # Use the learning-based predictor to generate the mask.
+                seg.mask = predict_mask_for_cutout(predictor, rgb_crop, annotation["cutout_id"], global_boxarea, lower_bound, upper_bound, annotation_cat)
+            
+            if seg.mask is None:
+                continue
+            
             if seg.is_mask_empty():
                 continue  # Skip this cutout if the mask is invalid
             
