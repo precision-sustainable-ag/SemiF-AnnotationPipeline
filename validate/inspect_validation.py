@@ -45,6 +45,7 @@ class ImageReviewer:
         print("\nPossible keys options:")
         print("'a' to pass")
         print("'s' to fail")
+        print("'t' to tag for further review")
         print("'q' to quit\n")
 
         annotated_images = get_bboxes_validation_images(self.prcossed_df, self.processed_images)
@@ -60,7 +61,7 @@ class ImageReviewer:
             )
         for image, row in mask_images:
             self.show_image(image, row, product="mask")
-        cv2.destroyAllWindows()
+        # cv2.destroyAllWindows()
 
         cutout_images = get_cutout_validate_images(
             self.prcossed_df, 
@@ -101,7 +102,6 @@ class ImageReviewer:
                 # add the entire row plus "status" to the new_entries list
 
                 self.new_entries.append(row)
-                print(f"Marked {image_id} as 'pass'.")
                 self.save_results()
                 break
 
@@ -109,7 +109,6 @@ class ImageReviewer:
                 row["Status"] = "fail"
                 row["product"] = product
                 self.new_entries.append(row)
-                print(f"Marked {image_id} as 'fail'.")
                 self.save_results()
                 break
 
@@ -117,7 +116,6 @@ class ImageReviewer:
                 row["Status"] = "review"
                 row["product"] = product
                 self.new_entries.append(row)
-                print(f"Marked {image_id} as 'review'.")
                 self.save_results()
                 break
 
@@ -128,7 +126,7 @@ class ImageReviewer:
                 exit()
 
             else:
-                print("Invalid key. Press 'p' (pass), 's' (fail), or 'q' (quit).")
+                print("Invalid key. Press 'p' (pass), 's' (fail), 't' (review),a or 'q' (quit).")
     
     
     def save_results(self):
@@ -144,7 +142,6 @@ class ImageReviewer:
             self.df = self.df.drop_duplicates(subset=["image_id", "product"], keep="last")
             # Save to CSV
             self.df.to_csv(self.csv_file, index=False)
-            print(f"Results saved to {self.csv_file}.")
 
 
 @hydra.main(version_base="1.3", config_path="../conf", config_name="config")

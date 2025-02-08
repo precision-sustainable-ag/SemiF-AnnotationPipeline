@@ -68,7 +68,7 @@ class MetadataManager:
             metadata_file (Path): File path to save the metadata.
         """
         with open(metadata_file, "w") as outfile:
-            json.dump(metadata, outfile)
+            json.dump(metadata, outfile, indent=4)
 
     @classmethod
     def update_metadata(cls, metadata_dir: Path):

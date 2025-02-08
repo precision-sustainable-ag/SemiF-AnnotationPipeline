@@ -15,10 +15,11 @@ log = logging.getLogger(__name__)
 def main(cfg: DictConfig) -> None:
     # Define directories
     data_dir = Path(cfg.data.batchdir)
-    images = list((Path(data_dir, "images").glob("*.jpg")))
-    plant_detections = list(Path(data_dir, "plant-detections", "processed").glob("*.csv"))
+    
+    plant_detections = sorted(list(Path(data_dir, "plant-detections", "processed").glob("*.csv")))
 
     for plant_detection in plant_detections:
+        log.info(f"Processing {plant_detection}")
         df = pd.read_csv(plant_detection)
         if df.empty:
             log.info(f"{plant_detection} is empty")
@@ -44,15 +45,23 @@ def main(cfg: DictConfig) -> None:
             ax.imshow(image)
             ax.set_xticks([])
             ax.set_yticks([])
-
-            for i, row in df.iterrows():
+            save_flag = False
+            for _, row in df.iterrows():
+                xmin, ymin, xmax, ymax = row["xmin"], row["ymin"], row["xmax"], row["ymax"]
+                xmin = int(xmin * w)
+                ymin = int(ymin * h)
+                xmax = int(xmax * w)
+                ymax = int(ymax * h)
+                # If the bbox takes up the entire image, it is likely a false positive. Mark all the bboxes in the image
+                if (xmax - xmin) == w and (ymax - ymin) == h:
+                    rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
+                                             linewidth=1, edgecolor='red', facecolor='none')
+                    ax.add_patch(rect)
+                    save_flag = True
+                    log.warning(f"Bounding box takes up the entire image in {plant_detection}")
+                    
                 if row["classifier_classname"] == "non_target_weed" and row["classifier_confidence"] > 0.99:
-                    xmin, ymin, xmax, ymax = row["xmin"], row["ymin"], row["xmax"], row["ymax"]
-                    xmin = int(xmin * w)
-                    ymin = int(ymin * h)
-                    xmax = int(xmax * w)
-                    ymax = int(ymax * h)
-
+                    save_flag = True
                     # Draw a red bounding box on the full image
                     rect = patches.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin,
                                              linewidth=1, edgecolor='red', facecolor='none')
@@ -66,6 +75,9 @@ def main(cfg: DictConfig) -> None:
                     ab = AnnotationBbox(imagebox, (xmin, ymin), frameon=True, pad=0.1, bboxprops=dict(edgecolor="black"))
                     ax.add_artist(ab)
 
+            if not save_flag:
+                log.info(f"No target weed identified in {plant_detection}")
+                continue
             # Save the full image with insets
             full_image_path = output_dir / f"{plant_detection.stem}_inset.jpg"
             plt.savefig(full_image_path, bbox_inches='tight', dpi=300)
