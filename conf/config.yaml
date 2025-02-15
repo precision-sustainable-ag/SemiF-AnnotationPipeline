@@ -1,5 +1,6 @@
 # Hydra defaults and settings. Ignore these (don't change)
 defaults:
+  - movedata: movedata
   - asfm: asfm
   - inspect: inspect
 # ancillary configs
