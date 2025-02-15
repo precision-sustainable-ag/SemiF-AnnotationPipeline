@@ -11,6 +11,9 @@ import exifread
 import numpy as np
 import pandas as pd
 from PIL import Image as PILImage
+import logging
+log = logging.getLogger(__name__)
+
 
 SCHEMA_VERSION = "2.0"
 
@@ -274,14 +277,26 @@ class BBox:
             _boxB.bottom_left
         ])
 
+        # Optionally, clean up the geometries if they are invalid.
+        if not polyA.is_valid:
+            polyA = polyA.buffer(0)
+        if not polyB.is_valid:
+            polyB = polyB.buffer(0)
+
         # Check if the polygons intersect at all
         if not polyA.intersects(polyB):
             return 0.0
-
-        # Calculate the intersection and union areas
-        inter_area = polyA.intersection(polyB).area
-        union_area = polyA.union(polyB).area
-
+        
+        try:
+            inter_area = polyA.intersection(polyB).area
+            union_area = polyA.union(polyB).area
+        except Exception as e:
+            # Log the error if desired
+            log.error(f"Error calculating IoU: {e}")
+            log.error(f"Box A: {polyA}")
+            log.error(f"Box B: {polyB}")
+            return 0.0
+        
         # Avoid division by zero just in case
         if union_area == 0:
             return 0.0

@@ -35,8 +35,8 @@ def main(cfg: DictConfig) -> None:
     # Load shp file twice
     shapefile_path = Path(cfg.data.species_poly)
     # Using Geopandas for poly contains point
-    polys = geopandas.read_file(shapefile_path)
-    polygons_filtered = polys.dropna(subset=["species"])
+    polygons_filtered = geopandas.read_file(shapefile_path)
+    # polygons_filtered = polys.dropna(subset=["species"])
 
     # Iterate over json files
     for file in tqdm(image_metadata_files, desc="Assigning labels"):
@@ -46,6 +46,7 @@ def main(cfg: DictConfig) -> None:
             imgdata = from_dict(
                 data_class=ImageData, data=j, config=Config(check_types=False)
             )
+        batch_id = imgdata.batch_id
         # Iterate over image bboxes
         for bbox in imgdata.bboxes:
             # print(bbox.cls)
@@ -103,6 +104,34 @@ def main(cfg: DictConfig) -> None:
                         
                 else:
                     poly_cls = containing_polygon["species"].values[0]
+                    poly_state = containing_polygon["state"].values[0]
+                    poly_becnh = containing_polygon["bench"].values[0]
+                    poly_comm_name = containing_polygon["comm_name"].values[0]
+                    poly_class_id = containing_polygon["class_id"].values[0]
+                    poly_state = poly_state if poly_state is not None else None
+                    poly_becnh = poly_becnh if not np.isnan(poly_becnh) else None
+                    poly_comm_name = poly_comm_name if poly_comm_name is not None else None
+                    poly_class_id = poly_class_id if poly_class_id is not None else None
+
+                    if poly_state is None and poly_becnh is None and poly_comm_name is None and poly_class_id is None:
+                        log.warning(
+                            f"Global centroid was found in a polygon but the species is not defined. Labeling as non_target_weed."
+                        )
+                        
+                        poly_id = containing_polygon["id"].values[0]
+                        if batch_id == "MD_2023-04-25":
+                            if int(poly_id) == 20:
+                                poly_cls = "VIVI"
+                            else:
+                                poly_cls = None
+                                if bbox.non_target_weed != 'non_target_weed':
+                                    bbox.non_target_weed = 'non_target_weed'
+                                    bbox.non_target_weed_pred_conf = 1.0
+                        else:
+                            poly_cls = None    
+                            if bbox.non_target_weed != 'non_target_weed':
+                                bbox.non_target_weed = 'non_target_weed'
+                                bbox.non_target_weed_pred_conf = 1.0
             
             if poly_cls is None:
                 spec_info = spec_dict["species"]['plant']

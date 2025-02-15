@@ -570,8 +570,6 @@ def get_cutout_validate_images(
             # Resize images while keeping proportions
             original_height, original_width = crop_img.shape[:2]
             original_area = original_height * original_width
-            print(original_height, original_width)
-            print(original_area)
             
             if original_area < 10000:
                 resize_factor = 2.0
