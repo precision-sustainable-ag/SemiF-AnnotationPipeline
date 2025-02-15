@@ -26,6 +26,21 @@ def read_metadata(path):
     return data
 
 
+def compile_cutout_csvs(cutout_dir):
+    """Globs cutout dir csvs from main cutout dir, creates dataframes
+    for each one, then concatenates them all.
+
+    Args:
+        cutout_dir (_type_): _description_
+    """
+    data = Path(cutout_dir).glob("*")
+    csvs = []
+    for a in tqdm(data):
+        csv = list(a.glob("*.csv"))
+        if len(csv) > 0:
+            csvs.append(csv[0])
+    df = pd.concat([pd.read_csv(x, low_memory=False) for x in csvs])
+
 def batch_df(batch_id, cutout_dir, batch_dir):
     df = pd.read_csv(Path(cutout_dir, batch_id, batch_id + ".csv"))
     df["state_id"] = df.batch_id.str.split("_", expand=False).str[0]

@@ -1,23 +1,48 @@
-# MoveData
+# Download and Move Data Scripts
 
-Either downloads or uploads data from blob container.
+## Overview
+This directory contains scripts and utilities for downloading and moving batch data from Azure Blob Storage and local storage. The scripts handle missing data checks, downloads, and batch organization for agricultural image processing.
 
-## Download Processed batches from blob storage
+## Directory Structure
+```
+.
+├─ download_data.py
+├─ move_bbotv3_data.py
+└─ utils
+   ├─ download_utils.py
+   └─ list_batches.py
+```
 
-1. Make sure you have an up-to-date SAS key
-2. Run `manual_download.py` to get a list of downloadable batches from the blob. the script checks to make sure each batch folder contains:
-      - `images`
-      - `meta_masks`
-      - `metadata`
-      - `logs`
-      - batch metadata `.json` files
-    
-    A list of batches is placed in `.batchlogs/batch_download.txt`  
-3. Adjust `.batchlogs/batch_download.txt` list to accomodate memory availability.
-    Only download a certain number of batches at a time to reduce the amount of memory you're occupying. 
-4. Run `blob2nfs.sh <path to batch_download.txt> <output path>`
-5. Finally, move the downloaded batches to NFS storage by running:
-    ```bash
-    mv <path to batch folder> /mnt/research-projects/s/screberg/longterm_storage/semifield-developed-images/
-    ```
+### Scripts
+
+#### `download_data.py`
+- Manages the download of batch data from Azure Blob Storage.
+- Checks for missing files before initiating the download.
+- Moves any empty or mismatched images and masks to an error directory.
+- Logs execution time and potential errors.
+
+#### `move_bbotv3_data.py`
+- Copies developed image batches from long-term storage (NFS) to local storage.
+- Uses parallel processing to speed up file transfers.
+- Ensures the target directory exists before copying.
+
+### Utilities (`utils/`)
+
+#### `download_utils.py`
+- Handles batch downloads by interfacing with Azure storage.
+- Checks for missing data in the cloud and logs it.
+- Moves empty or incorrectly paired image/mask files.
+
+#### `list_batches.py`
+- Lists and processes batch data in Azure Blob Storage.
+- Identifies missing or incomplete batches.
+- Saves batch processing status reports to a CSV file.
+
+## Dependencies
+- `omegaconf` for configuration management
+- `logging` for error handling and execution logs
+- `shutil`, `os`, `pathlib` for file operations
+- `concurrent.futures` for parallel processing
+
+Ensure that your `config.yaml` is properly set up with the necessary parameters before running the scripts.
 

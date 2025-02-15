@@ -1,85 +1,100 @@
-# Bounding Box Utilities
+# Bounding Box Utilities Documentation
 
-The directory ```bbox``` contains the utilities to map the bounding box coordinates (manual annotations/detections from a model) to the global coordinate system. This coordinate system is defined by the markers which are placed on the BenchBot. This is done in order to find out overlappig objects and deduplicate them.
+## Overview
 
-The local coordinates are obtained through an XML file (manual annotations for now). Following attributes from the autoSfM are required for translating from the local coordinates to global coordinates:
-- Camera Field of View (fov)
-- Camera X, Y, Z coordinates for each image (camera_location)
-- Pixel Height (in terms of global coordinate system units, which is meters)
-- Pixel Width (in terms of global coordinate system units, which is meters)
-- Yaw angle of the camera (in degrees)
-- Pitch angle of the camera (in degrees)
-- Roll angle of the camera (in degrees)
-- Focal Length of the camera (in pixels)
+This directory contains utilities for processing bounding boxes, particularly for mapping them from local image coordinates to a global coordinate system. This is useful for deduplicating overlapping detections and standardizing object annotations based on real-world spatial data.
 
-These fields can be found in the ```camera CSVs``` of the autoSfM outputs.
-
-## BBox Data structures
-The file ```bbox/bbox_utils.py``` contains several data classes used to store the bounding box and image information.
-1. ```BoxCoordinates```: A utility structure for storing the top left, top right, bottom_left and bottom right X ad Y coordinates.
-1. ```BBox```: Class which stores the bounding box information, which contains local and global coordinates, object class, a unique id assigned to the box, and the image ID for which the bounding box is associated. Other fields, which are not supplied by the user but are derived from the other fields are local centroid, global centrid and the ```is_primary``` flag. This flag tracks whether the bounding box is the ideal box or not (the box which is closest to the camera location).
-2. ```Image```: A class containing all the metadata for each image processed by the autoSfM pipeline.
-
-## Transformations
-1. ```BBoxMapper```: Maps the bounding boxes from the local (image) coordinate system to the global coordinate system.
-2. ```BBBoxFilter```: Finds the ideal bounding box based on the overlap between boxes in the global coordinate system.
-
-## Connectors
-1. ```SfMComponents```: An interface to read the CSVs from the autoSfM pipeline. This also converts the ```camera_reference.csv``` and ```fov_reference.csv``` into a common logical camera_reference DataFrame.
-2. ```BBoxComponents```: An interface to convert bounding box coordinates and image metadata from the autoSfM CSVs and annotation files to the data structures defined above. BBoxComponents takes a ```reader``` function as an argument, which is responsible for reading the annotation from the annotation files (so that annotations can flexibly come from XML, JSON, etc.). The reader function must return the bounding boxes of the objects in the image in the following format:
-```python
-def reader(*args, **kwargs):
-
-    # ... Do any file io
-
-    image_list = [
-        {"id": "image_id1", "path": "path/to/image1"}, 
-        {"id": "image_id2", "path": "path/to/image2"},
-        ...
-    ]
-
-    bounding_boxes = {
-        "image_id1": [
-            {
-                "id": "bbox1_id",
-                "top_left": top_left,
-                "top_right": top_right,
-                "bottom_left": bottom_left,
-                "bottom_right": bottom_right,
-                "cls": "bbox1_class"
-            },
-            {
-                "id": "bbox2_id",
-                "top_left": top_left,
-                "top_right": top_right,
-                "bottom_left": bottom_left,
-                "bottom_right": bottom_right,
-                "cls": "bbox2_class"
-            },
-            ...
-        ],
-        "image_id2": [
-            {
-                "id": "bbox1_id",
-                "top_left": top_left,
-                "top_right": top_right,
-                "bottom_left": bottom_left,
-                "bottom_right": bottom_right,
-                "cls": "bbox1_class"
-            },
-            {
-                "id": "bbox2_id",
-                "top_left": top_left,
-                "top_right": top_right,
-                "bottom_left": bottom_left,
-                "bottom_right": bottom_right,
-                "cls": "bbox2_class"
-            },
-            ...
-        ]
-        ...
-    }
-
-    return (image_list, bounding_boxes)
+## Directory Structure
 
 ```
+.
+├─bbox_transformations.py
+├─bbox_utils.py
+├─connectors.py
+└─io_utils.py
+```
+
+### bbox_transformations.py
+Implements key classes for transforming bounding box coordinates from local image-based coordinates to global real-world coordinates.
+
+#### **Key Classes**
+1. **BBoxFilter**
+   - Identifies and deduplicates overlapping bounding boxes by considering image fields of view (FOVs) and using Intersection over Union (IoU) metrics.
+   - Selects the best bounding box based on camera proximity and deduplicates redundant detections.
+
+2. **BBoxMapper**
+   - Maps bounding boxes from image space to global coordinates using metadata from Structure from Motion (SfM) outputs.
+   - Uses Metashape to perform coordinate transformations.
+
+3. **GlobalToLocalMapper**
+   - Maps global bounding boxes back to image coordinates for reference.
+   - Uses camera transformation matrices and chunk information to perform reverse mapping.
+
+### bbox_utils.py
+Contains utility functions and helper classes for bounding box operations.
+
+#### **Key Functions**
+1. **bb_iou**
+   - Computes the Intersection over Union (IoU) between two bounding boxes.
+   - Used for filtering and selecting the best bounding box during deduplication.
+
+2. **generate_hash**
+   - Generates a unique hash for bounding boxes based on image ID and bounding box ID.
+   - Ensures uniqueness when comparing overlapping bounding boxes.
+
+### connectors.py
+Provides interfaces for reading data from SfM outputs and converting annotation files into structured bounding box objects.
+
+#### **Key Classes**
+1. **SfMComponents**
+   - Reads CSV files from the autoSfM pipeline.
+   - Merges camera reference and field-of-view data into a structured DataFrame.
+
+2. **BBoxComponents**
+   - Converts bounding box coordinates from annotation files into structured objects.
+   - Uses a user-defined reader function to flexibly support different annotation formats (XML, JSON, CSV).
+   - Computes camera parameters such as pixel dimensions, focal lengths, and orientation angles from metadata.
+
+### io_utils.py
+Handles input/output operations related to reading bounding box annotations from XML and YOLO CSV formats.
+
+#### **Key Classes**
+1. **ParseXML**
+   - Reads bounding box annotations from XML files.
+   - Extracts object coordinates and class labels.
+
+2. **ParseYOLOCsv**
+   - Reads YOLO-style bounding box annotations from CSV files.
+   - Parses coordinates, object classes, and classifier confidence scores.
+   - Filters images based on predefined criteria and ensures compatibility with full-resolution images.
+
+## Usage
+
+1. **Reading Bounding Boxes**
+   - Use `ParseXML` or `ParseYOLOCsv` to read annotations from XML or CSV files.
+   
+2. **Transforming Bounding Boxes**
+   - Use `BBoxMapper` to convert local bounding box coordinates into global real-world coordinates.
+   - Use `GlobalToLocalMapper` to revert global coordinates back to image space if needed.
+
+3. **Deduplicating Bounding Boxes**
+   - Use `BBoxFilter` to identify overlapping bounding boxes and select the most accurate detection.
+   - Adjust IoU thresholds (`FOV_IOU_THRESH` and `BBOX_OVERLAP_THRESH`) for fine-tuning overlap detection.
+
+4. **Integrating with SfM Data**
+   - Use `SfMComponents` to extract relevant metadata from autoSfM CSV outputs.
+   - Use `BBoxComponents` to structure bounding boxes into Python objects for further processing.
+
+## Dependencies
+
+- `numpy`
+- `pandas`
+- `cv2`
+- `Metashape`
+- `scipy`
+- `tqdm`
+
+## Future Enhancements
+- Add support for additional annotation formats.
+- Improve performance of bounding box deduplication.
+- Expand support for different SfM pipelines beyond autoSfM.
