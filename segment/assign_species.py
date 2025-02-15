@@ -2,17 +2,18 @@ import json
 import logging
 import time
 from pathlib import Path
-from pprint import pprint
+
 import geopandas
 import matplotlib.path as mplPath
 import numpy as np
 from dacite.config import Config
 from dacite.core import from_dict
 from omegaconf import DictConfig
-from semif_utils.datasets import ImageData
-from semif_utils.segment_utils import load_speciesinfo
 from shapely.geometry import Point
 from tqdm import tqdm
+
+from semif_utils.datasets import ImageData
+from semif_utils.segment_utils import load_speciesinfo
 
 log = logging.getLogger(__name__)
 

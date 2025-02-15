@@ -1,6 +1,5 @@
 # Hydra defaults and settings. Ignore these (don't change)
 defaults:
-  - movedata: movedata
   - asfm: asfm
   - inspect: inspect
 # ancillary configs
@@ -54,12 +53,7 @@ pipeline:
   assign_species: False
   convert: False
   segment_vegetation: False
-  # SAM_segmentor: False # needs refinement, DO NOT USE
-  # segment_cutouts: False # needs refinement, DO NOT USE
-  validate_batch: False
   update_and_move: False # Requires user input to proceed
-  repo_overview: False # optional
-  compare_blobs: False # optional
   database: False
   
 # Other job/naming options (currently not used)

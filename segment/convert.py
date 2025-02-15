@@ -5,8 +5,8 @@ import hydra
 from omegaconf import DictConfig
 from tqdm import tqdm
 
-from semif_utils.cutout_cleaner import CutoutMetadataCleaner
-from semif_utils.fullsized_cleaner import FullsizedMetadataCleaner
+from semif_utils.cleaners.cutout_cleaner import CutoutMetadataCleaner
+from semif_utils.cleaners.fullsized_cleaner import FullsizedMetadataCleaner
 
 from collections import defaultdict
 import random

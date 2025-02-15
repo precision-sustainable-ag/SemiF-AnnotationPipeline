@@ -51,40 +51,6 @@ def parse_dict(props_tabl):
             ndict[key] = None
     return ndict
 
-# Function to rename columns dynamically
-def rename_columns(columns):
-    rename_map = {
-        'cropout_rgb_mean_0': 'cropout_rgb_mean_r',
-        'cropout_rgb_mean_1': 'cropout_rgb_mean_g',
-        'cropout_rgb_mean_2': 'cropout_rgb_mean_b',
-        'cropout_rgb_std_0': 'cropout_rgb_std_r',
-        'cropout_rgb_std_1': 'cropout_rgb_std_g',
-        'cropout_rgb_std_2': 'cropout_rgb_std_b',
-        'category_rgb_0': 'category_rgb_r',
-        'category_rgb_1': 'category_rgb_g',
-        'category_rgb_2': 'category_rgb_b'
-    }
-
-    new_columns = []
-    for col in columns:
-        # Keep the format for category_rgb columns
-        if 'category_rgb' in col:
-            if 'category_rgb_0' == col:
-                col = 'category_rgb_r'
-            if 'category_rgb_1' == col:
-                col = 'category_rgb_g'
-            if 'category_rgb_2' == col:
-                col = 'category_rgb_b'
-
-            new_columns.append(col)
-        else:
-            # Remove nested prefixes like "cutout_props_" or "category_"
-            col = col.replace('cutout_props_', '').replace('category_', '')
-            # Replace specific mappings if present
-            if col in rename_map:
-                col = rename_map[col]
-            new_columns.append(col)
-    return new_columns
 
 def flatten_json(nested_json, separator='_', prefix=''):
     """Recursively flatten a nested JSON."""
@@ -114,35 +80,6 @@ def cutoutmeta2csv(cutoutdir, batch_id, csv_savepath, save_df=True):
         df.to_csv(csv_savepath, index=False)
     return df
     
-
-def is_green(green_sum, image_shape, percent_thresh=0.2):
-    """Returns true if number of green pixels is
-    above certain threshold percentage based on
-    total number of pixels.
-    """
-    # check threshold value
-    assert (
-        percent_thresh <= 1
-    ), "green sum percent threshold is greater than 1. Must be less than or equal to 1."
-    total_pixels = image_shape[0] * image_shape[1]
-    green_percent = green_sum / total_pixels
-    is_green = True if green_percent > percent_thresh else False
-    return is_green, green_percent
-
-
-def is_mask_empty(mask):
-    """Returns true if mask is empty along
-    with a logging message
-    """
-    if mask.max() == 0:
-        result = True
-        log.info(f"Mask is empty")
-    else:
-        result = False
-
-    return result
-
-
 ######################################################
 ############### VEGETATION INDICES ###################
 ######################################################
@@ -166,65 +103,6 @@ def make_exg(rgb_image, normalize=False, thresh=0):
         return exg.astype("uint8")
 
 
-def make_gli(rgb_image):
-    # Green Leaf Index (GLI) is another vegetation index that helps quantify the greenness of vegetation in an image.
-    # It is particularly useful for estimating chlorophyll content and assessing the health of vegetation.
-
-    # Split the image into individual channels
-    r, g, b = cv2.split(rgb_image)
-
-    # Calculate the Green Leaf Index
-    gli = (2 * g) - (r + b)
-
-    return gli
-
-
-def make_exr(rgb_img, thresh=0):
-    # rgb_img: np array in [RGB] channel order
-    # exr: single band vegetation index as np array
-    # EXR = 1.4 * R - G
-    img = rgb_img.astype(float)
-
-    blue = img[:, :, 2]
-    green = img[:, :, 1]
-    red = img[:, :, 0]
-
-    exr = 1.4 * red - green
-    if thresh is not None:
-        exr = np.where(exr < thresh, 0, exr)  # Thresholding removes low negative values
-    return exr.astype("uint8")
-
-
-def make_exg_minus_exr(img, thresh=0):
-    img = img.astype(float)  # Rgb image
-    exg = make_exg(img)
-    exr = make_exr(img)
-    exgr = exg - exr
-    if thresh is not None:
-        exgr = np.where(exgr < thresh, 0, exgr)
-    exgr = cv2.bitwise_not(exgr)
-    return exgr.astype("uint8")
-
-
-def make_ndi(rgb_img, thresh=0):
-    # rgb_img: np array in [RGB] channel order
-    # exr: single band vegetation index as np array
-    # NDI = 128 * (((G - R) / (G + R)) + 1)
-    img = rgb_img.astype(float)
-
-    blue = img[:, :, 2]
-    green = img[:, :, 1]
-    red = img[:, :, 0]
-    gminr = green - red
-    gplusr = green + red
-    gdivr = np.true_divide(gminr, gplusr, out=np.zeros_like(gminr), where=gplusr != 0)
-    ndi = 128 * (gdivr + 1)
-    # print("Max ndi: ", ndi.max())
-    # print("Min ndi: ", ndi.min())
-
-    return ndi
-
-
 def thresh_vi(vi, low=20, upper=100, sigma=2):
     """
     Args:
@@ -242,87 +120,8 @@ def thresh_vi(vi, low=20, upper=100, sigma=2):
 
 
 ######################################################
-###################### BBOX ##########################
-######################################################
-
-
-def rescale_bbox(box, scale, save_changes):
-    """Rescales local bbox coordinates, that were first scaled to "downscaled_photo" size (height=3184, width=4796),
-       to original image size (height=6368, width=9592). Takes in and returns "Box" dataclass.
-
-    Args:
-        box (dataclass): box metedata from bboxes from image metadata
-        scale: np.ndarray: scaling dimensions of the image to be scaled to (width, height)
-
-    Returns:
-        box (dataclass): box metadata with scaled/updated bbox
-    """
-    if not save_changes:
-        box = copy.deepcopy(box)
-
-    box.local_coordinates = replace(
-        box.local_coordinates,
-        top_left=[c * s for c, s in zip(box.local_coordinates["top_left"], scale)],
-    )
-    box.local_coordinates = replace(
-        box.local_coordinates,
-        top_right=[c * s for c, s in zip(box.local_coordinates["top_right"], scale)],
-    )
-    box.local_coordinates = replace(
-        box.local_coordinates,
-        bottom_left=[
-            c * s for c, s in zip(box.local_coordinates["bottom_left"], scale)
-        ],
-    )
-    box.local_coordinates = replace(
-        box.local_coordinates,
-        bottom_right=[
-            c * s for c, s in zip(box.local_coordinates["bottom_right"], scale)
-        ],
-    )
-
-    return box
-
-
-######################################################
 ################# MORPHOLOGICAL ######################
 ######################################################
-
-
-def region_props(img, label):
-    props = [x.area for x in measure.regionprops(label, img)]
-    return props
-
-
-def clean_mask(mask, kernel_size=3, iterations=1, dilation=True):
-    if int(kernel_size):
-        kernel_size = (kernel_size, kernel_size)
-    mask = morphology.opening(mask, morphology.disk(3))
-    mask = mask.astype("float32")
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, kernel_size)
-    if dilation:
-        mask = cv2.dilate(mask, kernel, iterations=iterations)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, (5, 5))
-    mask = cv2.erode(mask, (5, 5), iterations=2)
-    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, (7, 7))
-    return mask
-
-
-def dilate_erode(mask, kernel_size=3, dil_iters=5, eros_iters=3, hole_fill=True):
-    mask = mask.astype(np.float32)
-
-    if int(kernel_size):
-        kernel_size = (kernel_size, kernel_size)
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, kernel_size)
-
-    mask = cv2.dilate(mask, kernel, iterations=dil_iters)
-    if hole_fill:
-        mask = ndimage.binary_fill_holes(mask.astype(np.int32))
-    mask = mask.astype("float")
-    mask = cv2.erode(mask, kernel, iterations=eros_iters)
-
-    cleaned_mask = clean_mask(mask)
-    return cleaned_mask
 
 
 def clear_border(mask):
@@ -339,36 +138,9 @@ def reduce_holes(mask, min_object_size=1000, min_hole_size=1000):
     # mask = morphology.opening(mask, morphology.disk(3))
     return mask
 
-
-def seperate_components(mask):
-    """Seperates multiple unconnected components in a mask
-    for seperate processing.
-    """
-    # Store individual plant components in a list
-    mask = mask.astype(np.uint8)
-    nb_components, output, _, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
-    # Remove background component
-    nb_components = nb_components - 1
-    list_filtered_masks = []
-    for i in range(0, nb_components):
-        filtered_mask = np.zeros((output.shape))
-        filtered_mask[output == i + 1] = 255
-        list_filtered_masks.append(filtered_mask)
-    return list_filtered_masks
-
-
 ######################################################
 ########### CLASSIFIERS AND THRESHOLDING #############
 ######################################################
-
-
-def check_kmeans(mask):
-    max_sum = mask.shape[0] * mask.shape[1]
-    ones_sum = np.sum(mask)
-    if ones_sum > max_sum / 2:
-        mask = np.where(mask == 1, 0, 1)
-    return mask
-
 
 def make_kmeans(exg_mask):
     # Use kmeans and find the cluster that
@@ -394,41 +166,6 @@ def otsu_thresh(mask, kernel_size=(3, 3)):
         mask_blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
     )
     return mask_th3
-
-
-def get_watershed(vi, disk1=1, grad1_thresh=12, disk2=10, lbl_fact=2.5):
-    # process the watershed
-    markers = rank.gradient(vi, disk(disk1)) < grad1_thresh
-    markers = ndi.label(markers)[0]
-    gradient = rank.gradient(vi, disk(disk2))
-    labels = watershed(gradient, markers)
-    seg1 = label(labels <= 0)
-    lbls = label2rgb(seg1, image=vi, bg_label=0) * lbl_fact
-    wtrshed_lbls = rescale_intensity(lbls, in_range=(0, 1), out_range=(0, 1))
-    return wtrshed_lbls
-
-
-def multiple_otsu(vi, classes=3):
-    thresholds = filters.threshold_multiotsu(vi, classes=3)
-    regions = np.digitize(vi, bins=thresholds)
-    return regions
-
-
-######################################################
-##################### CONTOURS #######################
-######################################################
-def contour_mask(img, mode="biggest"):
-    # For using find_contours
-    # get most significant contours
-    contours_mask, hierachy = cv2.findContours(
-        img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE
-    )
-    mask = np.zeros(img.shape, np.uint8)
-    # find the biggest countour (c) by the area
-    if mode == "biggest":
-        c = max(contours_mask, key=cv2.contourArea)
-        cv2.drawContours(mask, [c], -1, (255), 1)
-    return mask
 
 
 ######################################################
@@ -459,49 +196,6 @@ def apply_mask(img, mask, mask_color):
     # Mask the array
     array_data[np.where(mask == 0)] = color_val
     return array_data
-
-
-def trans_cutout(img):
-    """Get transparent cutout from cutout image with black background. Requires RGB image"""
-
-    # img = cv2.cvtColor(cv2.imread(imgpath), cv2.COLOR_BGR2RGB)
-    # threshold on black to make a mask
-    color = (0, 0, 0)
-    mask = np.where((img == color).all(axis=2), 0, 255).astype(np.uint8)
-
-    # put mask into alpha channel
-    result = img.copy()
-    result = cv2.cvtColor(result, cv2.COLOR_BGR2BGRA)
-    result[:, :, 3] = mask
-    return result
-
-
-######################################################
-#################### CUTOUTS #########################
-######################################################
-
-
-def crop_cutouts(img, add_padding=False):
-    if len(img.shape) == 2:
-        foreground = Image.fromarray(img.astype(np.uint8))
-    else:
-        foreground = Image.fromarray(img)
-    pil_crop_frground = foreground.crop(foreground.getbbox())
-    array = np.array(pil_crop_frground)
-    if add_padding:
-        pil_crop_frground = foreground.crop(
-            (
-                foreground.getbbox()[0] - 2,
-                foreground.getbbox()[1] - 2,
-                foreground.getbbox()[2] + 2,
-                foreground.getbbox()[3] + 2,
-            )
-        )
-    return array
-
-
-## For metadata converters
-
 
 
 def calculate_bbox_area_cm2(image_height_m, image_width_m, cutout_height, cutout_width, fullres_width, fullres_height):
@@ -629,28 +323,3 @@ def read_json_file(json_file: Path) -> dict:
     """Read a JSON file and return its contents as a dictionary."""
     with open(json_file, 'r') as f:
         return json.load(f)
-    
-def get_process_all_dict(semif_utils_dir):
-    data_schema_storage_dict = {
-            "GROW_semifield-developed": {
-                "storage": "GROW_DATA",
-                "data_type": "semifield-developed-images", 
-                "schema_path": Path(semif_utils_dir, "fullsized_schema.json")
-                },
-            "longterm_semifield-developed": {
-                "storage": "longterm_images",
-                "data_type": "semifield-developed-images", 
-                "schema_path": Path(semif_utils_dir, "fullsized_schema.json")
-                },
-            "GROW_semifield-cutouts": {
-                "storage": "GROW_DATA",
-                "data_type": "semifield-cutouts", 
-                "schema_path": Path(semif_utils_dir, "cutout_schema.json")
-                },
-            "longterm_semifield-cutouts": {
-                "storage": "longterm_images",
-                "data_type": "semifield-cutouts", 
-                "schema_path": Path(semif_utils_dir, "cutout_schema.json")
-                },
-                }
-    return data_schema_storage_dict

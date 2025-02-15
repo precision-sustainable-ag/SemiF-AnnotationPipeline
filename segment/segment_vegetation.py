@@ -2,25 +2,22 @@ import json
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any, Optional
 import cv2
 import numpy as np
 from omegaconf import DictConfig
 from scipy.stats import zscore
 from tqdm import tqdm
-from pprint import  pprint
 from semif_utils.segment_species import Segment
 from semif_utils.segment_utils import GenCutoutProps, generate_new_color
-from semif_utils.utils import apply_mask, cutoutmeta2csv, reduce_holes
-from semif_utils.utils import calculate_bbox_area_cm2
+from semif_utils.utils import apply_mask, cutoutmeta2csv, reduce_holes, calculate_bbox_area_cm2
 from semif_utils.model import SegmentationModule, MaskPredictor
 import concurrent.futures
 from time import time
 import torch
-from typing import Any, Dict, Optional
 from datetime import datetime
 import os
-import random
+
 log = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------------
