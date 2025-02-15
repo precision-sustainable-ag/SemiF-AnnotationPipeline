@@ -8,6 +8,7 @@ import numpy as np
 from omegaconf import DictConfig
 from update_and_move import BatchDataProcessor
 from validate_utils import batch_df, validation_sample_df, get_bboxes_validation_images, get_mask_validation_images, get_cutout_validate_images
+from tqdm import tqdm
 
 class ImageReviewer:
     def __init__(self,cfg: DictConfig, batch_dir: Path, df: pd.DataFrame, image_dirs: List[str], csv_file_name: str):
@@ -49,7 +50,7 @@ class ImageReviewer:
         print("'q' to quit\n")
 
         annotated_images = get_bboxes_validation_images(self.prcossed_df, self.processed_images)
-        for image, row in annotated_images:
+        for image, row in tqdm(annotated_images):
             self.show_image(image, row, product="bbox")
         cv2.destroyAllWindows()
         
@@ -59,16 +60,16 @@ class ImageReviewer:
             species_info=self.species_info,
             resize_factor=0.8
             )
-        for image, row in mask_images:
+        for image, row in tqdm(mask_images):
             self.show_image(image, row, product="mask")
-        # cv2.destroyAllWindows()
+        cv2.destroyAllWindows()
 
         cutout_images = get_cutout_validate_images(
             self.prcossed_df, 
             self.processed_images,
             resize_factor=0.8
             )
-        for image, row in cutout_images:
+        for image, row in tqdm(cutout_images):
             self.show_image(image, row, product="cutout")
         cv2.destroyAllWindows()
 
@@ -84,7 +85,14 @@ class ImageReviewer:
             new_width = int(width * 0.7)
 
         elif product == "cutout":
-            new_width = int(width * 0.9)
+            if height > 4000 or width > 4000:
+                new_width = int(width * 0.3)
+            elif height > 3000 or width > 3000:
+                new_width = int(width * 0.5)
+            elif height > 2000 or width > 2000:
+                new_width = int(width * 0.7)
+            else:
+                new_width = int(width * 1)
         
         new_height = int((new_width / width) * height)
         resized_img = cv2.resize(img, (new_width, new_height))
