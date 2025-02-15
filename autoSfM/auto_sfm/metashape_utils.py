@@ -92,7 +92,10 @@ class SfM:
             "cool_season_covers_2022_2023", 
             "summer_cash_crops_2023", 
             "summer_weeds_2023",
-            "cool_season_covers_2023_2024"
+            "cool_season_covers_2023_2024",
+            "cool_season_cover_2022_2023_MD_pos_2",
+            "cool_season_cover_2022_2023_MD_pos_3",
+            "summer_weeds_2023_TXpos2"
             ]
         
         markerBit = ms.CircularTarget14bit
