@@ -10,7 +10,7 @@
 5. [Running Assign Species, Convert Metadata, and Segment Vegetation](#running-assign-species-convert-metadata-and-segment-vegetation)
 6. [Running Validation](#running-validation)
 7. [Handling Validation Failures](#handling-validation-failures)
-
+8. [Sub-Module Listings](#sub-module-listings)
 ## Prior Seasonal Setup
 Each season requires a preparatory setup before running the pipeline for individual batches. This includes:
 
@@ -159,3 +159,20 @@ This script removes:
 This ensures bad data is completely removed, making it ideal for small-scale issues rather than extensive debugging.
 
 The validation process would then need to be re-run for final data validation and transfer to LTS.
+
+## Sub-Module Listings
+
+Listing to submodule "README"s can be found here:
+
+- [Config](./conf/README.md)
+- [Move Data](./move_data/README.md)
+- [AutoSfM](./autoSfM/README.md)
+- [Segment](./segment/README.md)
+- [Validation](./validate/README.md)
+- [Correct](./correct/README.md)
+- [Bbox Utils](./segment/bbox/README.md)
+- [Segment Utils](./segment/semif_utils/README.md)
+- [Schema Validation](./segment/semif_utils/cleaners/README.md)
+- [CVAT data packaging](./cvat/README.md)
+- [Inspect](./inspect/README.md)
+
