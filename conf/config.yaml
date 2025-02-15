@@ -7,7 +7,9 @@ defaults:
   - segment: segment
   - convert: default
   - validate: validate
+  - correct: correct
   - database: database
+  - cvat: cvat
   - override hydra/job_logging: custom # custom logging 
   - _self_
 
@@ -25,10 +27,10 @@ general:
   # season: summer_cash_crops_2023
   # season: summer_weeds_2023 # Before 2023-08-09 for TX summer weeds 2023 and all other locations
   # season: summer_weeds_2023_TXpos2 # Everything after 2023-08-29 for TX summer weeds 2023
-  # season: cool_season_covers_2022_2023
-  # season: cool_season_cover_2022_2023_MD_pos_2
+  season: cool_season_covers_2022_2023
+  # season: cool_season_cover_2022_2023_MD_pos_2 # used after 2023-03-16
   # season: cool_season_cover_2022_2023_MD_pos_3 # used only for MD_2023-03-16
-  season: cool_season_covers_2023_2024
+  # season: cool_season_covers_2023_2024
   # season: cool_season_covers_2024_2025
   # season: summer_weeds_2024
 #----------------------------------------------------
@@ -42,24 +44,23 @@ general:
 pipeline:
   download_data: False # For downloading data from the azure blob
   move_bbotv3_data: False # For moving data from the LTS lockers
-  
-  classify_nontarget_weeds: False
-  merge_overlapping_bboxes: False
-
   autosfm_pipeline: False
+  
+  merge_overlapping_bboxes: False
+  classify_nontarget_weeds: False
+
   localize_plants: False
   remap_labels: False
   assign_species: False
-  convert: True
-  reformat_fullsizedmetadata: False
+  convert: False
   segment_vegetation: False
   # SAM_segmentor: False # needs refinement, DO NOT USE
   # segment_cutouts: False # needs refinement, DO NOT USE
   validate_batch: False
-  update_and_move: True # Requires user input to proceed
+  update_and_move: False # Requires user input to proceed
   repo_overview: False # optional
   compare_blobs: False # optional
-  database: True
+  database: False
   
 # Other job/naming options (currently not used)
 job:
@@ -97,6 +98,7 @@ data:
   database_parquet: ${data.repo_database}/database
   longterm_storage : /mnt/research-projects/s/screberg/longterm_images
   longterm_storage2: /mnt/research-projects/s/screberg/longterm_images2
+  GROW_DATA: /mnt/research-projects/s/screberg/GROW_DATA
 
 pipeline_keys: ${general.workdir}/keys/pipeline_keys.yaml
   

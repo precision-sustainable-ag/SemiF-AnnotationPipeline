@@ -1,0 +1,9 @@
+cvat_stem: ??? # cvat directory name
+relabel_common_names: 
+  - hairy vetch
+images_size: 512
+sample_n: 30
+size_classes:
+  min: 100
+  max: 1000
+
