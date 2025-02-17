@@ -2,25 +2,22 @@ import json
 import logging
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Any, Optional
 import cv2
 import numpy as np
 from omegaconf import DictConfig
 from scipy.stats import zscore
 from tqdm import tqdm
-from pprint import  pprint
 from semif_utils.segment_species import Segment
 from semif_utils.segment_utils import GenCutoutProps, generate_new_color
-from semif_utils.utils import apply_mask, cutoutmeta2csv, reduce_holes
-from semif_utils.utils import calculate_bbox_area_cm2
+from semif_utils.utils import apply_mask, cutoutmeta2csv, reduce_holes, calculate_bbox_area_cm2
 from semif_utils.model import SegmentationModule, MaskPredictor
 import concurrent.futures
 from time import time
 import torch
-from typing import Any, Dict, Optional
 from datetime import datetime
 import os
-import random
+
 log = logging.getLogger(__name__)
 
 # -----------------------------------------------------------------------------
@@ -205,8 +202,8 @@ def predict_mask_for_cutout(
     positive_pixels = np.count_nonzero(mask == 1)
     positive_ratio = positive_pixels / total_pixels
 
-    # If more than 95% of the mask is positive, it is likely oversegmented.
-    if positive_ratio > 0.95:
+    # If more than 90% of the mask is positive, it is likely oversegmented.
+    if positive_ratio > 0.9:
         log.warning(f"Cutout {bbox_id}: mask is nearly full ({positive_ratio*100:.2f}% positive). Attempting correction of image shaped {mask.shape[:2]}.")
 
         # Option 1: Apply morphological erosion to reduce the mask area.
@@ -216,7 +213,7 @@ def predict_mask_for_cutout(
         # Check again after erosion.
         positive_pixels = np.count_nonzero(mask == 1)
         positive_ratio = positive_pixels / total_pixels
-        if positive_ratio > 0.95:
+        if positive_ratio > 0.90:
             log.warning(f"Cutout {bbox_id}: mask remains nearly full after erosion. Skipping cutout.")
             # Return an empty mask so that downstream processing can decide to skip this cutout.
             return np.zeros_like(mask, dtype=np.uint8)
@@ -299,6 +296,11 @@ def generate_mask_for_cutout(
     if seg.is_mask_empty() and category["common_name"] != "colorchecker":
         log.warning(f"Skipping cutout {bbox_id}: mask empty after post-processing")
         return None
+    
+    # If the category is a "colorchecker", set the mask to 0
+    category_class_id = category["class_id"]
+    if category_class_id == 28:
+        seg.mask[seg.mask != 0] = 0
 
     return seg.mask
 
@@ -514,12 +516,12 @@ def process_metadata_file(args: Tuple[Path, Path, str, Dict, Dict, Path, Path, P
             seg = Segment(rgb_crop, species=annotation_cat, bbox=(x1, y1, x2, y2))
             lower_bound, upper_bound = outlier_thresholds.get(annotation_cat["common_name"], (0, np.inf))
             
-            if category_class_id == 29:
+            # if category_class_id == 29:
                 # Generate and post-process the mask.
-                seg.mask = generate_mask_for_cutout(seg, rgb_crop, annotation["cutout_id"], global_boxarea, lower_bound, upper_bound, annotation_cat, (x1, y1, x2, y2))
-            else:
-                # Use the learning-based predictor to generate the mask.
-                seg.mask = predict_mask_for_cutout(predictor, rgb_crop, annotation["cutout_id"], global_boxarea, lower_bound, upper_bound, annotation_cat)
+                # seg.mask = generate_mask_for_cutout(seg, rgb_crop, annotation["cutout_id"], global_boxarea, lower_bound, upper_bound, annotation_cat, (x1, y1, x2, y2))
+            # else:
+            # Use the learning-based predictor to generate the mask.
+            seg.mask = predict_mask_for_cutout(predictor, rgb_crop, annotation["cutout_id"], global_boxarea, lower_bound, upper_bound, annotation_cat)
             
             if seg.mask is None:
                 continue

@@ -1,8 +1,11 @@
 import logging
-
 import cv2
 import numpy as np
 from scipy import ndimage as ndi
+from skimage import filters
+from skimage.feature import peak_local_max
+from skimage.measure import label, regionprops
+from skimage.segmentation import watershed
 from semif_utils.utils import (
     apply_mask,
     clear_border,
@@ -12,10 +15,6 @@ from semif_utils.utils import (
     reduce_holes,
     thresh_vi,
 )
-from skimage import filters
-from skimage.feature import peak_local_max
-from skimage.measure import label, regionprops
-from skimage.segmentation import watershed
 
 log = logging.getLogger(__name__)
 
@@ -181,29 +180,6 @@ class Segment:
         else:
             return False
 
-    def is_grass(self):
-        pass
-
-    def is_cotyledon(self):
-        pass
-
-
-    def is_rgb_empty(self):
-        """Returns true if rgb crop is empty"""
-        return True if self.img.max() == 0 else False
-
     def is_mask_empty(self):
         """Returns true if mask is empty"""
         return True if self.mask.max() == 0 else False
-
-    def is_below_pot(self):
-        """
-        Returns True if segment is below pot elevation and thus noise
-        """
-        pass
-
-    def semantic_mask(self):
-        pass
-
-    def instance_mask(self):
-        pass

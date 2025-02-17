@@ -14,6 +14,7 @@ import shutil
 import re
 import getpass
 from omegaconf import DictConfig
+import hydra
 
 USER_NAME = getpass.getuser()
 log = logging.getLogger(__name__)
@@ -265,6 +266,8 @@ class BatchDataProcessor:
             cfg (DictConfig): Configuration object.
         """
         self.cfg: DictConfig = cfg
+        self.primary_lts_dir = Path(cfg.data.longterm_storage)
+        self.secondary_lts_dir = Path(cfg.data.GROW_DATA)
         self.lts_dir: Path = Path(cfg.data.longterm_storage2)
         self.batch_id: str = cfg.general.batch_id
 
@@ -314,7 +317,7 @@ class BatchDataProcessor:
         return True
 
     @staticmethod
-    def get_user_confirmation(developed_src: str = None, cutout_src: str = None, confirm_local_removal: bool = False):
+    def get_user_confirmation(developed_src: str = None, cutout_src: str = None, confirm_local_removal: bool = False, text: str = None) -> bool:
         """
         Prompts the user for confirmation.
 
@@ -327,6 +330,9 @@ class BatchDataProcessor:
             prompt = (f"\nAre you sure you want to remove these directories?\n"
                       f"1. developed - {developed_src}\n2. cutouts - {cutout_src}\n(yes/no): ")
             action = "local batch removal"
+        elif text:
+            prompt = f"\n{text} (yes/no): "
+            action = "transfer data"
         else:
             prompt = "\nHave you manually inspected and validated all images? (yes/no): "
             action = "updates"
@@ -341,6 +347,30 @@ class BatchDataProcessor:
                 return False
             else:
                 print("Invalid input. Please enter 'yes' or 'no'.")
+
+    def find_lts_dir(self, cutouts: bool = False) -> Path:
+        """
+        Finds the correct LTS directory based on the batch ID and whether it has an "images" folder with images.
+        """
+        
+        if cutouts:
+            primary_images = self.primary_lts_dir / "semifield-cutouts" / self.batch_id
+            secondary_images = self.secondary_lts_dir / "semifield-cutouts" / self.batch_id
+            third_images = self.lts_dir / "semifield-cutouts" / self.batch_id
+        else:
+            primary_images = self.primary_lts_dir / "semifield-developed-images" / self.batch_id / "images"
+            secondary_images = self.secondary_lts_dir / "semifield-developed-images" / self.batch_id / "images"
+            third_images = self.lts_dir / "semifield-developed-images" / self.batch_id / "images"
+
+        if primary_images.exists() and any(primary_images.iterdir()):
+            log.info(f"Found images in primary LTS directory: {primary_images}")
+            return self.primary_lts_dir
+        elif secondary_images.exists() and any(secondary_images.iterdir()):
+            log.info(f"Found images in secondary LTS directory: {secondary_images}")
+            return self.secondary_lts_dir
+        else:
+            log.info(f"Using third LTS directory: {third_images}")
+            return self.lts_dir
 
     def process(self):
         """
@@ -364,19 +394,32 @@ class BatchDataProcessor:
         MetadataManager.update_metadata(self.metadata_dir)
         MetadataManager.update_metadata(self.cutout_dir)
 
-        # Transfer full-sized data.
-        fullsized_copied = self.data_mover.copy_fullsized_data(
-            self.lts_dir,
-            self.batch_id,
-            self.images,
-            self.metadata_dir,
-            self.plant_dects_dir,
-            self.reference_dir,
-            self.semantic_mask_dir
-        )
+        # Find the correct LTS directory based on the batch ID.
+        lts_dir = self.find_lts_dir()        
+        if self.get_user_confirmation(text="Proceed with semifield-developed data transfer?"):
+            # Transfer full-sized data.
+            fullsized_copied = self.data_mover.copy_fullsized_data(
+                lts_dir,
+                self.batch_id,
+                self.images,
+                self.metadata_dir,
+                self.plant_dects_dir,
+                self.reference_dir,
+                self.semantic_mask_dir
+            )
+            
+        else:
+            fullsized_copied = False
+            log.info(f"Skipping semifield-developed data transfer. Proceeding to cutout data transfer.")
 
         # Transfer cutout data.
-        cutout_copied = self.data_mover.copy_cutout_data(self.lts_dir, self.batch_id, self.cutout_dir)
+        cutout_lts_dir = self.find_lts_dir(cutouts=True)
+        if self.get_user_confirmation(text="Proceed with semifield-cutout data transfer?"):
+            cutout_copied = self.data_mover.copy_cutout_data(cutout_lts_dir, self.batch_id, self.cutout_dir)
+        else:
+            cutout_copied = False
+            log.info("Skipping semifield-cutout data transfer.")
+        
 
         if fullsized_copied and cutout_copied:
             log.info("Batch data successfully transferred to LTS directory. Ready for local removal.")
@@ -395,7 +438,7 @@ class BatchDataProcessor:
         else:
             log.error("Data transfer to LTS directory failed. Local directories will not be removed.")
 
-
+@hydra.main(version_base="1.3", config_path="../conf", config_name="config")
 def main(cfg: DictConfig):
     """
     Main function to execute the batch data processing pipeline.

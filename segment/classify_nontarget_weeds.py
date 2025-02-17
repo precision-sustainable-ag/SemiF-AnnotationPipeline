@@ -128,6 +128,12 @@ def select_model(cfg: DictConfig) -> Path:
     assert model_dir.exists(), f"Classifier model directory not found: {model_dir}"
 
     # Get the model path from the configuration
+    if "cover" in season:
+        if "2022" and "2023" in season:
+            season = "cool_season_covers_2022_2023"
+        if "2023" and "2024" in season:
+            season = "cool_season_covers_2023_2024"
+            
     try:
         model_path = Path(getattr(cfg.models.nontarget_weed_classifiers, state)[season])
     except AttributeError:

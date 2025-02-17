@@ -65,3 +65,71 @@ Random sample of 20 cropouts is selected for each species in each batch. We appl
 ### Create inspection form
 
 A csv that manual cropout inspectors can use to verify class accuracy for each output image
+
+
+This project is designed to inspect primary cutouts to identify weaknesses, inaccuracies, and imbalances. The inspection process includes generating summary statistics CSVs and plots, along with sampling images for visual inspection.
+
+## Project Structure
+```
+.
+├─README.md
+├─inspect_cutouts.py
+└─inspect_utils
+  ├─cutout_descriptive_stats.py
+  ├─data_classes.py
+  ├─inspect_utils.py
+  └─viz.py
+```
+
+## Workflow
+
+### 1. Preparing Data
+- **Check for cutout CSVs**: Ensure that all required CSV files exist for all processed batches and issue warnings if any are missing.
+- **Organize and clean**: Process and clean data to include only primary cutouts, add state identifiers, and create features such as `bordering` and `temp_cropout_path`.
+- **Compile season CSV data**: Convert CSVs to pandas DataFrames and concatenate them into a single dataset.
+
+### 2. Calculating Statistics
+- **Generate counts**:
+  1. Total images
+  2. Total cutouts (primary and non-primary)
+  3. Images and cutouts per batch
+  4. Species distribution by location
+- **Generate plots**: Create visualizations to understand dataset imbalances and distributions.
+- **Compile statistics**: Aggregate and save statistical outputs.
+- **TODO**: Expand statistics to include cutout properties.
+
+### 3. Creating Inspection Samples
+- **Check for data**: Ensure that required data is available for processing.
+- **Generate stratified samples**: Use `pandas.DataFrame.groupby` and `sample` functions to generate a reproducible random sample of 20 cropouts per species per batch.
+- **Create inspection forms**: Generate CSVs for manual inspectors to verify class labels for sampled cropouts.
+
+## Code Details
+
+### `inspect_cutouts.py`
+The main entry point for running cutout inspections. It compiles the data, calculates statistics, and facilitates manual inspections.
+
+### `inspect_utils/cutout_descriptive_stats.py`
+Generates descriptive statistics and visualizations for cutout distributions.
+
+### `inspect_utils/data_classes.py`
+Defines data structures for handling cutout inspection samples, including batch and species grouping.
+
+### `inspect_utils/inspect_utils.py`
+Includes utility functions for reading CSVs, processing metadata, performing manual inspections, and handling GUI interactions.
+
+### `inspect_utils/viz.py`
+Contains visualization utilities, including functions for generating confusion matrices and other diagnostic plots.
+
+## Running the Inspection
+To inspect primary cutouts, execute the following:
+```sh
+python inspect_cutouts.py --config-path <path_to_config>
+```
+Ensure that the necessary dependencies, including `pandas`, `matplotlib`, `seaborn`, and `opencv-python`, are installed.
+
+## Future Improvements
+- Expand statistical analysis to include cutout property distributions.
+- Automate data retrieval from storage.
+- Improve sampling strategies for enhanced representation.
+- Develop interactive visual dashboards for inspection results.
+
