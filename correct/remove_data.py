@@ -116,19 +116,15 @@ def update_metadata_files(metadata_dir, image_ids):
                             if not any(cutout.startswith(pattern) for pattern in cutout_patterns)
                         ]
                         if len(filtered_cutouts) != len(annotation["overlapping_cutout_ids"]):
-                            
-                            print(annotation["overlapping_cutout_ids"])
                             annotation["overlapping_cutout_ids"] = filtered_cutouts
-                            
-                            print(filtered_cutouts)
                             modified = True
 
 
             # Save only if changes were made
-            # if modified:
-            #     with open(meta_file, "w") as f:
-            #         json.dump(data, f, indent=4)
-            #     print(f"Updated metadata file: {meta_file}")
+            if modified:
+                with open(meta_file, "w") as f:
+                    json.dump(data, f, indent=4)
+                print(f"Updated metadata file: {meta_file}")
 
 
         except Exception as e:
@@ -178,7 +174,7 @@ def main(cfg: DictConfig):
 
     # Confirm deletion by asking for user input
     response = input("Do you want to proceed with deletion? (y/n): ")
-    if response.lower() != "y" or response.lower() != "yes":
+    if response.lower() not in ["y", "yes"]:
         print("Deletion cancelled.")
         sys.exit(0)
 

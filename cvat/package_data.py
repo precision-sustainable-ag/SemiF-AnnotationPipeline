@@ -31,13 +31,6 @@ class CVATDataGenerator:
 
         # Relabel species.
         self.relabel_common_names = ["_".join(name.split()) for name in cfg.cvat.relabel_common_names]
-        
-        # CVat directory name.
-        self.cvat_dir_name = f"{cfg.cvat.cvat_stem}_{'_'.join(self.relabel_common_names)}_{self.batch_id}_annotations_camvid"
-        self.cvat_data_dir = Path(self.cfg.general.workdir) / "cvat" / "data" / self.batch_id / self.cvat_dir_name
-        
-        # Output directory.
-        self.setup_output_directories()
 
         # Uniqe mask values.
         self.unique_mask_values = set()
@@ -50,6 +43,27 @@ class CVATDataGenerator:
 
         self.cutouts = dict()
 
+        # CVat directory name.
+        self.cvat_dir_name = self.create_folder_name()
+        self.cvat_data_dir = Path(self.cfg.general.workdir) / "cvat" / "data" / self.batch_id / self.cvat_dir_name
+        
+        # Output directory.
+        self.setup_output_directories()
+
+    def create_folder_name(self) -> str:
+        """Create a folder name based on config information."""
+        common_names = "_".join(self.relabel_common_names)
+        sample_size = self.sample_n
+        size_class_labels = []
+
+        for label, (min_val, max_val) in self.cfg.cvat.size_class_name_mapping.items():
+            if self.bbox_size_min_max.min == min_val and self.bbox_size_min_max.max == max_val:
+                size_class_labels.append(label)
+
+        size_class_label = "_".join(size_class_labels)
+        folder_name = f"{sample_size}_{size_class_label}_{common_names}_{self.batch_id}_annotations_camvid"
+        return folder_name
+    
     def setup_output_directories(self) -> None:
         """Setup output directories."""
         self.image_dir_name = "default"
