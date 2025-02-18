@@ -85,7 +85,9 @@ class ImageReviewer:
             new_width = int(width * 0.7)
 
         elif product == "cutout":
-            if height > 4000 or width > 4000:
+            if height > 5000 or width > 5000:
+                new_width = int(width * 0.1)
+            elif height > 4000 or width > 4000:
                 new_width = int(width * 0.3)
             elif height > 3000 or width > 3000:
                 new_width = int(width * 0.5)

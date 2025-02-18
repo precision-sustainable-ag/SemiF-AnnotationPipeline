@@ -1,9 +1,15 @@
-cvat_stem: ??? # cvat directory name
 relabel_common_names: 
   - hairy vetch
 images_size: 512
 sample_n: 30
-size_classes:
-  min: 100
-  max: 1000
+size_classes: # Change these
+  min: 1000
+  max: 10000
 
+size_class_name_mapping: # Leave this
+  very_small: [0,0.1]
+  small: [0.1,1]
+  medium: [1,10]
+  medium_large: [10,100]
+  large: [100,1000]
+  very_large: [1000,10000]

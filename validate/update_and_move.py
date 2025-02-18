@@ -15,6 +15,7 @@ import re
 import getpass
 from omegaconf import DictConfig
 import hydra
+import subprocess
 
 USER_NAME = getpass.getuser()
 log = logging.getLogger(__name__)
@@ -104,57 +105,161 @@ class DataMover:
         return bool(re.match(pattern, folder_name))
 
     @staticmethod
-    def copy_dir(src: Path, dest: Path, check_existing: bool = False, file_extension: str = None, is_cutout: bool = False):
+    def safe_to_remove_developed_data_dir(dir_path: Path) -> bool:
         """
-        Copies an entire directory from src to dest.
-
-        If `check_existing` is True, compares files (by extension) before copying.
-        If `is_cutout` is True, validates the destination folder name.
+        Checks that the directory's final name matches the expected batch_id pattern and does not
+        contain any forbidden keywords.
 
         Args:
-            src (Path): Source directory.
-            dest (Path): Destination directory.
-            check_existing (bool): Whether to compare files and avoid redundant transfers.
-            file_extension (str): File extension pattern (e.g., "*.jpg", "*.json").
-            is_cutout (bool): Whether this directory is a cutout (folder name pattern check).
+            dir_path (Path): The directory to check.
+
+        Returns:
+            bool: True if safe to remove, False otherwise.
+        """
+        if len(dir_path.parts) < 6:
+            log.error(f"Directory path '{dir_path}' is too short.")
+            return False
+        
+        # List of strings that the dir name must contain one of
+        required = ["images", "metadata", "plant-detections", "reference", "semantic_masks", "asfm"]
+        
+        for word in required:
+            if word.lower() == dir_path.name:
+                log.error(f"Directory name '{dir_path.name}' contains forbidden keyword '{word}'.")
+                return True
+        
+        return False
+    
+    @staticmethod
+    def safe_to_remove_batch(dir_path: Path) -> bool:
+        """
+        Checks that the directory's final name matches the expected batch_id pattern and does not
+        contain any forbidden keywords.
+
+        Args:
+            dir_path (Path): The directory to check.
+
+        Returns:
+            bool: True if safe to remove, False otherwise.
+        """
+        # The expected pattern is e.g., "AA_YYYY-MM-DD"
+        pattern = r"^[A-Z]{2}_\d{4}-\d{2}-\d{2}$"
+        if not re.match(pattern, dir_path.name):
+            log.error(f"Directory name '{dir_path.name}' does not match the expected batch_id pattern.")
+            return False
+        
+        if len(dir_path.parts) < 6:
+            log.error(f"Directory path '{dir_path}' is too short.")
+            return False
+        
+        forbidden = ["image", "screberg", "longterm", "GROW_DATA", "developed", "semifield", "semi", "cutout"]
+        
+        for word in forbidden:
+            if word.lower() in dir_path.name.lower():
+                log.error(f"Directory name '{dir_path.name}' contains forbidden keyword '{word}'.")
+                return False
+        
+        return True
+
+    @staticmethod
+    def change_permissions(directory: Path):
+        """
+        Changes permissions recursively on the given directory so that anyone can read (and traverse) it.
+        """
+        if not directory.exists():
+            log.error(f"Error: Directory '{directory}' does not exist!", exc_info=True)
+            return
+
+        # This command gives read permission to all files and ensures directories are executable.
+        cmd = ["chmod", "-R", "a+rX", str(directory)]
+        try:
+            subprocess.run(cmd, check=True)
+            log.debug(f"Permissions updated for '{directory}'.")
+        except subprocess.CalledProcessError as e:
+            log.error(f"Error updating permissions: {e}", exc_info=True)
+        return
+    
+    @staticmethod
+    def copy_cutout_dir_rsync(src: Path, dest: Path):
+        """
+        Copies a cutout directory from src to dest using rsync.
         """
         if not src.exists():
             log.warning(f"Source directory does not exist: {src}. Skipping copy.")
             return
 
         # Validate folder name if this is a cutout directory.
-        if is_cutout and not DataMover.is_valid_cutout_folder(dest.name):
+        if not DataMover.is_valid_cutout_folder(dest.name):
             log.error(f"Destination directory '{dest}' does not match the expected cutout pattern (AA_YYYY-MM-DD). Skipping copy.")
             return
 
-        # If checking for existing files, only copy missing files.
-        if check_existing and file_extension:
-            if not dest.exists():
-                dest.mkdir(parents=True, exist_ok=True)
+        log.info(f"Copying {src} to {dest} using rsync. This may take a while...")
+        
+        # Create the destination directory if it doesn't exist.
+        dest.mkdir(parents=True, exist_ok=True)
+        
+        rsync_command = [
+            "rsync",
+            "-avhW",          # archive mode (recurses, preserves symlinks, times, perms, etc.), verbose, human-readable
+            "--no-owner",    # do not preserve owner information
+            "--no-group",    # do not preserve group information
+            "--info=progress2",
+            f"{src}/",       # trailing slash to copy contents of src
+            str(dest)
 
-            existing_files = {f.name for f in dest.glob(file_extension)}
-            local_files = {f.name for f in src.glob(file_extension)}
-            if existing_files == local_files:
-                log.info(f"Files already exist in LTS directory: {dest}. Skipping copy.")
-                return
+        ]
+        
+        try:
+            subprocess.run(rsync_command, check=True)
+            log.info("rsync completed successfully.")
+        except subprocess.CalledProcessError as e:
+            log.error(f"rsync failed with error: {e}")
+
+    @staticmethod
+    def copy_dir(src: Path, dest: Path, images: bool = False, reference: bool = False):
+        """
+        Copies a directory from src to dest, optionally checking for existing files for 'images' folder.
+        """
+        if not src.exists():
+            log.warning(f"Source directory does not exist: {src}. Skipping copy.")
+            return
+
+        # Avoid having to transfer large image files if they already exist in the LTS directory.
+        if images:
+            if dest.exists():
+                existing_image_files = list(dest.glob("*.jpg"))
+                local_image_files = list(src.glob("*.jpg"))
+                existing_file_names = {f.name for f in existing_image_files}
+                local_file_names = {f.name for f in local_image_files}
+                
+                if local_file_names == existing_file_names:
+                    log.info(f"Files already exist in LTS directory: {dest}. Skipping copy.")
+                    return
+                else:
+                    log.info(f"Updating missing files in {dest}...")
+                    for file in local_image_files:
+                        if file.name not in existing_file_names:
+                            shutil.copy2(file, dest / file.name)
+                    return
             else:
-                log.info(f"Updating missing files in {dest}...")
-                for file in src.glob(file_extension):
-                    if file.name not in existing_files:
-                        shutil.copy2(file, dest / file.name)
+                shutil.copytree(src, dest)
                 return
-
-        # Delete the destination if it exists (with a basic safeguard against deleting high-level directories).
-        if dest.exists():
-            if dest.is_dir() and len(dest.parts) > 6:
-                if not all(keyword in dest.parts for keyword in ["screberg", "semifield", "longterm", "GROW", "research", "raatwell"]):
+        else:
+            # Delete the destination if it exists (with a basic safeguard against deleting high-level directories).
+            if dest.exists():
+                if DataMover.safe_to_remove_developed_data_dir(dest):
                     log.info(f"Removing existing destination directory: {dest}")
                     shutil.rmtree(dest)
-            else:
-                log.warning(f"Skipping deletion: {dest} seems too general.")
-
-        log.info(f"Copying {src} to {dest}")
-        shutil.copytree(src, dest)
+                    if reference and (dest.parent / "autosfm").exists():
+                        asfm = dest.parent / "autosfm"
+                        
+                        if DataMover.safe_to_remove_developed_data_dir(asfm):
+                            log.info(f"Removing existing autosfm directory: {asfm}")
+                            shutil.rmtree(asfm)
+                else:
+                    log.warning(f"Skipping deletion: {dest} seems too general.")
+            log.info(f"Copying {src} to {dest}")
+            shutil.copytree(src, dest)
 
     @staticmethod
     def verify_copy_success(src: Path, dest: Path, file_extension: str):
@@ -203,7 +308,7 @@ class DataMover:
 
         # Copy images with file-checking to avoid unnecessary transfers.
         images_dest = lts_developed_batch_dir / "images"
-        self.copy_dir(images, images_dest, check_existing=True, file_extension="*.jpg")
+        self.copy_dir(images, images_dest, images=True)
         copied.append(self.verify_copy_success(images, images_dest, "*.jpg"))
 
         # Copy metadata.
@@ -212,14 +317,14 @@ class DataMover:
         copied.append(self.verify_copy_success(metadata_dir, metadata_dest, "*.json"))
 
         # Copy plant detection files.
-        plant_dects_dest = lts_developed_batch_dir / "plant_detections"
+        plant_dects_dest = lts_developed_batch_dir / "plant-detections"
         self.copy_dir(plant_dects_dir, plant_dects_dest)
         copied.append(self.verify_copy_success(plant_dects_dir, plant_dects_dest, "*.json"))
 
         # Copy reference images.
         reference_dest = lts_developed_batch_dir / "reference"
         reference_dest.mkdir(parents=True, exist_ok=True)
-        self.copy_dir(reference_dir, reference_dest)
+        self.copy_dir(reference_dir, reference_dest, reference=True)
         copied.append(self.verify_copy_success(reference_dir, reference_dest, "*.csv"))
 
         # Copy semantic masks.
@@ -244,9 +349,9 @@ class DataMover:
             cutout_dir (Path): Directory containing cutout data.
         """
         lts_cutout_batch_dir = lts_dir / "semifield-cutouts" / batch_id
-        lts_cutout_batch_dir.mkdir(parents=True, exist_ok=True)
         # Validate cutout directory pattern before copying.
-        self.copy_dir(cutout_dir, lts_cutout_batch_dir, is_cutout=True, check_existing=True, file_extension="*")
+        self.copy_cutout_dir_rsync(cutout_dir, lts_cutout_batch_dir)
+        self.change_permissions(lts_cutout_batch_dir)
         return self.verify_copy_success(cutout_dir, lts_cutout_batch_dir, "*")
 
 
@@ -304,20 +409,13 @@ class BatchDataProcessor:
 
         if meta_count != mask_count or meta_count != image_count:
             log.warning(f"File counts are not equal: images: {image_count}, metadata: {meta_count}, masks: {mask_count}")
-            while True:
-                user_input = input("Do you want to proceed anyway? (yes/no): ").strip().lower()
-                if user_input in ["yes", "y"]:
-                    log.info("User chose to proceed despite inconsistent file counts.")
-                    return True
-                elif user_input in ["no", "n"]:
-                    log.warning("User aborted processing due to inconsistent file counts.")
-                    return False
-                else:
-                    print("Invalid input. Please enter 'yes' or 'no'.")
-        return True
+            if self.get_user_confirmation(text="File counts are inconsistent. Do you want to proceed anyway?", action="processing"):
+                return True
+            else:
+                return False
 
     @staticmethod
-    def get_user_confirmation(developed_src: str = None, cutout_src: str = None, confirm_local_removal: bool = False, text: str = None) -> bool:
+    def get_user_confirmation(text: str = None, action: str = None) -> bool:
         """
         Prompts the user for confirmation.
 
@@ -326,28 +424,27 @@ class BatchDataProcessor:
             cutout_src (str): Path to the cutout directory (for removal confirmation).
             confirm_local_removal (bool): If True, confirms removal of local directories.
         """
-        if confirm_local_removal:
-            prompt = (f"\nAre you sure you want to remove these directories?\n"
-                      f"1. developed - {developed_src}\n2. cutouts - {cutout_src}\n(yes/no): ")
-            action = "local batch removal"
-        elif text:
-            prompt = f"\n{text} (yes/no): "
-            action = "transfer data"
-        else:
-            prompt = "\nHave you manually inspected and validated all images? (yes/no): "
-            action = "updates"
-
         while True:
-            user_input = input(prompt).strip().lower()
+            user_input = input(f"{text} (yes/no): ").strip().lower()
             if user_input in ["yes", "y"]:
-                log.info(f"User ({USER_NAME}) confirmed. Proceeding with {action}...")
+                log.info(f"Proceeding with {action}...")
                 return True
             elif user_input in ["no", "n"]:
-                log.warning(f"User ({USER_NAME}) canceled {action}. Exiting...")
+                log.warning(f"{action} canceled. Exiting...")
                 return False
             else:
                 print("Invalid input. Please enter 'yes' or 'no'.")
 
+    def transfer_data(self, description: str, transfer_func, *args, **kwargs) -> bool:
+        if self.get_user_confirmation(text=f"Proceed with {description} data transfer?", action="data transfer"):
+            result = transfer_func(*args, **kwargs)
+            if not result:
+                log.error(f"{description} data transfer failed.")
+            return result
+        else:
+            log.info(f"Skipping {description} data transfer.")
+            return False
+        
     def find_lts_dir(self, cutouts: bool = False) -> Path:
         """
         Finds the correct LTS directory based on the batch ID and whether it has an "images" folder with images.
@@ -363,15 +460,77 @@ class BatchDataProcessor:
             third_images = self.lts_dir / "semifield-developed-images" / self.batch_id / "images"
 
         if primary_images.exists() and any(primary_images.iterdir()):
-            log.info(f"Found images in primary LTS directory: {primary_images}")
+            log.info(f"Found images in primary LTS directory: {self.primary_lts_dir}")
             return self.primary_lts_dir
         elif secondary_images.exists() and any(secondary_images.iterdir()):
-            log.info(f"Found images in secondary LTS directory: {secondary_images}")
+            log.info(f"Found images in secondary LTS directory: {self.secondary_lts_dir}")
             return self.secondary_lts_dir
         else:
-            log.info(f"Using third LTS directory: {third_images}")
+            log.info(f"Using third LTS directory: {self.lts_dir}")
             return self.lts_dir
 
+    def update_metadata(self):
+        """
+        Updates the 'validated' key in metadata files.
+        """
+        text = "Have you manually inspected and validated all images?"
+        if not self.get_user_confirmation(text=text, action="metadata update" ):
+            log.info(f"Pipeline halted by user ({USER_NAME}).")
+            return
+        # Update metadata for both full-sized and cutout data.
+        for m_dir in [self.metadata_dir, self.cutout_dir]:
+            MetadataManager.update_metadata(m_dir)
+        
+    def remove_cutouts_if_needed(self, cutout_lts_dir: Path) -> bool:
+        """
+        Checks for an existing LTS cutout directory and prompts for removal.
+        """
+        cutout_lts_dir = cutout_lts_dir / "semifield-cutouts" / self.batch_id
+        cutout_removal_ok = True
+        if cutout_lts_dir.exists() and any(cutout_lts_dir.iterdir()):
+            log.info(f"Found existing LTS cutout directory: {cutout_lts_dir}")
+            if self.data_mover.safe_to_remove_batch(cutout_lts_dir):
+                if self.get_user_confirmation(text=f"LTS cutout directory '{cutout_lts_dir}' already exists. Remove it?", action="cutout removal"):
+                    log.info(f"Removing existing LTS cutout directory: {cutout_lts_dir}")    
+                    shutil.rmtree(cutout_lts_dir)
+                    log.info(f"Removed existing LTS cutout directory: {cutout_lts_dir}")
+            
+            else:
+                log.info(f"LTS cutout directory '{cutout_lts_dir}' did not pass checks for removal. Skipping.")
+                cutout_removal_ok = False    
+            
+        else:
+            if cutout_lts_dir.exists():
+                log.info(f"The existing LTS cutout directory found at: {cutout_lts_dir} is empty. Skipping removal.")
+            else:
+                log.info(f"No existing LTS cutout directory found at: {cutout_lts_dir}.")
+            cutout_removal_ok = True
+        
+        return cutout_removal_ok
+    
+    def confirm_and_remove_local_dirs(self) -> bool:
+        """
+        Prompts the user for confirmation and removes the local directories if confirmed.
+        
+        Returns:
+            bool: True if directories were removed, False otherwise.
+        """
+        text = (f"\nAre you sure you want to remove these directories?\n"
+                f"1. developed - {self.developed_src}\n"
+                f"2. cutouts - {self.cutout_src}\n")
+        
+        if not self.get_user_confirmation(text=text, action="local directory removal"):
+            log.info(f"Pipeline halted by user ({USER_NAME}). Exiting...")
+            return False
+
+        log.info(f"Removing developed batch directory: {self.developed_src}")
+        shutil.rmtree(self.developed_src)
+        
+        log.info(f"Removing cutout batch directory: {self.cutout_src}")
+        shutil.rmtree(self.cutout_src)
+        
+        return True
+    
     def process(self):
         """
         Executes the overall batch processing pipeline.
@@ -382,59 +541,45 @@ class BatchDataProcessor:
         """
         # Check that the file counts in metadata, masks, and images are consistent.
         if not self.check_file_consistency():
-            log.info("Aborting processing due to inconsistent file counts.")
             return
         
-        # Confirm that the user has manually inspected and validated the images.
-        if not self.get_user_confirmation():
-            log.info(f"Pipeline halted by user ({USER_NAME}).")
-            return
+        # Update metadata files.
+        self.update_metadata()
+        
+        # Transfer full-sized data.
+        # lts_dir = self.find_lts_dir()
+        # fullsized_copied = self.transfer_data(
+        #     "semifield-developed",
+        #     self.data_mover.copy_fullsized_data,
+        #     lts_dir,
+        #     self.batch_id,
+        #     self.images,
+        #     self.metadata_dir,
+        #     self.plant_dects_dir,
+        #     self.reference_dir,
+        #     self.semantic_mask_dir
+        # )
 
-        # Update metadata in both directories.
-        MetadataManager.update_metadata(self.metadata_dir)
-        MetadataManager.update_metadata(self.cutout_dir)
-
-        # Find the correct LTS directory based on the batch ID.
-        lts_dir = self.find_lts_dir()        
-        if self.get_user_confirmation(text="Proceed with semifield-developed data transfer?"):
-            # Transfer full-sized data.
-            fullsized_copied = self.data_mover.copy_fullsized_data(
-                lts_dir,
-                self.batch_id,
-                self.images,
-                self.metadata_dir,
-                self.plant_dects_dir,
-                self.reference_dir,
-                self.semantic_mask_dir
-            )
-            
-        else:
-            fullsized_copied = False
-            log.info(f"Skipping semifield-developed data transfer. Proceeding to cutout data transfer.")
-
-        # Transfer cutout data.
+        # Check for existing LTS cutout directory and prompt for removal
         cutout_lts_dir = self.find_lts_dir(cutouts=True)
-        if self.get_user_confirmation(text="Proceed with semifield-cutout data transfer?"):
-            cutout_copied = self.data_mover.copy_cutout_data(cutout_lts_dir, self.batch_id, self.cutout_dir)
+        cutout_removal_ok = self.remove_cutouts_if_needed(cutout_lts_dir)
+        
+        # Transfer cutout data if allowed.
+        if cutout_removal_ok:
+            cutout_copied = self.transfer_data(
+                "semifield-cutout",
+                self.data_mover.copy_cutout_data,
+                cutout_lts_dir,
+                self.batch_id,
+                self.cutout_dir
+            )
+        
         else:
             cutout_copied = False
-            log.info("Skipping semifield-cutout data transfer.")
+        fullsized_copied = True
         
-
         if fullsized_copied and cutout_copied:
-            log.info("Batch data successfully transferred to LTS directory. Ready for local removal.")
-            # Confirm removal of local directories.
-            if not self.get_user_confirmation(self.developed_src, self.cutout_src, confirm_local_removal=True):
-                log.info(f"Pipeline halted by user ({USER_NAME}). Exiting...")
-                return
-
-            log.info(f"Removing developed batch directory: {self.developed_src}")
-            # Uncomment the next line to enable removal:
-            shutil.rmtree(self.developed_src)
-
-            log.info(f"Removing cutout batch directory: {self.cutout_src}")
-            # Uncomment the next line to enable removal:
-            shutil.rmtree(self.cutout_src)
+            self.confirm_and_remove_local_dirs()
         else:
             log.error("Data transfer to LTS directory failed. Local directories will not be removed.")
 
